@@ -16,6 +16,7 @@ import UploadCloud from "./pages/UploadCloud";
 import GDriveFiles from "./pages/GDriveFiles";
 import UploadSQLWorkbench from "./pages/UploadSQLWorkbench";
 import Preprocessing from "./pages/Preprocessing";
+import { Toaster } from 'react-hot-toast';
 
 function AnimatedRoutes({ user, setUser }) {
   const location = useLocation();
@@ -72,6 +73,7 @@ function App() {
 
   return (
     <Router>
+      <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
       <AnimatedRoutes user={user} setUser={setUser} />
     </Router>
   )

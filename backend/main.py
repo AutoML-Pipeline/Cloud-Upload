@@ -106,6 +106,19 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "YOUR_GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_OAUTH_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
 
+# Load OAuth config from environment variables (no JSON file needed)
+GOOGLE_OAUTH_CONFIG = {
+    "web": {
+        "client_id": GOOGLE_CLIENT_ID,
+        "project_id": os.getenv("GOOGLE_OAUTH_PROJECT_ID", ""),
+        "auth_uri": os.getenv("GOOGLE_OAUTH_AUTH_URI", "https://accounts.google.com/o/oauth2/auth"),
+        "token_uri": os.getenv("GOOGLE_OAUTH_TOKEN_URI", "https://oauth2.googleapis.com/token"),
+        "auth_provider_x509_cert_url": os.getenv("GOOGLE_OAUTH_AUTH_PROVIDER_X509_CERT_URL", "https://www.googleapis.com/oauth2/v1/certs"),
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uris": [GOOGLE_REDIRECT_URI]
+    }
+}
+
 # Use the most compatible Google OAuth scopes
 SCOPES = [
     "openid",
@@ -113,10 +126,6 @@ SCOPES = [
     "https://www.googleapis.com/auth/userinfo.profile",
     "https://www.googleapis.com/auth/drive.readonly"
 ]
-
-# Load OAuth config from file
-with open("google_oauth_config.json") as f:
-    GOOGLE_OAUTH_CONFIG = json.load(f)
 
 # OneDrive OAuth2 config
 ONEDRIVE_CLIENT_ID = os.getenv("ONEDRIVE_CLIENT_ID", "your_onedrive_client_id")
@@ -406,22 +415,39 @@ async def upload_from_gdrive(request: UploadFromGoogleDriveRequest):
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
+    import tempfile
+    import io
+    import os
+    import pandas as pd
+    import pyarrow as pa
+    import pyarrow.parquet as pq
     try:
-        import os
-        file.file.seek(0, os.SEEK_END)
-        file_size = file.file.tell()
-        file.file.seek(0)
-        minio_client.put_object(
-            MINIO_BUCKET,
-            file.filename,
-            data=file.file,
-            length=file_size,
-        )
-        return {"message": f"{file.filename} uploaded successfully."}
-    except S3Error as e:
-        return JSONResponse(status_code=500, content={"error": f"MinIO error: {str(e)}"})
+        filename = file.filename
+        file_ext = filename.split('.')[-1].lower()
+        # Read file into DataFrame
+        if file_ext == 'csv':
+            df = pd.read_csv(file.file)
+        elif file_ext in ['xls', 'xlsx']:
+            df = pd.read_excel(file.file)
+        elif file_ext == 'json':
+            df = pd.read_json(file.file)
+        # Optionally: Add PDF table extraction here
+        else:
+            return JSONResponse(status_code=400, content={"error": "Unsupported file format for conversion. Only CSV, Excel, JSON supported."})
+        # Save as Parquet
+        table = pa.Table.from_pandas(df)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".parquet") as tmpfile:
+            pq.write_table(table, tmpfile.name)
+            parquet_filename = os.path.splitext(filename)[0] + ".parquet"
+            minio_client.fput_object(
+                MINIO_BUCKET,
+                parquet_filename,
+                tmpfile.name
+            )
+        os.remove(tmpfile.name)
+        return {"message": f"{filename} converted and uploaded as {parquet_filename}", "filename": parquet_filename}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": f"Unexpected error: {str(e)}"})
+        return JSONResponse(status_code=500, content={"error": f"Error during upload/conversion: {str(e)}"})
 
 # Google Drive: List files in a folder
 @app.get("/gdrive/list-files")
@@ -448,14 +474,15 @@ def gdrive_list_files(access_token: str, folder_id: str = "root"):
     except Exception as e:
         return {"error": f"Failed to list Google Drive files: {str(e)}"}
 
-@app.get("/list_uploaded_files")
-def list_uploaded_files():
-    try:
-        objects = minio_client.list_objects(MINIO_BUCKET, recursive=True)
-        files = [obj.object_name for obj in objects if not obj.is_dir]
-        return {"files": files}
-    except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+import math
+def _format_size(num_bytes):
+    if num_bytes is None:
+        return None
+    for unit in ['B', 'KiB', 'MiB', 'GiB', 'TiB']:
+        if num_bytes < 1024.0:
+            return f"{num_bytes:3.1f} {unit}"
+        num_bytes /= 1024.0
+    return f"{num_bytes:.1f} PiB"
 
 @app.post("/sql-preview")
 async def sql_preview(request: SQLWorkbenchRequest):
@@ -530,11 +557,14 @@ async def sql_list_databases(request: SQLConnectRequest):
 @app.post("/data_preprocessing")
 async def data_preprocessing(
     filename: str = Form(...),
-    steps: list[str] = Form([])
+    steps: list[str] = Form([]),
+    preprocessing: str = Form(None)
 ):
     import io
     import os
     import tempfile
+    import json
+    from sklearn.preprocessing import StandardScaler, MinMaxScaler
     # Download original file from MinIO
     try:
         response = minio_client.get_object(MINIO_BUCKET, filename)
@@ -557,24 +587,71 @@ async def data_preprocessing(
     except Exception as e:
         return JSONResponse(content={"error": f"Error loading file into DataFrame: {e}"}, status_code=500)
 
+    # Parse preprocessing options
+    pre_steps = {}
+    if preprocessing:
+        try:
+            pre_steps = json.loads(preprocessing)
+        except Exception as e:
+            return JSONResponse(content={"error": f"Invalid preprocessing options: {e}"}, status_code=400)
+
     # Preprocessing
     try:
-        if 'drop_nulls' in steps:
+        # Drop Nulls
+        if pre_steps.get('drop_nulls', {}).get('enabled'):
             df.dropna(inplace=True)
-        if 'fill_nulls' in steps:
+        # Fill Nulls
+        if pre_steps.get('fill_nulls', {}).get('enabled'):
             df.fillna(0, inplace=True)
-        if 'remove_duplicates' in steps:
+        # Remove Duplicates
+        if pre_steps.get('remove_duplicates', {}).get('enabled'):
             df.drop_duplicates(inplace=True)
+        # Impute Missing Values
+        if pre_steps.get('impute_missing', {}).get('enabled'):
+            strategy = pre_steps['impute_missing'].get('strategy', 'mean')
+            if strategy == 'mean':
+                df.fillna(df.mean(numeric_only=True), inplace=True)
+            elif strategy == 'median':
+                df.fillna(df.median(numeric_only=True), inplace=True)
+            elif strategy == 'mode':
+                df.fillna(df.mode().iloc[0], inplace=True)
+            elif strategy == 'constant':
+                constant = pre_steps['impute_missing'].get('constant', 0)
+                df.fillna(constant, inplace=True)
+        # One-Hot Encoding
+        if pre_steps.get('one_hot', {}).get('enabled'):
+            cat_cols = df.select_dtypes(include=['object', 'category']).columns
+            df = pd.get_dummies(df, columns=cat_cols, drop_first=True)
+        # Feature Scaling
+        if pre_steps.get('scaling', {}).get('enabled'):
+            method = pre_steps['scaling'].get('method', 'standard')
+            num_cols = df.select_dtypes(include=['number']).columns
+            if method == 'standard':
+                scaler = StandardScaler()
+            else:
+                scaler = MinMaxScaler()
+            df[num_cols] = scaler.fit_transform(df[num_cols])
+        # Remove Outliers
+        if pre_steps.get('remove_outliers', {}).get('enabled'):
+            method = pre_steps['remove_outliers'].get('method', 'iqr')
+            num_cols = df.select_dtypes(include=['number']).columns
+            if method == 'iqr':
+                Q1 = df[num_cols].quantile(0.25)
+                Q3 = df[num_cols].quantile(0.75)
+                IQR = Q3 - Q1
+                mask = ~((df[num_cols] < (Q1 - 1.5 * IQR)) | (df[num_cols] > (Q3 + 1.5 * IQR))).any(axis=1)
+                if not pre_steps['remove_outliers'].get('preview'):
+                    df = df[mask]
+            elif method == 'zscore':
+                from scipy.stats import zscore
+                z_scores = df[num_cols].apply(zscore)
+                mask = (z_scores.abs() < 3).all(axis=1)
+                if not pre_steps['remove_outliers'].get('preview'):
+                    df = df[mask]
     except Exception as e:
         return JSONResponse(content={"error": f"Error during preprocessing: {e}"}, status_code=500)
 
-    # Save as Parquet and upload
-    output_bucket = "cleaned-data"
-    cleaned_filename = f"cleaned_{os.path.splitext(filename)[0]}.parquet"
-
-    if not minio_client.bucket_exists(output_bucket):
-        minio_client.make_bucket(output_bucket)
-
+    # Save as Parquet to a temp file (do NOT upload to MinIO)
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix='.parquet') as tmp_file:
             for col in df.columns:
@@ -584,26 +661,82 @@ async def data_preprocessing(
                     df[col] = df[col].astype(str)
             df.to_parquet(tmp_file.name, engine='pyarrow')
             tmp_file.seek(0)
-            minio_client.put_object(
-                output_bucket,
-                cleaned_filename,
-                io.BytesIO(tmp_file.read()),
-                length=os.path.getsize(tmp_file.name),
-                content_type="application/octet-stream"
-            )
+            temp_cleaned_path = tmp_file.name
+            cleaned_filename = f"cleaned_{os.path.splitext(filename)[0]}.parquet"
     except Exception as e:
-        return JSONResponse(content={"error": f"Error uploading Parquet to MinIO: {e}"}, status_code=500)
+        return JSONResponse(content={"error": f"Error saving cleaned Parquet: {e}"}, status_code=500)
 
-    # Reload cleaned file
+    # Load preview from temp file
     try:
-        response = minio_client.get_object(output_bucket, cleaned_filename)
-        cleaned_df = pd.read_parquet(io.BytesIO(response.read()), engine='pyarrow')
+        with open(temp_cleaned_path, 'rb') as f:
+            cleaned_df = pd.read_parquet(f, engine='pyarrow')
     except Exception as e:
-        return JSONResponse(content={"error": f"Error reading cleaned Parquet from MinIO: {e}"}, status_code=500)
+        return JSONResponse(content={"error": f"Error reading cleaned Parquet from temp file: {e}"}, status_code=500)
 
-    # Replace NaN/inf values with None before JSON serialization
     preview = cleaned_df.head(10).replace([float('nan'), float('inf'), float('-inf')], None).where(pd.notnull(cleaned_df.head(10)), None).to_dict(orient='records')
     dtypes_table = [{"column": col, "dtype": str(dtype)} for col, dtype in cleaned_df.dtypes.items()]
     nulls_table = [{"column": col, "null_count": int(nulls) if pd.notnull(nulls) and not pd.isna(nulls) else 0} for col, nulls in cleaned_df.isnull().sum().items()]
 
-    return {"preview": preview, "dtypes_table": dtypes_table, "nulls_table": nulls_table, "cleaned_filename": cleaned_filename}
+    # Return temp file path (not secure for prod, but fine for local dev)
+    return {"preview": preview, "dtypes_table": dtypes_table, "nulls_table": nulls_table, "cleaned_filename": cleaned_filename, "temp_cleaned_path": temp_cleaned_path}
+
+@app.post("/save_cleaned_to_minio")
+def save_cleaned_to_minio(temp_cleaned_path: str = Form(...), cleaned_filename: str = Form(...)):
+    import os
+    import io
+    output_bucket = "cleaned-data"
+    try:
+        if not os.path.exists(temp_cleaned_path):
+            return JSONResponse(content={"error": "Temporary cleaned file not found."}, status_code=404)
+        if not minio_client.bucket_exists(output_bucket):
+            minio_client.make_bucket(output_bucket)
+        with open(temp_cleaned_path, "rb") as f:
+            file_bytes = f.read()
+            minio_client.put_object(
+                output_bucket,
+                cleaned_filename,
+                io.BytesIO(file_bytes),
+                length=len(file_bytes),
+                content_type="application/octet-stream"
+            )
+        return {"message": f"{cleaned_filename} saved to MinIO bucket {output_bucket}."}
+    except Exception as e:
+        return JSONResponse(content={"error": f"Error saving cleaned file to MinIO: {e}"}, status_code=500)
+
+@app.get("/download_cleaned_file/{filename}")
+def download_cleaned_file(filename: str):
+    import io
+    from fastapi.responses import StreamingResponse
+    output_bucket = "cleaned-data"
+    print(f"[DEBUG] Download requested for: {filename}")
+    try:
+        response = minio_client.get_object(output_bucket, filename)
+        file_bytes = io.BytesIO(response.read())
+        file_bytes.seek(0)
+        return StreamingResponse(file_bytes, media_type="application/octet-stream", headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        })
+    except Exception as e:
+        print(f"[ERROR] Could not download file: {filename}. Exception: {e}")
+        return JSONResponse(content={"error": f"Error downloading cleaned file: {e}"}, status_code=500)
+
+@app.get("/list_uploaded_files")
+def list_uploaded_files():
+    try:
+        # Remove include_stats for compatibility with older Minio SDKs
+        objects = minio_client.list_objects(MINIO_BUCKET, recursive=True)
+        files = []
+        for obj in objects:
+            if not obj.is_dir:
+                files.append({
+                    "name": obj.object_name,
+                    # Older SDKs may not provide last_modified or size
+                    "lastModified": getattr(obj, 'last_modified', None),
+                    "size": getattr(obj, 'size', None)
+                })
+        return {"files": files}
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] Exception in /list_uploaded_files: {e}")
+        print(traceback.format_exc())
+        return JSONResponse(content={"error": str(e), "trace": traceback.format_exc()}, status_code=500)

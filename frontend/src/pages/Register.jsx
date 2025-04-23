@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import GoogleAuthPopup from '../components/GoogleAuthPopup';
+import { toast } from 'react-hot-toast';
 
 // Spline preloading helper (for SSR or fallback)
 export const SPLINE_URL = "https://my.spline.design/cubes-11XksX5PbLLeQrFYk69YghaQ/";
@@ -23,6 +24,7 @@ const Register = () => {
       navigate("/login");
     } catch (err) {
       setError(err.response?.data?.detail || "Registration failed");
+      toast.error(err.response?.data?.detail || "Registration failed");
     }
   };
 
@@ -186,7 +188,6 @@ const Register = () => {
                   placeholder="Password"
                 />
               </div>
-              {error && <div style={{ color: "#f87171", fontSize: 14, textAlign: "center" }}>{error}</div>}
               <button
                 type="submit"
                 style={{

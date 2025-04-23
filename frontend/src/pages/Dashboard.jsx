@@ -5,6 +5,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import DashboardCarousel from "../components/DashboardCarousel";
 import SideMenu from "../components/SideMenu";
+import { toast } from 'react-hot-toast';
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -99,6 +100,7 @@ const Dashboard = () => {
     sessionStorage.clear();
     setUser(null);
     setAccessToken(null);
+    toast.success("Logged out successfully!");
     // Use navigate to ensure React Router handles redirect
     navigate("/", { replace: true });
     // As fallback, force reload to ensure state is cleared
@@ -290,11 +292,9 @@ const Dashboard = () => {
                     className="w-full px-3 py-2 border rounded mb-2"
                   />
                   <Button onClick={handleUploadUrl} disabled={uploading} className="w-full bg-[#232b38] text-white px-4 py-2 rounded-lg mt-2 hover:bg-[#151a23]">Upload</Button>
-                  {message && <div className="mt-4 text-center text-blue-600">{message}</div>}
                 </div>
               </div>
             )}
-            {message && <div className="mt-4 text-center text-blue-600">{message}</div>}
           </div>
         </div>
       </div>

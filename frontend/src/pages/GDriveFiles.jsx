@@ -132,9 +132,6 @@ export default function GDriveFiles() {
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', minHeight: 'calc(100vh - 54px)', zIndex: 10 }}>
           <div style={{ maxWidth: 520, width: '100%', background: "rgba(30,41,59,0.93)", borderRadius: 18, boxShadow: "0 4px 24px rgba(99,102,241,0.13)", padding: "2.5rem 2rem", color: "#e0e7ef", minHeight: 360, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 18, textAlign: 'center' }}>Google Drive Files</h2>
-            {uploadMessage && (
-              <div style={{ color: uploadMessage.includes("success") ? "#38bdf8" : "#f87171", margin: "10px 0", textAlign: 'center' }}>{uploadMessage}</div>
-            )}
             {currentFolderId !== "root" && (
               <button onClick={handleBack} style={{ marginBottom: 10, background: '#232d3b', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}>
                 ← Back

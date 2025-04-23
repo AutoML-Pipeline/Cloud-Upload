@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { toast } from 'react-hot-toast';
 import GoogleAuthPopup from "../components/GoogleAuthPopup";
 
 // Spline preloading helper (for SSR or fallback)
@@ -19,19 +20,22 @@ const Login = () => {
     setError("");
     try {
       const res = await axios.post("http://localhost:8000/auth/login", { email, password });
+      toast.success("Login successful!");
       navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.detail || "Login failed");
+      toast.error(err.response?.data?.detail || "Login failed");
     }
   };
 
   const handleGoogleSuccess = (data) => {
     localStorage.setItem("user", JSON.stringify(data));
+    toast.success("Login successful!");
     navigate("/dashboard");
   };
 
   const handleGoogleError = (error) => {
-    alert("Google login failed: " + error);
+    toast.error("Google login failed: " + error);
   };
 
   // Animate in content when Spline iframe loads
@@ -182,7 +186,6 @@ const Login = () => {
                   placeholder="Password"
                 />
               </div>
-              {error && <div style={{ color: "#f87171", fontSize: 14, textAlign: "center" }}>{error}</div>}
               <button
                 type="submit"
                 style={{
