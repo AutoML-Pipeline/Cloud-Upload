@@ -21,7 +21,7 @@ export default function UploadFile() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("http://localhost:8000/upload", {
+      const res = await fetch("http://localhost:8000/files/upload", {
         method: "POST",
         body: formData,
       });
@@ -53,6 +53,14 @@ export default function UploadFile() {
   return (
     <div className="page-fullscreen" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'black' }}>
       <div style={{ minHeight: '100vh', width: '100vw', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start' }}>
+        <ShadcnNavbar onLogout={() => {
+          // Remove all possible auth tokens and user info
+          localStorage.removeItem("user");
+          localStorage.removeItem("google_access_token");
+          localStorage.removeItem("access_token");
+          sessionStorage.clear();
+          window.location.replace("/");
+        }} />
         {/* Spline animated background */}
         <iframe
           src="https://my.spline.design/cubes-11XksX5PbLLeQrFYk69YghaQ/"
@@ -73,7 +81,6 @@ export default function UploadFile() {
             overflow: 'hidden'
           }}
         />
-        <ShadcnNavbar />
         <div style={{
           position: 'relative',
           zIndex: 2,

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ShadcnNavbar from "../components/ShadcnNavbar";
-import GlobalBackButton from "../components/GlobalBackButton"; // Import the new component
+import GlobalBackButton from "../components/GlobalBackButton";
+import GDriveFilesTable from "../components/GDriveFilesTable";
+import { Toaster, toast } from 'react-hot-toast';
 
 export default function GDriveFiles() {
   const location = useLocation();
@@ -85,23 +87,48 @@ export default function GDriveFiles() {
   const handleUpload = async (file) => {
     setUploadingFileId(file.id);
     setUploadMessage("");
-    const res = await fetch("http://localhost:8000/upload-from-google-drive", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        file_id: file.id,
-        access_token: token,
-        filename: file.name,
-      }),
-    });
-    const data = await res.json();
+    try {
+      const res = await fetch("http://localhost:8000/upload-from-google-drive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file_id: file.id,
+          access_token: token,
+          filename: file.name
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Uploaded '${file.name}' successfully!`);
+      } else {
+        toast.error(`Failed to upload '${file.name}': ${data.detail || res.status}`);
+      }
+    } catch (e) {
+      toast.error(`Error uploading '${file.name}': ${e.message}`);
+    }
     setUploadingFileId(null);
-    setUploadMessage(data.message || data.error || "Upload complete");
+  };
+
+  const handleFolderNavigation = (folder) => {
+    setCurrentFolderId(folder.id);
+    setFiles([]); // Clear current files for loading effect
+    setUploadMessage("");
+    // Refetch files from API for the selected folder
+    fetchFiles(token, folder.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
     <div className="page-fullscreen">
+      <Toaster position="top-right" />
       <div style={{ minHeight: '100vh', width: '100vw', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <ShadcnNavbar onLogout={() => {
+          localStorage.removeItem("user");
+          localStorage.removeItem("google_access_token");
+          localStorage.removeItem("access_token");
+          sessionStorage.clear();
+          window.location.replace("/");
+        }} />
         {/* Spline animated background */}
         <iframe
           src="https://my.spline.design/cubes-11XksX5PbLLeQrFYk69YghaQ/"
@@ -122,38 +149,66 @@ export default function GDriveFiles() {
             overflow: 'hidden'
           }}
         />
-        <ShadcnNavbar />
-        {/* Global Back Button (left-aligned, below navbar, with high z-index and pointerEvents) */}
         <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', alignItems: 'center', position: 'relative', zIndex: 10000, pointerEvents: 'auto' }}>
-          <div style={{ marginLeft: 32, marginTop: 24, zIndex: 10001, pointerEvents: 'auto' }}>
+          <div style={{ marginLeft: 32, marginTop: 24, zIndex: 10001, pointerEvents: 'auto', position: 'relative' }}>
             <GlobalBackButton />
           </div>
         </div>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', minHeight: 'calc(100vh - 54px)', zIndex: 10 }}>
-          <div style={{ maxWidth: 520, width: '100%', background: "rgba(30,41,59,0.93)", borderRadius: 18, boxShadow: "0 4px 24px rgba(99,102,241,0.13)", padding: "2.5rem 2rem", color: "#e0e7ef", minHeight: 360, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 18, textAlign: 'center' }}>Google Drive Files</h2>
-            {currentFolderId !== "root" && (
-              <button onClick={handleBack} style={{ marginBottom: 10, background: '#232d3b', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600, cursor: 'pointer' }}>
-                ← Back
-              </button>
-            )}
-            <ul style={{ maxHeight: 340, overflowY: 'auto', padding: 0, listStyle: 'none', width: '100%' }}>
-              {files.length === 0 && <li>No files found.</li>}
-              {files.map(file => (
-                file.mimeType === "application/vnd.google-apps.folder" ? (
-                  <li key={file.id} style={{ marginBottom: 8, padding: 6, borderRadius: 8, background: '#232d3b', color: '#fff', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => handleFolderClick(file)}>
-                    <span>📁 {file.name}</span>
-                  </li>
-                ) : (
-                  <li key={file.id} style={{ marginBottom: 8, padding: 6, borderRadius: 8, background: '#232d3b', color: '#fff', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>{file.name}</span>
-                    <button onClick={() => handleUpload(file)} disabled={uploadingFileId === file.id} style={{ marginLeft: 10, background: '#38bdf8', color: '#10141c', border: 'none', borderRadius: 8, padding: '4px 12px', fontWeight: 600, cursor: uploadingFileId === file.id ? 'not-allowed' : 'pointer' }}>
-                      {uploadingFileId === file.id ? 'Uploading...' : 'Upload'}
-                    </button>
-                  </li>
-                )
-              ))}
-            </ul>
+        <div style={{
+          width: '100vw',
+          minHeight: 'calc(100vh - 54px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 0,
+          margin: 0,
+          position: 'relative',
+          background: 'none',
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: 1400,
+            minWidth: 1100,
+            borderRadius: 18,
+            boxShadow: '0 4px 24px rgba(99,102,241,0.13)',
+            padding: '2.5rem 2rem',
+            color: '#1e293b',
+            minHeight: 500,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            margin: 0,
+            position: 'relative',
+            zIndex: 2,
+            overflow: 'visible', // remove scrollbars
+            scrollbarWidth: 'none', // Firefox
+            msOverflowStyle: 'none', // IE/Edge
+          }}>
+            <style>{`div::-webkit-scrollbar { display: none !important; }`}</style>
+            <h2 style={{
+              fontSize: 34,
+              fontWeight: 900,
+              marginBottom: 24,
+              textAlign: 'center',
+              letterSpacing: '-0.04em',
+              color: '#38bdf8', // sky blue accent
+              textShadow: '0 2px 24px #0ea5e9cc, 0 1px 0 #181c24',
+              fontFamily: 'Montserrat, Poppins, Arial, sans-serif',
+              background: 'linear-gradient(90deg,#38bdf8 0%,#2563eb 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              filter: 'drop-shadow(0 2px 14px #0ea5e9cc)',
+            }}>
+              Google Drive Files
+            </h2>
+            <div style={{ width: '100%', height: '60vh', overflow: 'auto', margin: '0 auto', position: 'relative', zIndex: 3 }}>
+              <GDriveFilesTable
+                gdriveFiles={files}
+                onUpload={handleUpload}
+                onFolderClick={handleFolderClick}
+              />
+            </div>
           </div>
         </div>
       </div>

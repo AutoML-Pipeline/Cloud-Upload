@@ -21,7 +21,7 @@ export default function Preprocessing() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:8000/list_uploaded_files")
+    fetch("http://localhost:8000/files/list")
       .then(res => res.json())
       .then(data => setFiles(data.files || []));
   }, []);
@@ -52,15 +52,10 @@ export default function Preprocessing() {
     setError("");
     setResult(null);
     try {
-      const formData = new FormData();
-      formData.append("filename", selectedFile);
-      Object.entries(preSteps).forEach(([key, val]) => {
-        if (val.enabled) formData.append("steps", key);
-      });
-      formData.append("preprocessing", JSON.stringify(preSteps));
-      const res = await fetch("http://localhost:8000/data_preprocessing", {
+      const res = await fetch(`http://localhost:8000/data/preprocess/${selectedFile}`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ steps: preSteps }),
       });
       const data = await res.json();
       if (data.error) {
@@ -80,9 +75,15 @@ export default function Preprocessing() {
 
   return (
     <div className="page-fullscreen">
+      <ShadcnNavbar onLogout={() => {
+        localStorage.removeItem("user");
+        localStorage.removeItem("google_access_token");
+        localStorage.removeItem("access_token");
+        sessionStorage.clear();
+        window.location.replace("/");
+      }} />
       {/* Spline animated background */}
       {/* GlobalBackButton always visible and above background */}
-      <ShadcnNavbar />
       <iframe
         src="https://my.spline.design/cubes-11XksX5PbLLeQrFYk69YghaQ/"
         frameBorder="0"
@@ -106,9 +107,9 @@ export default function Preprocessing() {
         position: 'relative',
         zIndex: 2,
         width: '100%',
-        maxWidth: 1100,
-        margin: '0 auto',
-        padding: 32,
+        maxWidth: 1600,
+        margin: '48px auto 0 auto',
+        padding: 48,
         background: 'rgba(0,0,0,0.7)',
         borderRadius: 16,
         boxShadow: '0 4px 32px rgba(0,0,0,0.8)',
@@ -118,6 +119,7 @@ export default function Preprocessing() {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'flex-start',
+        alignItems: 'center',
       }}>
         {/* Global Back Button (left-aligned, below navbar, with high z-index and pointerEvents) */}
         <div style={{ position: 'absolute', left: 0, top: 0, zIndex: 10000, pointerEvents: 'auto' }}>
@@ -127,12 +129,12 @@ export default function Preprocessing() {
         </div>
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10, marginBottom: 32, marginTop: 56 }}>
           <div style={{
-            maxWidth: 700,
+            maxWidth: 1200,
             width: '100%',
             background: "rgba(30,41,59,0.93)",
             borderRadius: 18,
             boxShadow: "0 4px 24px rgba(99,102,241,0.13)",
-            padding: "2.5rem 2rem",
+            padding: "3rem 3rem",
             color: '#e0e7ef',
             minHeight: 420,
             display: 'flex',
@@ -249,21 +251,21 @@ export default function Preprocessing() {
                 </button>
               </form>
               {result && (
-                <div style={{ width: '100%', marginTop: 16, overflowX: 'auto' }}>
+                <div style={{ width: '100vw', maxWidth: '100vw', margin: '0 -48px', marginTop: 16, overflowX: 'auto', overflowY: 'hidden', background: 'rgba(30,41,59,0.97)', borderRadius: 14, border: '2px solid #334155', boxShadow: '0 2px 18px #232b3890', padding: 18, position: 'relative', left: '50%', right: '50%', transform: 'translateX(-50%)' }}>
                   {result.preview && Array.isArray(result.preview) && result.preview.length > 0 && (
                     <>
                       <h4 style={{ color: '#60a5fa', fontWeight: 700, fontSize: 17, margin: '14px 0 6px 0' }}>Preview (First 10 Rows)</h4>
-                      <div style={{ overflowX: 'auto', marginBottom: 10 }}>
-                        <table className="data" style={{ width: '100%', borderCollapse: 'collapse', background: 'rgba(30,41,59,0.92)', color: '#e0e7ef' }}>
+                      <div style={{ overflowX: 'auto', overflowY: 'hidden', marginBottom: 10 }}>
+                        <table className="data" style={{ width: 'max-content', minWidth: 1200, borderCollapse: 'separate', borderSpacing: 0, background: 'rgba(30,41,59,0.97)', borderRadius: 12, color: '#e0e7ef', fontFamily: 'Inter, Arial, sans-serif', boxShadow: '0 2px 12px #0002', border: '1.5px solid #334155' }}>
                           <thead>
-                            <tr>
-                              {Object.keys(result.preview[0] || {}).map(col => <th key={col} style={{ borderBottom: '1.5px solid #334155', padding: '6px 10px', color: '#38bdf8', fontWeight: 600 }}>{col}</th>)}
+                            <tr style={{ background: 'rgba(51,65,85,0.97)' }}>
+                              {Object.keys(result.preview[0] || {}).map(col => <th key={col} style={{ position: 'sticky', top: 0, background: 'rgba(51,65,85,0.97)', borderBottom: '2px solid #475569', color: '#cbd5e1', fontWeight: 700, padding: '12px 18px', textAlign: 'center', zIndex: 2, fontSize: 15, minWidth: 180, borderRight: '1.5px solid #334155', whiteSpace: 'nowrap' }}>{col}</th>)}
                             </tr>
                           </thead>
                           <tbody>
                             {result.preview.map((row, idx) => (
-                              <tr key={idx}>
-                                {Object.values(row).map((val, i) => <td key={i} style={{ padding: '6px 10px', borderBottom: '1px solid #22304a', color: '#e0e7ef' }}>{val}</td>)}
+                              <tr key={idx} style={{ background: idx % 2 === 0 ? 'rgba(30,41,59,0.97)' : 'rgba(51,65,85,0.93)' }}>
+                                {Object.values(row).map((val, i) => <td key={i} style={{ borderBottom: '1.5px solid #334155', padding: '10px 18px', color: '#f1f5f9', fontWeight: 500, background: 'transparent', fontFamily: 'monospace', fontSize: 15, textAlign: 'center', minWidth: 180, borderRight: '1.5px solid #334155', overflow: 'auto', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</td>)}
                               </tr>
                             ))}
                           </tbody>
@@ -379,12 +381,13 @@ export default function Preprocessing() {
                       }}
                       onClick={async () => {
                         try {
-                          const formData = new FormData();
-                          formData.append('temp_cleaned_path', result.temp_cleaned_path);
-                          formData.append('cleaned_filename', result.cleaned_filename);
                           const res = await fetch('http://localhost:8000/save_cleaned_to_minio', {
                             method: 'POST',
-                            body: formData,
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              temp_cleaned_path: result.temp_cleaned_path,
+                              cleaned_filename: result.cleaned_filename
+                            })
                           });
                           const data = await res.json();
                           if (res.ok) {

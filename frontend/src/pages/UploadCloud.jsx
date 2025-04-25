@@ -59,6 +59,13 @@ export default function UploadCloud() {
 
   return (
     <div className="page-fullscreen">
+      <ShadcnNavbar onLogout={() => {
+        localStorage.removeItem("user");
+        localStorage.removeItem("google_access_token");
+        localStorage.removeItem("access_token");
+        sessionStorage.clear();
+        window.location.replace("/");
+      }} />
       <div style={{ minHeight: '100vh', width: '100vw', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         {/* Spline animated background */}
         <iframe
@@ -80,7 +87,6 @@ export default function UploadCloud() {
             overflow: 'hidden'
           }}
         />
-        <ShadcnNavbar />
         <div style={{
           position: 'relative',
           zIndex: 2,

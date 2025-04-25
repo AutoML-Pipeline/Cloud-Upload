@@ -15,7 +15,7 @@ export default function UploadUrl() {
     }
     setUploading(true);
     try {
-      const res = await fetch("http://localhost:8000/upload-from-url", {
+      const res = await fetch("http://localhost:8000/files/upload-from-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -47,10 +47,16 @@ export default function UploadUrl() {
 
   return (
     <div className="page-fullscreen" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'black' }}>
-      <ShadcnNavbar />
+      <ShadcnNavbar onLogout={() => {
+        localStorage.removeItem("user");
+        localStorage.removeItem("google_access_token");
+        localStorage.removeItem("access_token");
+        sessionStorage.clear();
+        window.location.replace("/");
+      }} />
       <div style={{
         position: 'relative',
-        zIndex: 2,
+        zIndex: 1,
         width: '100%',
         maxWidth: 1100,
         margin: '0 auto',

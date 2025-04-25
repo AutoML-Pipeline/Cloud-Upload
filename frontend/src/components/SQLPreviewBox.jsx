@@ -8,26 +8,28 @@ export default function SQLPreviewBox({ preview }) {
       style={{
         marginTop: 18,
         borderRadius: 14,
-        background: 'rgba(255,255,255,0.85)',
-        fontSize: 13,
-        maxHeight: 340,
-        minHeight: 80,
+        background: 'rgba(30,41,59,0.97)',
+        fontSize: 15,
+        maxHeight: 420,
+        minHeight: 120,
         overflow: 'auto',
-        padding: 8,
-        boxShadow: '0 2px 12px #232b3860',
-        width: '100%',
+        padding: 16,
+        boxShadow: '0 2px 18px #232b3890',
+        width: '98vw',
+        maxWidth: 1600,
         marginLeft: 'auto',
         marginRight: 'auto',
+        border: '2px solid #334155',
       }}
     >
       {Array.isArray(preview) && preview.length > 0 ? (
         <div style={{ overflow: 'auto', width: '100%' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, background: '#fff', borderRadius: 8 }}>
+          <table style={{ width: '100%', minWidth: 1100, borderCollapse: 'separate', borderSpacing: 0, background: 'rgba(30,41,59,0.97)', borderRadius: 12, color: '#e0e7ef', fontFamily: 'Inter, Arial, sans-serif', boxShadow: '0 2px 12px #0002', border: '1.5px solid #334155' }}>
             <thead>
-              <tr>
+              <tr style={{ background: 'rgba(51,65,85,0.97)' }}>
                 {Object.keys(preview[0]).map((col, idx) => (
                   <th key={col}
-                      style={{ position: 'sticky', top: 0, background: '#f1f5fa', borderBottom: '2px solid #b6b6b6', padding: '6px 10px', color: '#222', textAlign: 'left', zIndex: 1, fontWeight: 700 }}>
+                      style={{ position: 'sticky', top: 0, background: 'rgba(51,65,85,0.97)', borderBottom: '2px solid #475569', color: '#cbd5e1', fontWeight: 700, padding: '12px 18px', textAlign: 'center', zIndex: 2, fontSize: 15, minWidth: 160, borderRight: '1.5px solid #334155' }}>
                     {col || <span style={{ color: '#e11d48' }}>[No Name]</span>}
                   </th>
                 ))}
@@ -35,10 +37,10 @@ export default function SQLPreviewBox({ preview }) {
             </thead>
             <tbody>
               {preview.map((row, i) => (
-                <tr key={i} style={{ background: i % 2 === 0 ? '#f7f8fa' : '#fff' }}>
+                <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(30,41,59,0.97)' : 'rgba(51,65,85,0.93)' }}>
                   {Object.keys(preview[0]).map(col => (
                     <td key={col}
-                        style={{ borderBottom: '1px solid #eee', padding: '6px 10px', maxWidth: 180, overflow: 'auto', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#222', fontWeight: 400 }}>
+                        style={{ borderBottom: '1.5px solid #334155', padding: '10px 18px', color: '#f1f5f9', fontWeight: 500, background: 'transparent', fontFamily: 'monospace', fontSize: 15, textAlign: 'center', minWidth: 160, borderRight: '1.5px solid #334155', overflow: 'auto', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {row[col] !== null && row[col] !== undefined && row[col] !== '' ? String(row[col]) : <span style={{ color: '#e11d48' }}>—</span>}
                     </td>
                   ))}

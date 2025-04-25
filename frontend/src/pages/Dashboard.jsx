@@ -40,7 +40,7 @@ const Dashboard = () => {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await axios.post("http://localhost:8000/upload", formData, {
+      const res = await axios.post("http://localhost:8000/files/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setMessage(res.data.message || "Uploaded!");
@@ -64,7 +64,7 @@ const Dashboard = () => {
       if (uploadUrl.includes("drive.google.com") && accessToken) {
         headers["access_token"] = accessToken;
       }
-      const res = await fetch("http://localhost:8000/upload-from-url", {
+      const res = await fetch("http://localhost:8000/files/upload-from-url", {
         method: "POST",
         headers,
         body: JSON.stringify({ url: uploadUrl, filename: file ? file.name : undefined }),
