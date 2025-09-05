@@ -87,11 +87,179 @@ html, body, #root {
   overflow: hidden;
 }
 
-/* Remove scrollbars for all browsers */
-body::-webkit-scrollbar, html::-webkit-scrollbar {
-  display: none;
+/* Use minimal scrollbars (global styles in index.css). Add .no-scrollbar where you want to hide. */
+.login-card {
+  background: #fff;
+  color: #222;
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.18);
+  padding: 3.5rem 3rem 3rem 3rem;
+  max-width: 520px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #e5e7eb;
 }
-body, html {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+
+.dashboard-stepper-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh;
+  width: 100vw;
+}
+
+.dashboard-stepper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2.5rem;
+}
+
+.dashboard-step-box {
+  min-width: 120px;
+  min-height: 120px;
+  background: #181c25;
+  border: 3px solid #e0e7ef;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #e0e7ef;
+  transition: box-shadow 0.2s, border-color 0.2s, background 0.2s;
+  box-shadow: 0 4px 18px #60a5fa22;
+  cursor: pointer;
+  outline: none;
+}
+.dashboard-step-box:hover, .dashboard-step-box:focus {
+  border-color: #6366f1;
+  background: #232b38;
+  box-shadow: 0 8px 32px #6366f155;
+}
+
+.dashboard-step-arrow {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #e0e7ef;
+  user-select: none;
+  margin: 0 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard-stepper-fun {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2.5rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.dashboard-step-box-fun {
+  min-width: 160px;
+  min-height: 160px;
+  background: linear-gradient(135deg, #232b38 70%, #181c25 100%);
+  border: 4px solid #60a5fa;
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #e0e7ef;
+  transition: box-shadow 0.2s, border-color 0.2s, background 0.2s, transform 0.18s;
+  box-shadow: 0 4px 24px #60a5fa55;
+  cursor: pointer;
+  outline: none;
+  margin: 0 0.2rem;
+  position: relative;
+}
+.dashboard-step-box-fun:hover, .dashboard-step-box-fun:focus {
+  transform: scale(1.07) rotate(-2deg);
+  background: linear-gradient(135deg, #6366f1 60%, #232b38 100%);
+  box-shadow: 0 8px 32px #6366f155;
+  border-color: #6366f1;
+}
+.dashboard-step-icon {
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 2px 8px #0008);
+}
+.dashboard-step-label-fun {
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-align: center;
+  color: #e0e7ef;
+  letter-spacing: 0.01em;
+}
+.dashboard-step-arrow-fun {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #a3aed6;
+  user-select: none;
+  margin: 0 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 8px #0006);
+}
+
+.ingestion-options-game {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5rem;
+  justify-content: center;
+  align-items: center;
+  margin-top: 2rem;
+}
+
+.ingestion-option-card {
+  min-width: 200px;
+  min-height: 200px;
+  background: linear-gradient(135deg, #232b38 70%, #181c25 100%);
+  border: 4px solid #60a5fa;
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #e0e7ef;
+  transition: box-shadow 0.2s, border-color 0.2s, background 0.2s, transform 0.18s;
+  box-shadow: 0 4px 24px #60a5fa55;
+  cursor: pointer;
+  outline: none;
+  margin: 0 0.2rem;
+  position: relative;
+  animation: popIn 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+}
+.ingestion-option-card:hover, .ingestion-option-card:focus {
+  transform: scale(1.09) rotate(-2deg);
+  background: linear-gradient(135deg, #6366f1 60%, #232b38 100%);
+  box-shadow: 0 8px 32px #6366f155;
+  border-color: #6366f1;
+  z-index: 2;
+}
+.ingestion-option-icon {
+  margin-bottom: 0.7rem;
+  filter: drop-shadow(0 2px 8px #0008);
+}
+.ingestion-option-label {
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-align: center;
+  color: #e0e7ef;
+  letter-spacing: 0.01em;
+}
+@keyframes popIn {
+  0% { transform: scale(0.7) rotate(-8deg); opacity: 0; }
+  80% { transform: scale(1.08) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }

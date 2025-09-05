@@ -1,0 +1,31 @@
+.reorderWrapper {
+  margin-bottom: 1.1rem;
+}
+.reorderLabel {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #6366f1;
+  margin-bottom: 0.4rem;
+}
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 0.3rem;
+}
+.chip {
+  background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: 1.2rem;
+  padding: 0.5rem 1.2rem;
+  cursor: grab;
+  box-shadow: 0 2px 8px #6366f122;
+  user-select: none;
+  transition: background 0.15s, transform 0.12s;
+}
+.chip:active {
+  background: #6366f1;
+  transform: scale(1.08);
+}

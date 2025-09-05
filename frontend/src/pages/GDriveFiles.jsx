@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import ShadcnNavbar from "../components/ShadcnNavbar";
 import GlobalBackButton from "../components/GlobalBackButton";
 import GDriveFilesTable from "../components/GDriveFilesTable";
+import FloatingFilesPanel from "../components/FloatingFilesPanel";
 import { Toaster, toast } from 'react-hot-toast';
 
 export default function GDriveFiles() {
@@ -119,9 +120,9 @@ export default function GDriveFiles() {
   };
 
   return (
-    <div className="page-fullscreen">
+    <div className="page-shell">
       <Toaster position="top-right" />
-      <div style={{ minHeight: '100vh', width: '100vw', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="min-h-screen w-screen overflow-hidden relative flex flex-col items-center justify-center">
         <ShadcnNavbar onLogout={() => {
           localStorage.removeItem("user");
           localStorage.removeItem("google_access_token");
@@ -129,80 +130,15 @@ export default function GDriveFiles() {
           sessionStorage.clear();
           window.location.replace("/");
         }} />
-        {/* Spline animated background */}
-        <iframe
-          src="https://my.spline.design/cubes-11XksX5PbLLeQrFYk69YghaQ/"
-          frameBorder="0"
-          title="Spline 3D Background"
-          allowFullScreen
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            zIndex: 0,
-            pointerEvents: 'none',
-            background: 'transparent',
-            maxWidth: '100vw',
-            maxHeight: '100vh',
-            overflow: 'hidden'
-          }}
-        />
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', alignItems: 'center', position: 'relative', zIndex: 10000, pointerEvents: 'auto' }}>
-          <div style={{ marginLeft: 32, marginTop: 24, zIndex: 10001, pointerEvents: 'auto', position: 'relative' }}>
+        <div className="w-full flex justify-start items-center relative z-[10000] pointer-events-auto">
+          <div className="ml-8 mt-6 z-[10001] pointer-events-auto relative">
             <GlobalBackButton />
           </div>
         </div>
-        <div style={{
-          width: '100vw',
-          minHeight: 'calc(100vh - 54px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 0,
-          margin: 0,
-          position: 'relative',
-          background: 'none',
-        }}>
-          <div style={{
-            width: '100%',
-            maxWidth: 1400,
-            minWidth: 1100,
-            borderRadius: 18,
-            boxShadow: '0 4px 24px rgba(99,102,241,0.13)',
-            padding: '2.5rem 2rem',
-            color: '#1e293b',
-            minHeight: 500,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            margin: 0,
-            position: 'relative',
-            zIndex: 2,
-            overflow: 'visible', // remove scrollbars
-            scrollbarWidth: 'none', // Firefox
-            msOverflowStyle: 'none', // IE/Edge
-          }}>
-            <style>{`div::-webkit-scrollbar { display: none !important; }`}</style>
-            <h2 style={{
-              fontSize: 34,
-              fontWeight: 900,
-              marginBottom: 24,
-              textAlign: 'center',
-              letterSpacing: '-0.04em',
-              color: '#38bdf8', // sky blue accent
-              textShadow: '0 2px 24px #0ea5e9cc, 0 1px 0 #181c24',
-              fontFamily: 'Montserrat, Poppins, Arial, sans-serif',
-              background: 'linear-gradient(90deg,#38bdf8 0%,#2563eb 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              filter: 'drop-shadow(0 2px 14px #0ea5e9cc)',
-            }}>
-              Google Drive Files
-            </h2>
-            <div style={{ width: '100%', height: '60vh', overflow: 'auto', margin: '0 auto', position: 'relative', zIndex: 3 }}>
+        <div className="w-screen min-h-[calc(100vh-54px)] flex items-center justify-center p-0 m-0 relative">
+          <div className="w-full max-w-[1400px] min-w-[1100px] rounded-2xl shadow-soft p-10 text-slate-800 min-h-[500px] flex flex-col items-center justify-start m-0 relative z-2 overflow-visible">
+            <h2 className="text-[34px] font-black mb-6 text-center tracking-tighter bg-gradient-to-r from-sky-400 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_2px_14px_#0ea5e9cc]">Google Drive Files</h2>
+            <div className="w-full h-[60vh] overflow-auto mx-auto relative z-3">
               <GDriveFilesTable
                 gdriveFiles={files}
                 onUpload={handleUpload}
@@ -212,6 +148,7 @@ export default function GDriveFiles() {
           </div>
         </div>
       </div>
+      <FloatingFilesPanel position="top-right" offsetTop={80} label="Show Uploaded Files" />
     </div>
   );
 }

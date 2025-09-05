@@ -278,6 +278,9 @@ async def sql_list_databases(request):
 # --- MINIO FILES ---
 async def list_files():
     try:
+        # Guard: ensure bucket exists before listing
+        from config import ensure_minio_bucket_exists
+        ensure_minio_bucket_exists()
         objects = minio_client.list_objects(MINIO_BUCKET, recursive=True)
         files = []
         for obj in objects:

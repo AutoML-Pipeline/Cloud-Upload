@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from minio import Minio
 import motor.motor_asyncio
+import logging
 
 load_dotenv()
 
@@ -18,6 +19,18 @@ minio_client = Minio(
     secret_key=MINIO_SECRET_KEY,
     secure=False
 )
+
+# Ensure default bucket exists at startup to avoid NoSuchBucket errors
+def ensure_minio_bucket_exists() -> None:
+    try:
+        if not minio_client.bucket_exists(MINIO_BUCKET):
+            minio_client.make_bucket(MINIO_BUCKET)
+            logging.info(f"Created MinIO bucket '{MINIO_BUCKET}'.")
+    except Exception as exc:
+        logging.error(f"Failed to ensure MinIO bucket '{MINIO_BUCKET}': {exc}")
+
+# Run on import
+ensure_minio_bucket_exists()
 
 # MongoDB configuration
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")

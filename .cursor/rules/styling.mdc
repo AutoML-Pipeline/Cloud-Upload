@@ -1,0 +1,30 @@
+---
+alwaysApply: true
+---
+
+# Styling Policy
+
+- Never use inline styles (style={{ ... }}) in React.
+- Use CSS Modules for component styles:
+  - Local: src/components/ComponentName/ComponentName.module.css
+  - Shared: src/styles/components/*.module.css
+- Class naming: ComponentName, ComponentName--variant, ComponentName__part.
+- Reuse design tokens from src/styles/tokens.css; don’t hardcode colors/sizes.
+- No global selectors; avoid :global unless integrating third-party CSS.
+- Refactors must be surgical:
+  - Modify only files explicitly requested in the task.
+  - Output unified diff patches with 3 lines of context per hunk.
+  - Do not change unrelated files, exports, or public APIs.
+# Styling Policy
+
+- Never use inline styles (style={{ ... }}) in React.
+- Use CSS Modules for component styles:
+  - Local: src/components/ComponentName/ComponentName.module.css
+  - Shared: src/styles/components/*.module.css
+- Class naming: ComponentName, ComponentName--variant, ComponentName__part.
+- Reuse design tokens from src/styles/tokens.css; don’t hardcode colors/sizes.
+- No global selectors; avoid :global unless integrating third-party CSS.
+- Refactors must be surgical:
+  - Modify only files explicitly requested in the task.
+  - Output unified diff patches with 3 lines of context per hunk.
+  - Do not change unrelated files, exports, or public APIs.

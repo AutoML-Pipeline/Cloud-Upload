@@ -1,41 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useQuery } from '@tanstack/react-query';
 
 export default function UploadedFilesTable() {
-  const [files, setFiles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [refreshing, setRefreshing] = useState(false);
-
-  const fetchFiles = () => {
-    setRefreshing(true);
-    setLoading(true);
-    fetch("http://localhost:8000/files/list")
-      .then(res => res.json())
-      .then(data => {
-        setFiles(data.files || []);
-        setLoading(false);
-        setRefreshing(false);
-      })
-      .catch(err => {
-        setError("Failed to fetch files");
-        setLoading(false);
-        setRefreshing(false);
-      });
-  };
-
-  const uploadFromGoogleDrive = ({ fileId, accessToken, filename }) => {
-    return fetch('http://localhost:8000/upload-from-google-drive', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file_id: fileId, access_token: accessToken, filename })
-    })
-      .then(res => res.json());
-  };
-
-  useEffect(() => {
-    fetchFiles();
-    // eslint-disable-next-line
-  }, []);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['files', 'list'],
+    queryFn: async () => {
+      const res = await fetch('http://localhost:8000/files/list');
+      if (!res.ok) throw new Error('Failed to fetch files');
+      return res.json();
+    },
+    // Cache and reuse between pages for snappy navigation
+    staleTime: 60 * 1000,
+  });
+  const files = data?.files ?? [];
 
   return (
     <div className="gdrive-table-responsive" style={{ width: '100%', minWidth: 0, maxWidth: '100vw', margin: '0 auto', background: 'transparent', overflow: 'visible', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -97,10 +74,10 @@ export default function UploadedFilesTable() {
           </tr>
         </thead>
         <tbody>
-          {loading ? (
+          {isLoading ? (
             <tr><td colSpan={3} style={{ color: '#64748b', textAlign: 'center', padding: 22, background: 'rgba(30,41,59,0.97)' }}>Loading...</td></tr>
           ) : error ? (
-            <tr><td colSpan={3} style={{ color: 'red', textAlign: 'center', padding: 22, background: 'rgba(30,41,59,0.97)' }}>{error}</td></tr>
+            <tr><td colSpan={3} style={{ color: 'red', textAlign: 'center', padding: 22, background: 'rgba(30,41,59,0.97)' }}>{error.message || 'Failed to fetch files'}</td></tr>
           ) : files.length === 0 ? (
             <tr><td colSpan={3} style={{ color: '#64748b', textAlign: 'center', padding: 22, background: 'rgba(30,41,59,0.97)' }}>No files uploaded yet.</td></tr>
           ) : (

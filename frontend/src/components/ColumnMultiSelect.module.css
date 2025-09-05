@@ -1,0 +1,41 @@
+.wrapper {
+  margin-bottom: 1.1rem;
+}
+.label {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #6366f1;
+  margin-bottom: 0.4rem;
+}
+.dropdown {
+  background: #f9fafb;
+  border-radius: 0.7rem;
+  border: 1.5px solid #e5e7eb;
+  padding: 0.7rem 1.1rem;
+  min-width: 220px;
+  box-shadow: 0 1px 4px #6366f122;
+}
+.placeholder {
+  color: #64748b;
+  font-size: 0.98rem;
+  margin-bottom: 0.5rem;
+}
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.98rem;
+  color: #222;
+  cursor: pointer;
+  padding: 0.2rem 0.1rem;
+  border-radius: 0.4rem;
+  transition: background 0.15s;
+}
+.option:hover {
+  background: #e0e7ff;
+}

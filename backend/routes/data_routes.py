@@ -10,7 +10,7 @@ async def data_preprocessing(filename: str, request: Request):
     body = await request.json()
     steps = body.get("steps", {})
     preprocessing = body.get("preprocessing", None)
-    return await data_controller.data_preprocessing(filename, steps, preprocessing)
+    return await data_controller.data_preprocessing(filename, steps, preprocessing, request)
 
 @router.post("/sql-list-databases")
 async def sql_list_databases(request: Request):
@@ -41,3 +41,7 @@ async def download_cleaned_file(filename: str):
 @router.post("/files/upload-from-url")
 async def upload_from_url(request: UploadFromURLRequest):
     return await file_controller.upload_from_url(request)
+
+@router.get("/data/preview/{filename}")
+async def data_preview(filename: str):
+    return data_controller.get_data_preview(filename)

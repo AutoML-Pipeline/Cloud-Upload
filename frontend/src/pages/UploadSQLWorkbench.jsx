@@ -1,10 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Button from "../components/Button";
 import GlobalBackButton from "../components/GlobalBackButton";
-import UploadedFilesTable from '../components/UploadedFilesTable';
-import { SPLINE_URL } from "./Login";
+import ShadcnNavbar from "../components/ShadcnNavbar";
 import SQLPreviewBox from "../components/SQLPreviewBox";
 import { toast } from 'react-hot-toast';
+import FloatingFilesPanel from "../components/FloatingFilesPanel";
+import '../auth.css';
 
 export default function UploadSQLWorkbench() {
   const [host, setHost] = useState("");
@@ -18,8 +19,76 @@ export default function UploadSQLWorkbench() {
   const [status, setStatus] = useState("");
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(null);
-  const [splineLoaded, setSplineLoaded] = useState(false);
   const contentRef = useRef(null);
+
+  // Load saved inputs from localStorage on component mount
+  useEffect(() => {
+    const savedInputs = localStorage.getItem('sqlWorkbenchInputs');
+    if (savedInputs) {
+      try {
+        const parsed = JSON.parse(savedInputs);
+        setHost(parsed.host || "");
+        setPort(parsed.port || "3306");
+        setUser(parsed.user || "");
+        setPassword(parsed.password || "");
+        setDatabase(parsed.database || "");
+        setQuery(parsed.query || "");
+      } catch (error) {
+        console.error('Error loading saved inputs:', error);
+      }
+    }
+  }, []);
+
+  // Save inputs to localStorage whenever they change
+  const saveInputs = (newInputs) => {
+    try {
+      localStorage.setItem('sqlWorkbenchInputs', JSON.stringify(newInputs));
+    } catch (error) {
+      console.error('Error saving inputs:', error);
+    }
+  };
+
+  // Update host and save
+  const handleHostChange = (e) => {
+    const value = e.target.value;
+    setHost(value);
+    saveInputs({ host: value, port, user, password, database, query });
+  };
+
+  // Update port and save
+  const handlePortChange = (e) => {
+    const value = e.target.value;
+    setPort(value);
+    saveInputs({ host, port: value, user, password, database, query });
+  };
+
+  // Update user and save
+  const handleUserChange = (e) => {
+    const value = e.target.value;
+    setUser(value);
+    saveInputs({ host, port, user: value, password, database, query });
+  };
+
+  // Update password and save
+  const handlePasswordChange = (e) => {
+    const value = e.target.value;
+    setPassword(value);
+    saveInputs({ host, port, user, password: value, database, query });
+  };
+
+  // Update database and save
+  const handleDatabaseChange = (e) => {
+    const value = e.target.value;
+    setDatabase(value);
+    saveInputs({ host, port, user, password, database: value, query });
+  };
+
+  // Update query and save
+  const handleQueryChange = (e) => {
+    const value = e.target.value;
+    setQuery(value);
+    saveInputs({ host, port, user, password, database, query: value });
+  };
 
   const handleConnect = async () => {
     setStatus("");
@@ -99,118 +168,136 @@ export default function UploadSQLWorkbench() {
     setUploading(false);
   };
 
-  const inputStyle = {
-    width: "100%",
-    maxWidth: 340,
-    padding: "0.75rem 1rem",
-    borderRadius: "0.75rem",
-    border: "1px solid #334155",
-    background: "rgba(30,41,59,0.85)",
-    color: "#e0e7ef",
-    fontSize: 16,
-    outline: "none",
-    marginTop: 2,
-    marginBottom: 10,
-    boxSizing: "border-box",
-    fontFamily: "'Poppins', 'Segoe UI', 'Montserrat', 'Roboto', Arial, sans-serif",
-    fontWeight: 500
-  };
+  React.useEffect(() => {
+    if (contentRef.current) {
+      import('gsap').then(({ gsap }) => {
+        gsap.fromTo(
+          contentRef.current,
+          { opacity: 0, y: 52, filter: "blur(16px)", scale: 0.93 },
+          { opacity: 1, y: 0, filter: "blur(0px)", scale: 1, duration: 0.6, ease: "power2.out" }
+        );
+      });
+    }
+  }, []);
 
   return (
-    <div className="page-fullscreen" style={{ display: 'block', minHeight: 0, height: 'auto', width: '100vw', background: 'black', overflowY: 'auto', position: 'relative' }}>
-      {/* Spline 3D background */}
-      <iframe
-        src={SPLINE_URL}
-        frameBorder="0"
-        title="Cubes 3D Background"
-        allowFullScreen
-        style={{
-          width: "100vw",
-          height: "100vh",
-          border: "none",
-          display: "block",
-          position: "fixed",
-          zIndex: 0,
-          top: 0,
-          left: 0,
-          pointerEvents: splineLoaded ? 'auto' : 'none',
-          opacity: splineLoaded ? 1 : 0,
-          transition: "opacity 0.5s"
-        }}
-        onLoad={() => setSplineLoaded(true)}
-      />
-      <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 1200, margin: '0 auto', padding: 32, background: 'rgba(0,0,0,0.7)', borderRadius: 16, boxShadow: '0 4px 32px rgba(0,0,0,0.8)', minHeight: '100vh', boxSizing: 'border-box' }}>
-        {/* Global Back Button (left-aligned, below navbar, with high z-index and pointerEvents) */}
-        <div style={{ position: 'absolute', left: 0, top: 0, zIndex: 10000, pointerEvents: 'auto' }}>
-          <div style={{ marginLeft: 32, marginTop: 24, zIndex: 10001, pointerEvents: 'auto' }}>
-            <GlobalBackButton />
-          </div>
-        </div>
-        <div style={{ marginTop: 24 }}>
-          <UploadedFilesTable />
-        </div>
-        <h2 style={{ color: 'white', marginBottom: 24, marginTop: 40 }}>Upload from SQL Workbench</h2>
-        {/* Responsive and scrollable wrapper for the SQL Workbench section */}
-        <div style={{
-          width: '100%',
-          maxWidth: 700,
-          margin: '0 auto',
-          background: 'rgba(30,41,59,0.90)',
-          borderRadius: 14,
-          boxShadow: '0 2px 16px rgba(30,41,59,0.18)',
-          padding: 24,
-          overflowY: 'auto',
-          maxHeight: '70vh',
-          marginBottom: 32,
-        }}>
-          {/* Responsive CSS for mobile/tablet */}
-          <style>{`
-            @media (max-width: 900px) {
-              .sql-workbench-form-fields { flex-direction: column !important; gap: 0 !important; }
-              .sql-workbench-form-fields > div, .sql-workbench-form-fields input, .sql-workbench-form-fields select, .sql-workbench-form-fields textarea { width: 100% !important; min-width: 0 !important; margin-bottom: 14px !important; }
-            }
-            @media (max-width: 600px) {
-              .sql-workbench-form-fields { padding: 0 !important; }
-            }
-          `}</style>
-          <div ref={contentRef} className="sql-workbench-form-fields" style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-start', width: '100%' }}>
-            <div style={{ flex: 1, minWidth: 260, width: '100%' }}>
-              {/* Step 1: Connection */}
-              <input style={inputStyle} placeholder="Host" value={host} onChange={e => setHost(e.target.value)} />
-              <input style={inputStyle} placeholder="Port" value={port} onChange={e => setPort(e.target.value)} />
-              <input style={inputStyle} placeholder="User" value={user} onChange={e => setUser(e.target.value)} />
-              <input style={inputStyle} placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-              {!connected && <Button onClick={handleConnect} disabled={uploading}>Connect</Button>}
-              {/* Step 2: Database & Query */}
+    <div className="page-shell" style={{ overflowY: 'auto', minHeight: '100vh' }}>
+      <ShadcnNavbar onLogout={() => {
+        localStorage.removeItem("user");
+        localStorage.removeItem("google_access_token");
+        localStorage.removeItem("access_token");
+        sessionStorage.clear();
+        window.location.replace("/");
+      }} />
+      <div className="absolute left-8 top-[70px] z-[10000] pointer-events-auto">
+        <GlobalBackButton />
+      </div>
+      <div style={{ paddingTop: 90, paddingBottom: 48, width: '100%', minHeight: 'calc(100vh - 138px)' }}>
+        <div className="page-center" style={{ minHeight: 'auto', padding: '20px 0' }}>
+          <div className="auth-card" ref={contentRef} style={{ maxWidth: 600, width: '100%', position: 'relative', zIndex: 2, pointerEvents: 'auto' }}>
+            <div className="auth-title">Upload from SQL Workbench</div>
+            <form className="auth-form" onSubmit={e => e.preventDefault()}>
+              <input
+                className="auth-input"
+                id="host"
+                placeholder="Host (e.g. localhost)"
+                value={host}
+                onChange={handleHostChange}
+                autoComplete="off"
+              />
+              <input
+                className="auth-input"
+                id="port"
+                placeholder="Port (default: 3306)"
+                value={port}
+                onChange={handlePortChange}
+                autoComplete="off"
+              />
+              <input
+                className="auth-input"
+                id="user"
+                placeholder="Username"
+                value={user}
+                onChange={handleUserChange}
+                autoComplete="off"
+              />
+              <input
+                className="auth-input"
+                id="password"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={handlePasswordChange}
+                autoComplete="off"
+              />
+              {!connected && (
+                <button
+                  className="auth-btn"
+                  type="button"
+                  onClick={handleConnect}
+                  disabled={uploading}
+                  style={{ marginTop: 10 }}
+                >
+                  {uploading ? 'Connecting...' : 'Connect to Database'}
+                </button>
+              )}
               {connected && (
                 <>
-                  <select style={{ ...inputStyle, color: database ? '#e0e7ef' : '#a3aed6', background: "rgba(30,41,59,0.85)" }} value={database} onChange={e => setDatabase(e.target.value)}>
-                    <option value="" style={{ color: '#a3aed6' }}>Select Database</option>
+                  <select
+                    className="auth-input"
+                    id="database"
+                    value={database}
+                    onChange={handleDatabaseChange}
+                  >
+                    <option value="">Select Database</option>
                     {databases.map(db => <option key={db} value={db}>{db}</option>)}
                   </select>
-                  <textarea style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} rows={4} placeholder="SQL Query" value={query} onChange={e => setQuery(e.target.value)} />
-                  <div style={{ display: 'flex', gap: 16, width: '100%', justifyContent: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-                    <Button onClick={handlePreview} disabled={uploading || !database || !query}>Preview</Button>
-                    <Button onClick={handleUpload} disabled={uploading || !database || !query}>Upload to MinIO</Button>
+                  <textarea
+                    className="auth-input"
+                    id="query"
+                    rows={4}
+                    placeholder="SQL Query (e.g. SELECT * FROM table_name)"
+                    value={query}
+                    onChange={handleQueryChange}
+                  />
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <button
+                      className="auth-btn"
+                      type="button"
+                      onClick={handlePreview}
+                      disabled={uploading || !database || !query}
+                    >
+                      Preview Query
+                    </button>
+                    <button
+                      className="auth-btn"
+                      type="button"
+                      onClick={handleUpload}
+                      disabled={uploading || !database || !query}
+                    >
+                      Upload to MinIO
+                    </button>
                   </div>
-                  {/* Show SQL preview result here, if available */}
-                  {preview && (
-                    <div style={{ marginTop: 24, marginBottom: 8 }}>
-                      <h3 style={{ color: '#e0e7ef', fontSize: 18, marginBottom: 8, fontWeight: 600 }}>Preview Result</h3>
-                      <div style={{ background: '#fff', borderRadius: 10, padding: 16, boxShadow: '0 1px 6px rgba(30,41,59,0.09)', overflowX: 'auto', maxHeight: 340 }}>
-                        <SQLPreviewBox preview={preview} />
-                      </div>
-                    </div>
-                  )}
                 </>
               )}
-              {status && !status.startsWith('Upload successful:') && (
-                <div style={{ marginTop: 18, textAlign: 'center', color: '#60a5fa', fontWeight: 500 }}>{status}</div>
+              {status && (
+                <div style={{ marginTop: 12, color: status.startsWith('Error') || status.startsWith('Upload failed') ? '#dc2626' : '#059669', fontWeight: 500, textAlign: 'center', fontSize: 15 }}>
+                  {status}
+                </div>
               )}
-            </div>
+            </form>
+            {preview && (
+              <div style={{ width: '100%', marginTop: 24 }}>
+                <div style={{ fontWeight: 600, color: '#6366f1', marginBottom: 8 }}>Preview Result</div>
+                <div style={{ background: '#f3f4f6', borderRadius: 8, padding: 12, overflow: 'auto', maxHeight: 300 }}>
+                  <SQLPreviewBox preview={preview} />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
+      <FloatingFilesPanel position="top-right" offsetTop={80} label="Show Uploaded Files" />
     </div>
   );
 }
