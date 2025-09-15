@@ -30,9 +30,18 @@ async def upload_from_sql(request: Request):
 @router.post("/save_cleaned_to_minio")
 async def save_cleaned_to_minio(request: Request):
     body = await request.json()
-    temp_cleaned_path = body.get("temp_cleaned_path")
-    cleaned_filename = body.get("cleaned_filename")
-    return file_controller.save_cleaned_to_minio(temp_cleaned_path, cleaned_filename)
+    # Support both old format (temp file) and new format (data + folder)
+    if "data" in body and "filename" in body:
+        # New format: data + filename + folder
+        data = body.get("data")
+        filename = body.get("filename")
+        folder = body.get("folder", "cleaned-data")
+        return file_controller.save_data_to_minio(data, filename, folder)
+    else:
+        # Old format: temp file path
+        temp_cleaned_path = body.get("temp_cleaned_path")
+        cleaned_filename = body.get("cleaned_filename")
+        return file_controller.save_cleaned_to_minio(temp_cleaned_path, cleaned_filename)
 
 @router.get("/download_cleaned_file/{filename}")
 async def download_cleaned_file(filename: str):

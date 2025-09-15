@@ -17,6 +17,8 @@ from googleapiclient.http import MediaIoBaseDownload
 from fastapi import Response
 import warnings
 import logging
+from config import ensure_minio_bucket_exists # Import the bucket existence check
+from models.pydantic_models import SQLConnectRequest
 
 # --- FILE UPLOADS ---
 async def upload_from_url(request: UploadFromURLRequest, access_token: str = None):
@@ -50,7 +52,6 @@ async def upload_from_url(request: UploadFromURLRequest, access_token: str = Non
                     MINIO_BUCKET,
                     filename,
                     data=fh,
-                    length=len(fh.getvalue()),
                 )
                 return {"message": f"{filename} uploaded from Google Drive successfully."}
             except Exception as e:
@@ -140,7 +141,13 @@ async def upload_from_gdrive(request: UploadFromGoogleDriveRequest):
         creds = Credentials(token=request.access_token)
         drive_service = build('drive', 'v3', credentials=creds)
         file_metadata = drive_service.files().get(fileId=request.file_id).execute()
-        filename = request.filename or file_metadata['name']
+        original_filename = file_metadata['name']
+        filename_to_use = request.filename if request.filename else original_filename
+
+        # Ensure the filename has a .parquet extension
+        if not filename_to_use.lower().endswith('.parquet'):
+            filename_to_use += '.parquet'
+
         request_media = drive_service.files().get_media(fileId=request.file_id)
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request_media)
@@ -148,43 +155,64 @@ async def upload_from_gdrive(request: UploadFromGoogleDriveRequest):
         while not done:
             status, done = downloader.next_chunk()
         fh.seek(0)
+
+        # Ensure the bucket exists before attempting to upload
+        ensure_minio_bucket_exists()
+
+        logging.info(f"Attempting to upload {filename_to_use} to MinIO bucket {MINIO_BUCKET}")
         minio_client.put_object(
             MINIO_BUCKET,
-            filename,
+            filename_to_use,
             data=fh,
-            length=len(fh.getvalue()),
         )
-        return {"message": f"{filename} uploaded from Google Drive successfully."}
+        logging.info(f"Successfully uploaded {filename_to_use} to MinIO.")
+        return {"message": f"{filename_to_use} uploaded from Google Drive successfully."}
     except Exception as e:
+        logging.error(f"Error during Google Drive upload for file ID {request.file_id}: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"error": f"Google Drive download failed: {str(e)}"})
 
-async def upload_file(file: UploadFile = File(...), access_token: str = Form(None)):
+async def upload_file(file: UploadFile = File(...), new_filename: str = Form(None), access_token: str = Form(None)):
     try:
-        filename = file.filename
-        file_ext = filename.split('.')[-1].lower()
-        # Read file into DataFrame
-        if file_ext == 'csv':
+        # Ensure the bucket exists before attempting to upload
+        ensure_minio_bucket_exists()
+
+        # Determine the original file extension for format validation
+        original_file_ext = file.filename.split('.')[-1].lower()
+
+        df = None # Initialize df to None
+
+        # Read file into DataFrame based on original file extension
+        if original_file_ext == 'csv':
             df = pd.read_csv(file.file)
-        elif file_ext in ['xls', 'xlsx']:
+        elif original_file_ext in ['xls', 'xlsx']:
             df = pd.read_excel(file.file)
-        elif file_ext == 'json':
+        elif original_file_ext == 'json':
             df = pd.read_json(file.file)
-        # Optionally: Add PDF table extraction here
         else:
             return JSONResponse(status_code=400, content={"error": "Unsupported file format for conversion. Only CSV, Excel, JSON supported."})
+
+        if df is None:
+            return JSONResponse(status_code=500, content={"error": "Failed to read file into DataFrame."})
+
+        # Determine the filename to use for saving (either new_filename or original base name + .parquet)
+        base_filename = os.path.splitext(new_filename if new_filename else file.filename)[0]
+        parquet_filename = f"{base_filename}.parquet"
+
         # Save as Parquet
         table = pa.Table.from_pandas(df)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".parquet") as tmpfile:
             pq.write_table(table, tmpfile.name)
-            parquet_filename = os.path.splitext(filename)[0] + ".parquet"
+            logging.info(f"Attempting to upload {parquet_filename} from {tmpfile.name} to MinIO bucket {MINIO_BUCKET}")
             minio_client.fput_object(
                 MINIO_BUCKET,
                 parquet_filename,
-                tmpfile.name
+                tmpfile.name,
             )
+            logging.info(f"Successfully uploaded {parquet_filename} to MinIO.")
         os.remove(tmpfile.name)
-        return {"message": f"{filename} converted and uploaded as {parquet_filename}", "filename": parquet_filename}
+        return {"message": f"File converted and uploaded as {parquet_filename}", "filename": parquet_filename}
     except Exception as e:
+        logging.error(f"Error during upload/conversion for {file.filename}: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"error": f"Error during upload/conversion: {str(e)}"})
 
 def gdrive_list_files(access_token: str, folder_id: str = "root"):
@@ -245,21 +273,34 @@ async def upload_from_sql(request: SQLWorkbenchRequest):
         conn.close()
         df = pd.DataFrame(rows, columns=columns)
         table = pa.Table.from_pandas(df)
+
+        # Ensure the bucket exists before attempting to upload
+        ensure_minio_bucket_exists()
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".parquet") as tmpfile:
             pq.write_table(table, tmpfile.name)
             tmpfile_path = tmpfile.name
-        filename = f"sql_upload_{os.path.basename(tmpfile_path)}"
+        
+        filename_to_use = request.filename if request.filename else f"sql_upload_{os.path.basename(tmpfile_path)}.parquet"
+
+        # Ensure the filename has a .parquet extension
+        if not filename_to_use.lower().endswith('.parquet'):
+            filename_to_use += '.parquet'
+
+        logging.info(f"Attempting to upload {filename_to_use} from {tmpfile_path} to MinIO bucket {MINIO_BUCKET}")
         minio_client.fput_object(
             MINIO_BUCKET,
-            filename,
+            filename_to_use,
             tmpfile_path,
         )
+        logging.info(f"Successfully uploaded {filename_to_use} to MinIO.")
         os.remove(tmpfile_path)
-        return {"message": f"Data uploaded to MinIO as {filename} (parquet format)"}
+        return {"message": f"Data uploaded to MinIO as {filename_to_use}"}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        logging.error(f"Error during SQL upload: {e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"error": f"Error during SQL upload: {str(e)}"})
 
-async def sql_list_databases(request):
+async def sql_list_databases(request: SQLConnectRequest):
     try:
         conn = pymysql.connect(
             host=request.host,
@@ -300,26 +341,62 @@ async def list_files():
 from fastapi.responses import JSONResponse
 
 def save_cleaned_to_minio(temp_cleaned_path: str, cleaned_filename: str):
-    import io
     output_bucket = "cleaned-data"
     try:
         if not os.path.exists(temp_cleaned_path):
             return JSONResponse(content={"error": "Temporary cleaned file not found."}, status_code=404)
         if not minio_client.bucket_exists(output_bucket):
             minio_client.make_bucket(output_bucket)
-        with open(temp_cleaned_path, "rb") as f:
-            file_bytes = f.read()
-            minio_client.put_object(
-                output_bucket,
-                cleaned_filename,
-                io.BytesIO(file_bytes),
-                length=len(file_bytes),
-                content_type="application/octet-stream"
-            )
+        # Use fput_object to avoid needing length param across client versions
+        minio_client.fput_object(
+            output_bucket,
+            cleaned_filename,
+            temp_cleaned_path,
+            content_type="application/octet-stream"
+        )
         return JSONResponse(content={"message": f"{cleaned_filename} saved to MinIO bucket {output_bucket}."})
     except Exception as e:
         logging.error(f"Error saving cleaned file to MinIO: {e}")
         return JSONResponse(content={"error": f"Error saving cleaned file to MinIO: {e}"}, status_code=500)
+
+def save_data_to_minio(data: str, filename: str, folder: str = "cleaned-data"):
+    """Save CSV data to MinIO as parquet file in specified folder"""
+    import io
+    import pandas as pd
+    import tempfile
+    import os
+    
+    try:
+        # Ensure bucket exists
+        if not minio_client.bucket_exists(folder):
+            minio_client.make_bucket(folder)
+        
+        # Convert CSV data to DataFrame
+        df = pd.read_csv(io.StringIO(data))
+        
+        # Convert to parquet
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.parquet') as tmp_file:
+            df.to_parquet(tmp_file.name, engine='pyarrow', index=False)
+            temp_path = tmp_file.name
+        
+        # Upload to MinIO using fput_object to avoid length requirements
+        minio_client.fput_object(
+            folder,
+            filename,
+            temp_path,
+            content_type="application/octet-stream"
+        )
+        
+        # Clean up temp file
+        os.unlink(temp_path)
+        
+        return JSONResponse(content={"message": f"{filename} saved to MinIO bucket {folder}."})
+    except Exception as e:
+        # Clean up temp file if it exists
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.unlink(temp_path)
+        logging.error(f"Error saving data to MinIO: {e}")
+        return JSONResponse(content={"error": f"Error saving data to MinIO: {e}"}, status_code=500)
 
 def download_cleaned_file(filename: str):
     import io

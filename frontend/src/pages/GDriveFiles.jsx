@@ -16,6 +16,9 @@ export default function GDriveFiles() {
   const [folderNames, setFolderNames] = useState([{ id: "root", name: "/" }]);
   const [uploadingFileId, setUploadingFileId] = useState(null);
   const [uploadMessage, setUploadMessage] = useState("");
+  const [showRenameModal, setShowRenameModal] = useState(false); // New state for modal visibility
+  const [fileToRename, setFileToRename] = useState(null); // New state to hold the file being renamed
+  const [newGDriveFilename, setNewGDriveFilename] = useState(""); // New state for the user's input filename
 
   useEffect(() => {
     // Get token from query params or localStorage
@@ -86,28 +89,64 @@ export default function GDriveFiles() {
   };
 
   const handleUpload = async (file) => {
-    setUploadingFileId(file.id);
+    setFileToRename(file);
+    const fileNameWithoutExtension = file.name.split('.').slice(0, -1).join('.');
+    setNewGDriveFilename(`${fileNameWithoutExtension || 'google_drive_file'}.parquet`);
+    setShowRenameModal(true);
+  };
+
+  const handleConfirmRenameUpload = async () => {
+    if (!newGDriveFilename.trim()) {
+      toast.error("Please enter a valid filename.");
+      return;
+    }
+    if (!fileToRename || !token) {
+      toast.error("Error: No file selected or access token missing.");
+      return;
+    }
+
+    setShowRenameModal(false); // Close modal
+    setUploadingFileId(fileToRename.id); // Show loading state for the specific file
     setUploadMessage("");
+
     try {
       const res = await fetch("http://localhost:8000/upload-from-google-drive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          file_id: file.id,
+          file_id: fileToRename.id,
           access_token: token,
-          filename: file.name
-        })
+          filename: newGDriveFilename,
+        }),
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Uploaded '${file.name}' successfully!`);
+        toast.success(`Uploaded '${newGDriveFilename}' successfully!`);
+        if (data.filename) {
+          navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);
+        }
       } else {
-        toast.error(`Failed to upload '${file.name}': ${data.detail || res.status}`);
+        toast.error(`Failed to upload '${newGDriveFilename}': ${data.detail || res.status}`);
       }
     } catch (e) {
-      toast.error(`Error uploading '${file.name}': ${e.message}`);
+      toast.error(`Error uploading '${newGDriveFilename}': ${e.message}`);
+    } finally {
+      setUploadingFileId(null);
+      setFileToRename(null);
+      setNewGDriveFilename("");
     }
-    setUploadingFileId(null);
+  };
+
+  const handleCloseRenameModal = () => {
+    setShowRenameModal(false);
+    setFileToRename(null);
+    setNewGDriveFilename("");
+  };
+
+  const handleNewGDriveFilenameChange = (e) => {
+    const inputName = e.target.value;
+    const baseName = inputName.split('.')[0];
+    setNewGDriveFilename(`${baseName}.parquet`);
   };
 
   const handleFolderNavigation = (folder) => {
@@ -147,6 +186,37 @@ export default function GDriveFiles() {
             </div>
           </div>
         </div>
+        {/* Rename Modal */}
+        {showRenameModal && fileToRename && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100000]">
+            <div className="bg-white p-8 rounded-lg shadow-xl flex flex-col items-center justify-center" style={{ width: '90%', maxWidth: '400px' }}>
+              <h3 className="text-xl font-bold mb-4">Rename File for Upload</h3>
+              <p className="text-gray-700 mb-4">Original: <strong>{fileToRename.name}</strong></p>
+              <input
+                type="text"
+                value={newGDriveFilename}
+                onChange={handleNewGDriveFilenameChange}
+                className="w-full p-2 border border-gray-300 rounded-md mb-4"
+                placeholder="Enter new file name (will be .parquet)"
+              />
+              <div className="flex justify-end gap-4 w-full">
+                <button
+                  onClick={handleCloseRenameModal}
+                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmRenameUpload}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  disabled={!newGDriveFilename.trim()}
+                >
+                  Upload as {newGDriveFilename.split('.').pop() === 'parquet' ? newGDriveFilename : `${newGDriveFilename}.parquet`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <FloatingFilesPanel position="top-right" offsetTop={80} label="Show Uploaded Files" />
     </div>

@@ -518,6 +518,47 @@
   min-width: 80px;
 }
 
+.previewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.previewControls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.previewToggle {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.previewToggle:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.previewToggle.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.previewToggle.active:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
 .previewNote {
   background: #f3f6fb;
   color: #6366f1;
@@ -526,8 +567,15 @@
   margin-bottom: 1.1rem;
   font-size: 1.05rem;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1.2rem;
+  gap: 0.25rem;
+}
+
+.diffInfo {
+  font-size: 0.8rem;
+  color: #059669;
+  font-weight: 500;
 }
 .showAllBtn {
   background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
@@ -547,8 +595,320 @@
 }
 
 .loadingColumnsMsg {
-  color: #64748b;
-  font-size: 0.98rem;
-  margin-left: 1.2rem;
-  font-style: italic;
+  color: var(--gray-500);
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  gap: 1rem;
+  color: var(--blue-600);
+}
+
+.loadingSpinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: var(--blue-500);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.errorContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  gap: 0.5rem;
+  color: var(--red-600);
+  border: 1px solid var(--red-200);
+  background-color: var(--red-50);
+  border-radius: var(--border-radius-md);
+  margin-top: 1.5rem;
+}
+
+.errorMessage {
+  font-weight: 600;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.errorHint {
+  font-size: 0.9rem;
+  color: var(--red-500);
+  text-align: center;
+}
+
+.preprocessingStepsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* Spacing between cards */
+  margin-top: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stepCard {
+  background-color: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem;
+  transition: all 0.2s ease-in-out;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.stepCard:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.stepCardLabel {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  margin-bottom: 1rem; /* Space between label and content */
+}
+
+.stepCardLabel input[type="checkbox"] {
+  margin-right: 1rem;
+  transform: scale(1.2);
+}
+
+.stepCardIcon {
+  font-size: 1.5rem;
+  margin-right: 0.75rem;
+}
+
+.stepCardTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.stepCardContent {
+  padding-left: 2.75rem; /* Align content with title, past checkbox and icon */
+  padding-top: 1rem;
+  border-top: 1px solid var(--gray-100);
+  margin-top: 0.5rem;
+}
+
+.fillStrategySection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.fillStrategySelect,
+.customFillInput {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius-md);
+  font-size: 0.9rem;
+  flex-grow: 1;
+  max-width: 200px; /* Adjust as needed */
+}
+
+.customFillInput {
+  max-width: 150px;
+}
+
+/* Ensure column multi-select options are nicely formatted */
+.columnListTitle {
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+  color: var(--gray-700);
+}
+
+.columnList {
+  display: flex;
+  flex-wrap: wrap; /* Allow columns to wrap */
+  gap: 0.5rem 1rem; /* Vertical and horizontal gap */
+  max-height: 200px; /* Example max height for scroll */
+  overflow-y: auto;
+  border: 1px solid var(--gray-100);
+  border-radius: var(--border-radius-md);
+  padding: 0.75rem;
+  background-color: var(--gray-50);
+}
+
+.columnOption {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.columnOption input[type="checkbox"] {
+  margin-right: 0.5rem;
+}
+
+/* General form styling for better alignment */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.selectedFileDisplay {
+  background-color: var(--blue-50);
+  padding: 0.75rem 1.25rem;
+  border-left: 4px solid var(--blue-400);
+  border-radius: var(--border-radius-md);
+  font-weight: 500;
+  color: var(--gray-800);
+  font-size: 1rem;
+  margin-bottom: 1rem; /* Space below file display */
+}
+
+.buttonGroup {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.backBtn {
+  background-color: var(--gray-200);
+  color: var(--gray-800);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--border-radius-lg);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-grow: 1;
+}
+
+.backBtn:hover {
+  background-color: var(--gray-300);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.highlightToggleWrapper {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--gray-700);
+  font-size: 0.9rem;
+}
+
+.columnStrategySelectorWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--gray-100);
+}
+
+.columnStrategyItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap; /* Allow items to wrap on smaller screens */
+  background-color: var(--gray-50);
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--gray-200);
+}
+
+.columnStrategyColName {
+  font-weight: 500;
+  color: var(--gray-800);
+  white-space: nowrap;
+  margin-right: auto; /* Pushes strategy selector to the right */
+}
+
+.fileSelect {
+  width: 360px;
+  max-width: 90vw;
+  padding: 0.9rem 1rem;
+  border-radius: 0.9rem;
+  border: 2px solid #6366f1;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(99,102,241,0.12);
+  transition: box-shadow 0.2s, transform 0.15s, border-color 0.2s;
+}
+.fileSelect:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(99,102,241,0.2);
+  transform: translateY(-1px);
+}
+
+/* Outlier configuration styles */
+.outlierConfig {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background-color: var(--gray-50);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--gray-200);
+}
+
+.outlierLabel {
+  font-weight: 500;
+  color: var(--gray-700);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.outlierSelect {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius-sm);
+  background-color: white;
+  color: var(--gray-800);
+  font-size: 0.9rem;
+  min-width: 180px;
+}
+
+.outlierSelect:focus {
+  outline: none;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.outlierInput {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius-sm);
+  background-color: white;
+  color: var(--gray-800);
+  font-size: 0.9rem;
+  width: 80px;
+  text-align: center;
+}
+
+.outlierInput:focus {
+  outline: none;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
 }

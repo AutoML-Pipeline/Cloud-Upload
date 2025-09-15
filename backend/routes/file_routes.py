@@ -1,13 +1,13 @@
 # FastAPI route definitions for file-related endpoints
 from fastapi import APIRouter, UploadFile, File, Form, Request, Query, Body
 from controllers import file_controller
-from models.pydantic_models import UploadFromURLRequest, UploadFromGoogleDriveRequest
+from models.pydantic_models import UploadFromURLRequest, UploadFromGoogleDriveRequest, SQLWorkbenchRequest, SQLConnectRequest
 
 router = APIRouter()
 
 @router.post("/files/upload")
-async def upload_file(file: UploadFile = File(...), access_token: str = Form(None)):
-    return await file_controller.upload_file(file, access_token)
+async def upload_file(file: UploadFile = File(...), new_filename: str = Form(None), access_token: str = Form(None)):
+    return await file_controller.upload_file(file, new_filename, access_token)
 
 @router.post("/files/upload-url")
 async def upload_from_url(request: UploadFromURLRequest, access_token: str = Form(None)):
@@ -35,3 +35,15 @@ async def download_file(filename: str):
 def gdrive_list_files(access_token: str = Query(...), folder_id: str = Query("root")):
     from controllers import file_controller
     return file_controller.gdrive_list_files(access_token, folder_id)
+
+@router.post("/sql-preview")
+async def sql_preview(request: SQLWorkbenchRequest):
+    return await file_controller.sql_preview(request)
+
+@router.post("/upload-from-sql")
+async def upload_from_sql(request: SQLWorkbenchRequest):
+    return await file_controller.upload_from_sql(request)
+
+@router.post("/sql-list-databases")
+async def sql_list_databases(request: SQLConnectRequest):
+    return await file_controller.sql_list_databases(request)

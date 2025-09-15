@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import styles from "./DataTable.module.css";
 
 function downloadCSV(data, filename = "data.csv") {
@@ -19,15 +19,74 @@ function downloadCSV(data, filename = "data.csv") {
   window.URL.revokeObjectURL(url);
 }
 
-export default function DataTable({ data, columns, highlightChanges = false, originalData = null, pageSize = 10, compareOriginal = false }) {
+async function saveToMinIO(data, originalFilename) {
+  try {
+    // Create filename with cleaned_ prefix
+    const baseName = originalFilename ? originalFilename.replace(/\.(parquet|csv|xlsx|json)$/i, '') : 'data';
+    const cleanedFilename = `cleaned_${baseName}.parquet`;
+    
+    // Convert data to CSV first, then let backend convert to parquet
+    const csvRows = [];
+    const headers = Object.keys(data[0] || {});
+    csvRows.push(headers.join(","));
+    for (const row of data) {
+      csvRows.push(headers.map(h => JSON.stringify(row[h] ?? "")).join(","));
+    }
+    const csvContent = csvRows.join("\n");
+    
+    // Send to backend to save as parquet in cleaned-data folder
+    const response = await fetch('http://localhost:8000/save_cleaned_to_minio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: csvContent,
+        filename: cleanedFilename,
+        folder: 'cleaned-data'
+      })
+    });
+    
+    const result = await response.json();
+    if (response.ok) {
+      return { success: true, message: `Data saved to MinIO as ${cleanedFilename}` };
+    } else {
+      throw new Error(result.error || 'Failed to save to MinIO');
+    }
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
+
+export default function DataTable({ data, columns, highlightChanges = false, originalData = null, pageSize = 10, compareOriginal = false, diffMarks = null, originalFilename = null }) {
   const [page, setPage] = useState(0);
   const [sortCol, setSortCol] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
   const [filters, setFilters] = useState({});
   const [visibleCols, setVisibleCols] = useState(() => columns || Object.keys(data[0] || {}));
+  const [savingToMinIO, setSavingToMinIO] = useState(false);
   const allColumns = useMemo(() => columns || Object.keys(data[0] || {}), [columns, data]);
 
+  // Ensure all columns are visible when dataset/columns change (e.g., on Show All)
+  useEffect(() => {
+    setVisibleCols(allColumns);
+  }, [allColumns]);
+
   const handleResetCols = () => setVisibleCols(allColumns);
+
+  const handleSaveToMinIO = async () => {
+    setSavingToMinIO(true);
+    try {
+      const result = await saveToMinIO(sortedData, originalFilename);
+      if (result.success) {
+        alert(`✅ ${result.message}`);
+      } else {
+        alert(`❌ ${result.message}`);
+      }
+    } catch (error) {
+      alert(`❌ Error: ${error.message}`);
+    } finally {
+      setSavingToMinIO(false);
+    }
+  };
 
   // Filtering
   const filteredData = useMemo(() => {
@@ -49,9 +108,32 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
     });
   }, [filteredData, sortCol, sortDir]);
 
-  // Pagination
-  const totalPages = Math.ceil(sortedData.length / pageSize);
-  const pagedData = sortedData.slice(page * pageSize, (page + 1) * pageSize);
+  // Pagination (based on augmented data length after we compute it)
+  // Placeholder; will recompute after augmentedData is ready
+  let totalPages = 1;
+  // Build augmented data with deleted rows (from originalData) prepended
+  const deletedIndexSet = useMemo(() => new Set(diffMarks?.deleted_row_indices || []), [diffMarks]);
+  const deletedRows = useMemo(() => {
+    if (!originalData || deletedIndexSet.size === 0) return [];
+    const rows = originalData.filter(r => r?._orig_idx != null && deletedIndexSet.has(r._orig_idx)).map(r => ({ ...r, _deletedRow: true }));
+    return rows;
+  }, [originalData, deletedIndexSet]);
+
+  const augmentedData = useMemo(() => [...deletedRows, ...sortedData], [deletedRows, sortedData]);
+  totalPages = Math.max(1, Math.ceil(augmentedData.length / pageSize));
+  const pagedData = augmentedData.slice(page * pageSize, (page + 1) * pageSize);
+
+  // Deleted rows (strikethrough) support via diffMarks.deleted_row_indices based on _orig_idx
+  const updatedCells = useMemo(() => diffMarks?.updated_cells || {}, [diffMarks]);
+
+  // Build a lookup of original rows by _orig_idx
+  const originalByIdx = useMemo(() => {
+    const map = new Map();
+    (originalData || []).forEach(r => {
+      if (r && r._orig_idx != null) map.set(r._orig_idx, r);
+    });
+    return map;
+  }, [originalData]);
 
   // Column toggling
   const toggleCol = col => {
@@ -88,37 +170,41 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
 
   // Highlight changed cells
   const isChanged = (rowIdx, col) => {
-    if (!highlightChanges || !originalData) return false;
-    if (!originalData[rowIdx]) return false;
-    const orig = originalData[rowIdx];
-    return orig && orig[col] !== pagedData[rowIdx][col];
+    if (!highlightChanges) return false;
+    const row = pagedData[rowIdx];
+    if (!row || row._deletedRow) return false; // deleted rows should not show per-cell changes
+    const origIdx = row._orig_idx;
+    const orig = origIdx != null ? originalByIdx.get(origIdx) : null;
+    const changedByValue = orig ? orig[col] !== row[col] : false;
+    const changedByDiff = origIdx != null && updatedCells[origIdx]?.[col];
+    return Boolean(changedByValue || changedByDiff);
   };
 
-  // Single-table compare: show cleaned value, and if changed, show original below in faded style
+  // Single-table compare: show cleaned value only; rely on highlight and deleted row styling
   const renderCompareCell = (rowIdx, col) => {
-    const cleanedVal = pagedData[rowIdx][col];
-    const orig = originalData ? originalData[rowIdx] : null;
+    const row = pagedData[rowIdx];
+    const cleanedVal = row[col];
+    const orig = row && row._orig_idx != null ? originalByIdx.get(row._orig_idx) : null;
     if (!orig) {
       // No original data for this row (e.g., in Show All mode, page > 1)
       return <span>{renderCell(cleanedVal)}</span>;
     }
-    const changed = orig[col] !== cleanedVal;
-    return (
-      <div>
-        <span>{renderCell(cleanedVal)}</span>
-        {changed && (
-          <div className={styles.compareWas} title={`Original: ${orig[col]}`}>
-            (was <span className={styles.compareWasVal}>{renderCell(orig[col])}</span>)
-          </div>
-        )}
-      </div>
-    );
+    return <span>{renderCell(cleanedVal)}</span>;
   };
 
   return (
     <div className={styles.dataTableShell}>
       <div className={styles.dataTableToolbar}>
         <button className={styles.csvBtn} onClick={() => downloadCSV(sortedData)} aria-label="Download CSV" title="Download table as CSV">Download CSV</button>
+        <button 
+          className={styles.minioBtn} 
+          onClick={handleSaveToMinIO} 
+          disabled={savingToMinIO}
+          aria-label="Save to MinIO" 
+          title="Save cleaned data to MinIO as parquet"
+        >
+          {savingToMinIO ? 'Saving...' : 'Save to MinIO'}
+        </button>
         <button className={styles.resetColsBtn} onClick={handleResetCols} aria-label="Reset Columns" title="Show all columns">Reset Columns</button>
         <div className={styles.colToggleMenu}>
           Columns:
@@ -138,7 +224,7 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
       {/* Legend for compare mode */}
       {compareOriginal && (
         <div className={styles.compareLegend}>
-          <span className={styles.cellChanged}>Cell highlighted</span> = changed by preprocessing. <span className={styles.compareWas}>(was <span className={styles.compareWasVal}>original</span>)</span> shows the original value.
+          <span className={styles.cellChanged}>Highlighted cell</span> = value will change after cleaning. Deleted rows are shown with strikethrough.
         </div>
       )}
       <div className={styles.dataTableWrapper}>
@@ -164,7 +250,7 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
           </thead>
           <tbody>
             {pagedData.map((row, rowIdx) => (
-              <tr key={rowIdx}>
+              <tr key={rowIdx} className={row?._deletedRow ? styles.rowDeleted : undefined}>
                 {allColumns.filter(col => visibleCols.includes(col)).map(col => (
                   <td
                     key={col}

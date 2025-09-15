@@ -18,6 +18,48 @@ import os
 import io
 import json
 from fastapi import Request
+import logging
+import pyarrow.parquet as pq
+import math
+from .preprocessing.io_utils import read_parquet_from_minio, to_preview_records, sanitize_dataframe_for_parquet
+from .preprocessing.remove_duplicates import apply as apply_remove_duplicates
+from .preprocessing.remove_nulls import apply as apply_remove_nulls
+from .preprocessing.fill_nulls import apply as apply_fill_nulls
+from .preprocessing.drop_columns import apply as apply_drop_columns
+from .preprocessing.remove_outliers import apply as apply_remove_outliers
+from .preprocessing.diff_utils import compute_diff_marks
+from .preprocessing.types import StepsPayload, PreprocessResult
+
+def _to_json_safe(value):
+    if value is None:
+        return None
+    # pandas NA
+    try:
+        if pd.isna(value):
+            return None
+    except Exception:
+        pass
+    # numpy scalars
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    if isinstance(value, (np.floating,)):
+        f = float(value)
+        if math.isnan(f) or math.isinf(f):
+            return None
+        return f
+    if isinstance(value, (np.bool_,)):
+        return bool(value)
+    # python floats
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return value
+    # containers
+    if isinstance(value, dict):
+        return {k: _to_json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_to_json_safe(v) for v in value]
+    return value
 
 def analyze_data_quality(df):
     """Comprehensive data quality analysis"""
@@ -34,7 +76,10 @@ def analyze_data_quality(df):
     }
     
     # Missing data analysis
-    missing_percentages = (df.isnull().sum() / len(df)) * 100
+    if len(df) == 0:
+        missing_percentages = pd.Series({col: 0.0 for col in df.columns})
+    else:
+        missing_percentages = (df.isnull().sum() / len(df)) * 100
     quality_report['missing_data'] = {
         col: {
             'count': int(df[col].isnull().sum()),
@@ -68,16 +113,17 @@ def analyze_data_quality(df):
             upper_bound = Q3 + 1.5 * IQR
             outliers = df[(df[col] < lower_bound) | (df[col] > upper_bound)]
             
+            pct = float((len(outliers) / len(df)) * 100) if len(df) > 0 else 0.0
             quality_report['outliers'][col] = {
                 'count': int(len(outliers)),
-                'percentage': float((len(outliers) / len(df)) * 100),
+                'percentage': pct,
                 'lower_bound': float(lower_bound),
                 'upper_bound': float(upper_bound)
             }
     
     # Calculate quality score
     missing_penalty = sum(info['percentage'] for info in quality_report['missing_data'].values()) * 0.5
-    duplicate_penalty = (quality_report['duplicate_rows'] / quality_report['total_rows']) * 100
+    duplicate_penalty = ((quality_report['duplicate_rows'] / quality_report['total_rows']) * 100) if quality_report['total_rows'] > 0 else 0
     outlier_penalty = sum(info['percentage'] for info in quality_report['outliers'].values()) * 0.3
     
     quality_report['quality_score'] = max(0, 100 - missing_penalty - duplicate_penalty - outlier_penalty)
@@ -197,245 +243,177 @@ def get_original_preview(df):
     return df.head(10).replace([float('nan'), float('inf'), float('-inf')], None).where(pd.notnull(df.head(10)), None).to_dict(orient='records')
 
 async def data_preprocessing(filename: str, steps: dict = {}, preprocessing: str = None, request: Request = None):
+    # Load dataframe (prefer parquet, fallback to other formats)
     try:
-        response = minio_client.get_object(MINIO_BUCKET, filename)
-        file_bytes = io.BytesIO(response.read())
-    except Exception as e:
-        return JSONResponse(content={"error": f"Error reading file from MinIO: {e}"}, status_code=500)
-    
-    try:
-        if filename.endswith('.csv'):
-            df = pd.read_csv(file_bytes)
-        elif filename.endswith('.xlsx'):
-            df = pd.read_excel(file_bytes)
-        elif filename.endswith('.json'):
-            df = pd.read_json(file_bytes)
-        elif filename.endswith('.parquet'):
-            df = pd.read_parquet(file_bytes)
+        if filename.endswith('.parquet'):
+            df = read_parquet_from_minio(filename)
         else:
-            return JSONResponse(content={"error": "Unsupported file format."}, status_code=400)
+            response = minio_client.get_object(MINIO_BUCKET, filename)
+            file_bytes = io.BytesIO(response.read())
+            if filename.endswith('.csv'):
+                df = pd.read_csv(file_bytes)
+            elif filename.endswith('.xlsx'):
+                df = pd.read_excel(file_bytes)
+            elif filename.endswith('.json'):
+                df = pd.read_json(file_bytes)
+            else:
+                return JSONResponse(content={"error": "Unsupported file format."}, status_code=400)
+
+        if "_orig_idx" not in df.columns:
+            df = df.reset_index(drop=False).rename(columns={"index": "_orig_idx"})
     except Exception as e:
-        return JSONResponse(content={"error": f"Error loading file into DataFrame: {e}"}, status_code=500)
+        return JSONResponse(content={"error": f"Error reading file: {e}"}, status_code=500)
     
-    original_preview = get_original_preview(df)
-    change_metadata = []
+    change_metadata: list[str] = []
     df_cleaned = df.copy()
         
-    # --- Manual Preprocessing Steps ---
-    # Remove duplicates (advanced: allow subset)
+    # Apply modular steps mirroring frontend
     if steps.get("removeDuplicates"):
-        subset = steps.get("duplicateSubset", None)
-        before = len(df_cleaned)
-        if subset and isinstance(subset, list) and len(subset) > 0:
-            df_cleaned = df_cleaned.drop_duplicates(subset=subset)
-            after = len(df_cleaned)
-            change_metadata.append(f"Removed {before - after} duplicate rows based on columns: {', '.join(subset)}.")
-        else:
-            df_cleaned = df_cleaned.drop_duplicates()
-            after = len(df_cleaned)
-            change_metadata.append(f"Removed {before - after} duplicate rows (all columns).")
+        df_cleaned, meta = apply_remove_duplicates(df_cleaned, steps.get("duplicateSubset", []))
+        change_metadata += meta.get("summary", [])
 
-    # Remove nulls
     if steps.get("removeNulls"):
-        before = len(df_cleaned)
-        df_cleaned = df_cleaned.dropna()
-        after = len(df_cleaned)
-        change_metadata.append(f"Removed {before - after} rows with nulls.")
+        df_cleaned, meta = apply_remove_nulls(df_cleaned, steps.get("removeNullsColumns", []))
+        change_metadata += meta.get("summary", [])
 
-    # Fill nulls (per-column strategies)
-    fill_strategies = steps.get("fillStrategies", {})
-    if steps.get("fillNulls") and fill_strategies:
-        for col, strat in fill_strategies.items():
-            strategy = strat.get("strategy", "skip")
-            if strategy == "skip":
-                continue
-            if col not in df_cleaned.columns:
-                continue
-            if strategy == "mean" and pd.api.types.is_numeric_dtype(df_cleaned[col]):
-                df_cleaned[col] = df_cleaned[col].fillna(df_cleaned[col].mean())
-            elif strategy == "median" and pd.api.types.is_numeric_dtype(df_cleaned[col]):
-                df_cleaned[col] = df_cleaned[col].fillna(df_cleaned[col].median())
-            elif strategy == "mode":
-                mode_val = df_cleaned[col].mode()
-                if not mode_val.empty:
-                    df_cleaned[col] = df_cleaned[col].fillna(mode_val[0])
-                else:
-                    df_cleaned[col] = df_cleaned[col].fillna("Unknown")
-            elif strategy == "zero":
-                df_cleaned[col] = df_cleaned[col].fillna(0)
-            elif strategy == "custom":
-                custom_val = strat.get("value", "")
-                df_cleaned[col] = df_cleaned[col].fillna(custom_val)
-            else:
-                # Fallback: use mode for categorical, zero for numeric
-                if pd.api.types.is_numeric_dtype(df_cleaned[col]):
-                    df_cleaned[col] = df_cleaned[col].fillna(0)
-                else:
-                    mode_val = df_cleaned[col].mode()
-                    if not mode_val.empty:
-                        df_cleaned[col] = df_cleaned[col].fillna(mode_val[0])
-                    else:
-                        df_cleaned[col] = df_cleaned[col].fillna("Unknown")
-        change_metadata.append("Filled nulls per column strategies.")
-    elif steps.get("fillNulls"):
-        # fallback: old logic (single strategy for all columns)
-        strategy = steps.get("fillStrategy", "mean")
-        for col in df_cleaned.columns:
-            if df_cleaned[col].isnull().any():
-                if strategy == "mean" and pd.api.types.is_numeric_dtype(df_cleaned[col]):
-                    df_cleaned[col] = df_cleaned[col].fillna(df_cleaned[col].mean())
-                elif strategy == "median" and pd.api.types.is_numeric_dtype(df_cleaned[col]):
-                    df_cleaned[col] = df_cleaned[col].fillna(df_cleaned[col].median())
-                elif strategy == "mode":
-                    mode_val = df_cleaned[col].mode()
-                    if not mode_val.empty:
-                        df_cleaned[col] = df_cleaned[col].fillna(mode_val[0])
-                elif strategy == "zero":
-                    df_cleaned[col] = df_cleaned[col].fillna(0)
-                elif strategy == "custom":
-                    custom_val = steps.get("customFillValue", "")
-                    df_cleaned[col] = df_cleaned[col].fillna(custom_val)
-        change_metadata.append(f"Filled nulls using {strategy} strategy.")
+    if steps.get("fillNulls"):
+        df_cleaned, meta = apply_fill_nulls(df_cleaned, steps.get("fillStrategies", {}))
+        change_metadata += meta.get("summary", [])
 
-    # Drop columns
-    drop_cols = steps.get("dropColumns", [])
-    if drop_cols:
-        df_cleaned = df_cleaned.drop(columns=drop_cols, errors="ignore")
-        change_metadata.append(f"Dropped columns: {', '.join(drop_cols)}.")
+    if steps.get("dropColumns"):
+        df_cleaned, meta = apply_drop_columns(df_cleaned, steps.get("dropColumns", []))
+        change_metadata += meta.get("summary", [])
 
-    # Encode categorical
-    encode_cols = steps.get("encodeCategorical", [])
-    encoding_method = steps.get("encodingMethod", "onehot")
-    if encode_cols:
-        if encoding_method == "onehot":
-            df_cleaned = pd.get_dummies(df_cleaned, columns=encode_cols, drop_first=True)
-            change_metadata.append(f"One-hot encoded columns: {', '.join(encode_cols)}.")
-        elif encoding_method == "label":
-            from sklearn.preprocessing import LabelEncoder
-            for col in encode_cols:
-                le = LabelEncoder()
-                df_cleaned[col] = le.fit_transform(df_cleaned[col].astype(str))
-            change_metadata.append(f"Label encoded columns: {', '.join(encode_cols)}.")
+    # Remove outliers step (method: iqr, factor: number, columns: list)
+    if steps.get("removeOutliers"):
+        outlier_cfg = steps.get("removeOutliersConfig", {"method": "iqr", "factor": 1.5, "columns": []})
+        logging.info(f"Outlier removal config: {outlier_cfg}")
+        logging.info(f"DataFrame before outlier removal: {len(df_cleaned)} rows")
+        df_cleaned, meta = apply_remove_outliers(df_cleaned, outlier_cfg)
+        logging.info(f"DataFrame after outlier removal: {len(df_cleaned)} rows")
+        logging.info(f"Outlier removal metadata: {meta}")
+        change_metadata += meta.get("summary", [])
 
-    # Scale numeric
-    scale_cols = steps.get("scaleNumeric", [])
-    scaling_method = steps.get("scalingMethod", "minmax")
-    if scale_cols:
-        if scaling_method == "minmax":
-            from sklearn.preprocessing import MinMaxScaler
-            scaler = MinMaxScaler()
-        elif scaling_method == "standard":
-            from sklearn.preprocessing import StandardScaler
-            scaler = StandardScaler()
-        else:
-            scaler = None
-        if scaler:
-            for col in scale_cols:
-                # Don't scale ID or AGE columns
-                if col.lower() in ["id", "age"]:
-                    continue
-                df_cleaned[col] = scaler.fit_transform(df_cleaned[[col]])
-            change_metadata.append(f"Scaled columns: {', '.join(scale_cols)} using {scaling_method}.")
+    # Compute diff marks
+    deleted, updated_cells = compute_diff_marks(df, df_cleaned)
 
-    # Outlier removal
-    outlier_cols = steps.get("outlierColumns", [])
-    outlier_method = steps.get("outlierMethod", "iqr")
-    if outlier_cols:
-        for col in outlier_cols:
-            if outlier_method == "iqr":
-                Q1 = df_cleaned[col].quantile(0.25)
-                Q3 = df_cleaned[col].quantile(0.75)
-                IQR = Q3 - Q1
-                lower = Q1 - 1.5 * IQR
-                upper = Q3 + 1.5 * IQR
-                before = len(df_cleaned)
-                df_cleaned = df_cleaned[(df_cleaned[col] >= lower) & (df_cleaned[col] <= upper)]
-                after = len(df_cleaned)
-                change_metadata.append(f"Removed {before - after} outliers from {col} (IQR).")
-            elif outlier_method == "zscore":
-                mean = df_cleaned[col].mean()
-                std = df_cleaned[col].std()
-                before = len(df_cleaned)
-                df_cleaned = df_cleaned[(np.abs((df_cleaned[col] - mean) / std) < 3)]
-                after = len(df_cleaned)
-                change_metadata.append(f"Removed {before - after} outliers from {col} (Z-score).")
-
-    # Reorder columns
-    reorder_cols = steps.get("reorderColumns", [])
-    if reorder_cols and set(reorder_cols) == set(df_cleaned.columns):
-        df_cleaned = df_cleaned[reorder_cols]
-        change_metadata.append("Reordered columns.")
-
-    # --- End Manual Steps ---
-
-    # Save cleaned file and prepare preview
+    # Save cleaned parquet to temp file
     try:
+        df_to_save = sanitize_dataframe_for_parquet(df_cleaned)
         with tempfile.NamedTemporaryFile(delete=False, suffix='.parquet') as tmp_file:
-            df_cleaned.to_parquet(tmp_file.name, engine='pyarrow')
-            tmp_file.seek(0)
+            df_to_save.to_parquet(tmp_file.name, engine='pyarrow', index=False)
             temp_cleaned_path = tmp_file.name
             cleaned_filename = f"cleaned_{os.path.splitext(filename)[0]}.parquet"
     except Exception as e:
         return JSONResponse(content={"error": f"Error saving cleaned Parquet: {e}"}, status_code=500)
     
+    # Build previews
+    full_flag = (request and hasattr(request, 'query_params') and request.query_params.get('full') == 'true')
+    if full_flag:
+        original_preview = to_preview_records(df, None)
+        preview = to_preview_records(df_cleaned, None)
+        full_data = preview
+    else:
+        original_preview = to_preview_records(df, 10)
+        preview = to_preview_records(df_cleaned, 10)
+        full_data = None
+
+    # Quality report (basic)
     try:
-        with open(temp_cleaned_path, 'rb') as f:
-            cleaned_df = pd.read_parquet(f, engine='pyarrow')
-    except Exception as e:
-        return JSONResponse(content={"error": f"Error reading cleaned Parquet from temp file: {e}"}, status_code=500)
-    
-    preview = get_original_preview(cleaned_df)
-    dtypes_table = [{"column": col, "dtype": str(dtype)} for col, dtype in cleaned_df.dtypes.items()]
-    nulls_table = [{"column": col, "null_count": int(nulls) if pd.notnull(nulls) and not pd.isna(nulls) else 0} for col, nulls in cleaned_df.isnull().sum().items()]
-    
-    # Check for ?full=true
-    full_data = None
-    if request and hasattr(request, 'query_params') and request.query_params.get('full') == 'true':
-        full_data = cleaned_df.replace([float('nan'), float('inf'), float('-inf')], None).where(pd.notnull(cleaned_df), None).to_dict(orient='records')
-    return {
+        quality_report = analyze_data_quality(df_cleaned)
+    except Exception:
+        quality_report = {}
+
+    response_payload = {
         "original_preview": original_preview,
         "preview": preview, 
         "full_data": full_data,
-        "dtypes_table": dtypes_table, 
-        "nulls_table": nulls_table, 
+        "diff_marks": {"deleted_row_indices": deleted, "updated_cells": updated_cells},
+        "change_metadata": change_metadata,
+        "quality_report": quality_report,
         "cleaned_filename": cleaned_filename, 
         "temp_cleaned_path": temp_cleaned_path,
-        "change_metadata": change_metadata,
-        # ... (add quality reports, summaries as needed)
     }
+    
+    # Debug logging
+    logging.info(f"Response payload sizes: original_preview={len(original_preview)}, preview={len(preview)}, full_data={len(full_data) if full_data else 'None'}")
+    logging.info(f"Deleted row indices: {deleted}")
+    if original_preview:
+        orig_indices = [row.get('_orig_idx') for row in original_preview[:5]]  # First 5 rows
+        logging.info(f"Sample original_preview _orig_idx values: {orig_indices}")
+    if preview:
+        clean_indices = [row.get('_orig_idx') for row in preview[:5]]  # First 5 rows
+        logging.info(f"Sample preview _orig_idx values: {clean_indices}")
+    
+    return _to_json_safe(response_payload)
 
 def get_data_preview(filename: str):
     try:
+        # First, ensure the MinIO bucket exists before trying to access objects
+        from config import ensure_minio_bucket_exists
+        ensure_minio_bucket_exists()
+        
         response = minio_client.get_object(MINIO_BUCKET, filename)
-        file_bytes = io.BytesIO(response.read())
+        file_bytes_buffer = io.BytesIO(response.read())
+        file_bytes_buffer.seek(0)
     except Exception as e:
+        logging.error(f"Error reading file '{filename}' from MinIO: {e}", exc_info=True)
         return JSONResponse(content={"error": f"Error reading file from MinIO: {e}"}, status_code=500)
+
+    df = None
+    columns = []
+    dtypes = {}
+    null_counts = {}
+    sample_values = {}
+
     try:
-        if filename.endswith('.csv'):
-            df = pd.read_csv(file_bytes)
+        if filename.endswith('.parquet'):
+            # For Parquet, use pyarrow to read schema and statistics efficiently
+            parquet_file = pq.ParquetFile(file_bytes_buffer)
+            schema = parquet_file.schema
+            
+            columns = schema.names
+            dtypes = {field.name: str(field.physical_type) for field in schema}
+            
+            # To get null counts and sample values for Parquet, we might still need to read a small sample
+            # Or rely on Parquet metadata if available (row group statistics), but it's not always complete for nulls.
+            # For simplicity and to ensure accuracy, let's read the first few rows.
+            df = pd.read_parquet(file_bytes_buffer, engine='pyarrow')
+            df = df.head(100)  # Limit to first 100 rows for preview
+            file_bytes_buffer.seek(0) # Reset buffer for potential other uses
+
+        elif filename.endswith('.csv'):
+            df = pd.read_csv(file_bytes_buffer, nrows=100) # Read only first 100 rows
         elif filename.endswith('.xlsx'):
-            df = pd.read_excel(file_bytes)
+            df = pd.read_excel(file_bytes_buffer, nrows=100) # Read only first 100 rows
         elif filename.endswith('.json'):
-            df = pd.read_json(file_bytes)
-        elif filename.endswith('.parquet'):
-            df = pd.read_parquet(file_bytes)
+            df = pd.read_json(file_bytes_buffer, nrows=100) # Read only first 100 rows
         else:
-            return JSONResponse(content={"error": "Unsupported file format."}, status_code=400)
+            return JSONResponse(content={"error": "Unsupported file format for preview. Only CSV, Excel, JSON, Parquet supported."}, status_code=400)
+
+        if df is not None:
+            columns = list(df.columns)
+            dtypes = {col: str(df[col].dtype) for col in df.columns}
+            null_counts = {col: int(df[col].isnull().sum()) for col in df.columns}
+
+            def to_py(val):
+                if pd.isna(val):
+                    return None
+                if isinstance(val, (np.integer, np.int64)):
+                    return int(val)
+                if isinstance(val, (np.floating, np.float64)):
+                    return float(val)
+                return val
+
+            sample_values = {col: to_py(df[col].dropna().iloc[0]) if df[col].dropna().shape[0] > 0 else None for col in df.columns}
+
     except Exception as e:
-        return JSONResponse(content={"error": f"Error loading file into DataFrame: {e}"}, status_code=500)
-    columns = list(df.columns)
-    dtypes = {col: str(df[col].dtype) for col in df.columns}
-    null_counts = {col: int(df[col].isnull().sum()) for col in df.columns}
-    def to_py(val):
-        if hasattr(val, 'item'):
-            return val.item()
-        return val
-    sample_values = {col: to_py(df[col].dropna().iloc[0]) if df[col].dropna().shape[0] > 0 else None for col in df.columns}
+        logging.error(f"Error loading '{filename}' into DataFrame for preview: {e}", exc_info=True)
+        return JSONResponse(content={"error": f"Error loading file for preview: {e}"}, status_code=500)
+
     return {
         "columns": columns,
         "dtypes": dtypes,
         "null_counts": {col: int(count) for col, count in null_counts.items()},
         "sample_values": sample_values
     }
-
-

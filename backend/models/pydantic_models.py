@@ -18,6 +18,7 @@ class SQLWorkbenchRequest(BaseModel):
     password: str
     database: str
     query: str
+    filename: Optional[str] = None
 
 class SQLConnectRequest(BaseModel):
     host: str

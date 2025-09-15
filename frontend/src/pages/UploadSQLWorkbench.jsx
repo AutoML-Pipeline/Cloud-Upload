@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import Button from "../components/Button";
 import GlobalBackButton from "../components/GlobalBackButton";
 import ShadcnNavbar from "../components/ShadcnNavbar";
@@ -19,7 +20,9 @@ export default function UploadSQLWorkbench() {
   const [status, setStatus] = useState("");
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [renamedFilename, setRenamedFilename] = useState(""); // New state for renamed filename
   const contentRef = useRef(null);
+  const navigate = useNavigate(); // Initialize useNavigate
 
   // Load saved inputs from localStorage on component mount
   useEffect(() => {
@@ -90,6 +93,12 @@ export default function UploadSQLWorkbench() {
     saveInputs({ host, port, user, password, database, query: value });
   };
 
+  const handleRenamedFilenameChange = (e) => {
+    const inputName = e.target.value;
+    const baseName = inputName.split('.')[0];
+    setRenamedFilename(`${baseName}.parquet`);
+  };
+
   const handleConnect = async () => {
     setStatus("");
     setUploading(true);
@@ -148,10 +157,14 @@ export default function UploadSQLWorkbench() {
     setStatus("");
     setUploading(true);
     try {
+      const payload = { host, port, user, password, database, query };
+      if (renamedFilename) {
+        payload.filename = renamedFilename; // Add renamed filename to payload
+      }
       const res = await fetch("http://localhost:8000/upload-from-sql", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ host, port, user, password, database, query })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.error) {
@@ -160,6 +173,9 @@ export default function UploadSQLWorkbench() {
       } else {
         toast.success("Upload successful: " + data.message);
         setStatus("Upload successful: " + data.message);
+        if (data.filename) {
+            navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);
+        }
       }
     } catch (err) {
       toast.error("Upload failed: " + err.message);
@@ -260,6 +276,19 @@ export default function UploadSQLWorkbench() {
                     value={query}
                     onChange={handleQueryChange}
                   />
+                  {preview && (
+                    <div className="mt-4 w-full">
+                      <label htmlFor="rename-file" className="block text-sm font-medium text-gray-700 mb-1">Rename File (will be saved as .parquet):</label>
+                      <input
+                        type="text"
+                        id="rename-file"
+                        value={renamedFilename}
+                        onChange={handleRenamedFilenameChange}
+                        className="auth-input"
+                        placeholder="Enter new file name"
+                      />
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: 12 }}>
                     <button
                       className="auth-btn"

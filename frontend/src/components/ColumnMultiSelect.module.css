@@ -20,22 +20,95 @@
   font-size: 0.98rem;
   margin-bottom: 0.5rem;
 }
+/* .options styles */
 .options {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  /* max-height: 200px; /* Example max height for scroll */
+  /* overflow-y: auto; */
+  border: 1px solid var(--gray-200);
+  border-radius: var(--border-radius-md);
+  padding: 0.5rem;
+  background-color: var(--white);
+  box-shadow: var(--shadow-sm);
+  /* For debugging: This is a test comment */
 }
 .option {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.98rem;
-  color: #222;
-  cursor: pointer;
-  padding: 0.2rem 0.1rem;
-  border-radius: 0.4rem;
-  transition: background 0.15s;
+  gap: 0.5rem; /* Space between elements */
+  font-size: 0.9rem;
+  white-space: nowrap;
+  padding: 0.3rem 0;
+  width: 100%; /* Ensure option takes full width for flex-wrap */
 }
 .option:hover {
-  background: #e0e7ff;
+  /* background-color: var(--gray-50); /* Subtle hover effect */
+}
+
+.option input[type="checkbox"] {
+  margin-right: 0.5rem;
+  flex-shrink: 0; /* Prevent checkbox from shrinking */
+}
+
+.columnNameText {
+  /* margin-right: auto;  Pushes strategy controls to the right */
+  flex-shrink: 1;
+  min-width: 80px; /* Ensure column name has enough space */
+  color: var(--gray-800); /* Default color for column name */
+}
+
+.hasNulls {
+  color: #dc2626; /* Tailwind red-600 equivalent to avoid missing token */
+  font-weight: 600;
+}
+
+.placeholder {
+  color: var(--gray-500);
+  text-align: center;
+  padding: 1rem;
+  font-style: italic;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--border-radius-md);
+  margin-bottom: 0.5rem;
+}
+
+.selectAllOption {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 0.5rem; /* Space between select all and first column */
+  padding: 0.3rem 0;
+}
+
+.selectAllOption input[type="checkbox"] {
+  margin-right: 0.5rem;
+  transform: scale(1.1); /* Slightly larger checkbox */
+}
+
+.fillStrategyControls {
+  display: inline-flex; /* inline so it appears next to the count */
+  align-items: center;
+  gap: 0.5rem; /* Space between select and input */
+  margin-left: 0.5rem; /* small gap from the count */
+}
+
+.fillStrategySelect,
+.customFillInput {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.85rem;
+  background-color: var(--gray-50);
+}
+
+.fillStrategySelect:focus,
+.customFillInput:focus {
+  outline: none;
+  border-color: var(--indigo-500);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.disabledControls {
+  opacity: 0.6;
 }

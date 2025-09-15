@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import ShadcnNavbar from "../components/ShadcnNavbar";
 import GlobalBackButton from "../components/GlobalBackButton"; // Import the GlobalBackButton component
 import FloatingFilesPanel from '../components/FloatingFilesPanel';
@@ -7,9 +8,22 @@ import { toast } from 'react-hot-toast';
 export default function UploadFile() {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [renamedFilename, setRenamedFilename] = useState(""); // New state for renamed filename
+  const navigate = useNavigate(); // Initialize useNavigate
 
   const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
+    const selectedFile = e.target.files[0];
+    setFile(selectedFile);
+    if (selectedFile) {
+      const fileNameWithoutExtension = selectedFile.name.split('.').slice(0, -1).join('.');
+      setRenamedFilename(`${fileNameWithoutExtension}.parquet`); // Initialize with original filename, force .parquet
+    }
+  };
+
+  const handleRenamedFilenameChange = (e) => {
+    const inputName = e.target.value;
+    const baseName = inputName.split('.')[0];
+    setRenamedFilename(`${baseName}.parquet`);
   };
 
   const handleUpload = async () => {
@@ -17,18 +31,30 @@ export default function UploadFile() {
       toast.error("Please select a file.");
       return;
     }
+    if (!renamedFilename.trim()) {
+      toast.error("Please enter a valid filename.");
+      return;
+    }
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("new_filename", renamedFilename); // Append the renamed filename
       const res = await fetch("http://localhost:8000/files/upload", {
         method: "POST",
         body: formData,
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Unknown upload error");
+      }
       toast.success(data.message || "Uploaded!");
-    } catch {
-      toast.error("Upload failed");
+      if (data.filename) {
+        navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);
+      }
+    } catch (error) {
+      console.error("Upload failed:", error);
+      toast.error("Upload failed: " + error.message);
     }
     setUploading(false);
   };
@@ -54,6 +80,19 @@ export default function UploadFile() {
             <div className="auth-card">
               <h2 className="heading-xl">Upload File</h2>
               <input type="file" onChange={handleFileChange} className="input" />
+              {file && (
+                <div className="mt-4 w-full max-w-[340px]">
+                  <label htmlFor="rename-file" className="block text-sm font-medium text-gray-700 mb-1">Rename File (will be saved as .parquet):</label>
+                  <input
+                    type="text"
+                    id="rename-file"
+                    value={renamedFilename}
+                    onChange={handleRenamedFilenameChange}
+                    className="input"
+                    placeholder="Enter new file name"
+                  />
+                </div>
+              )}
               <button onClick={handleUpload} disabled={uploading} className="btn-primary max-w-[340px]" style={{ background: uploading ? '#444' : undefined }}>
                 {uploading ? 'Uploading...' : 'Upload'}
               </button>
