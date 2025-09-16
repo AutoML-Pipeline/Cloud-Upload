@@ -1,0 +1,123 @@
+.customSelect {
+  position: relative;
+  width: 100%;
+  font-family: inherit;
+}
+
+.selectTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+
+.selectTrigger:hover {
+  border-color: #cbd5e0;
+}
+
+.selectTrigger:focus,
+.selectTrigger.open {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.selectTrigger.disabled {
+  background: #f7fafc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.selectValue {
+  color: #2d3748;
+  font-size: 14px;
+  flex: 1;
+  text-align: left;
+}
+
+.selectValue:empty::before {
+  content: attr(data-placeholder);
+  color: #a0aec0;
+}
+
+.arrow {
+  color: #718096;
+  font-size: 12px;
+  transition: transform 0.2s ease;
+  margin-left: 8px;
+}
+
+.arrowDown {
+  transform: rotate(0deg);
+}
+
+.arrowUp {
+  transform: rotate(180deg);
+}
+
+.selectOptions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.selectOption {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  color: #2d3748;
+  font-size: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.selectOption:last-child {
+  border-bottom: none;
+}
+
+.selectOption:hover {
+  background: #f7fafc;
+}
+
+.selectOption.selected {
+  background: #e6fffa;
+  color: #234e52;
+  font-weight: 600;
+}
+
+.selectOption.selected:hover {
+  background: #b2f5ea;
+}
+
+/* Scrollbar styling */
+.selectOptions::-webkit-scrollbar {
+  width: 6px;
+}
+
+.selectOptions::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.selectOptions::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 3px;
+}
+
+.selectOptions::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}

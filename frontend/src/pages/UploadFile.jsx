@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import ShadcnNavbar from "../components/ShadcnNavbar";
 import GlobalBackButton from "../components/GlobalBackButton"; // Import the GlobalBackButton component
-import FloatingFilesPanel from '../components/FloatingFilesPanel';
 import { toast } from 'react-hot-toast';
 
 export default function UploadFile() {
@@ -100,7 +99,6 @@ export default function UploadFile() {
           </div>
         </div>
       </div>
-      <FloatingFilesPanel position="top-right" offsetTop={80} label="Show Uploaded Files" />
     </div>
   );
 }

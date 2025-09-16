@@ -20,7 +20,6 @@ import json
 from fastapi import Request
 import logging
 import pyarrow.parquet as pq
-import math
 from .preprocessing.io_utils import read_parquet_from_minio, to_preview_records, sanitize_dataframe_for_parquet
 from .preprocessing.remove_duplicates import apply as apply_remove_duplicates
 from .preprocessing.remove_nulls import apply as apply_remove_nulls
@@ -29,37 +28,7 @@ from .preprocessing.drop_columns import apply as apply_drop_columns
 from .preprocessing.remove_outliers import apply as apply_remove_outliers
 from .preprocessing.diff_utils import compute_diff_marks
 from .preprocessing.types import StepsPayload, PreprocessResult
-
-def _to_json_safe(value):
-    if value is None:
-        return None
-    # pandas NA
-    try:
-        if pd.isna(value):
-            return None
-    except Exception:
-        pass
-    # numpy scalars
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating,)):
-        f = float(value)
-        if math.isnan(f) or math.isinf(f):
-            return None
-        return f
-    if isinstance(value, (np.bool_,)):
-        return bool(value)
-    # python floats
-    if isinstance(value, float):
-        if math.isnan(value) or math.isinf(value):
-            return None
-        return value
-    # containers
-    if isinstance(value, dict):
-        return {k: _to_json_safe(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple, set)):
-        return [_to_json_safe(v) for v in value]
-    return value
+from utils.json_utils import _to_json_safe
 
 def analyze_data_quality(df):
     """Comprehensive data quality analysis"""
@@ -264,25 +233,31 @@ async def data_preprocessing(filename: str, steps: dict = {}, preprocessing: str
     except Exception as e:
         return JSONResponse(content={"error": f"Error reading file: {e}"}, status_code=500)
     
-    change_metadata: list[str] = []
+    change_metadata: list[dict] = []
     df_cleaned = df.copy()
         
     # Apply modular steps mirroring frontend
     if steps.get("removeDuplicates"):
         df_cleaned, meta = apply_remove_duplicates(df_cleaned, steps.get("duplicateSubset", []))
-        change_metadata += meta.get("summary", [])
+        change_metadata.append(meta)
 
     if steps.get("removeNulls"):
         df_cleaned, meta = apply_remove_nulls(df_cleaned, steps.get("removeNullsColumns", []))
-        change_metadata += meta.get("summary", [])
+        change_metadata.append(meta)
 
     if steps.get("fillNulls"):
         df_cleaned, meta = apply_fill_nulls(df_cleaned, steps.get("fillStrategies", {}))
-        change_metadata += meta.get("summary", [])
+        if "summary" in meta:
+            change_metadata.extend(meta["summary"])
+        else:
+            change_metadata.append(meta)
 
     if steps.get("dropColumns"):
         df_cleaned, meta = apply_drop_columns(df_cleaned, steps.get("dropColumns", []))
-        change_metadata += meta.get("summary", [])
+        if "summary" in meta:
+            change_metadata.extend(meta["summary"])
+        else:
+            change_metadata.append(meta)
 
     # Remove outliers step (method: iqr, factor: number, columns: list)
     if steps.get("removeOutliers"):
@@ -292,7 +267,10 @@ async def data_preprocessing(filename: str, steps: dict = {}, preprocessing: str
         df_cleaned, meta = apply_remove_outliers(df_cleaned, outlier_cfg)
         logging.info(f"DataFrame after outlier removal: {len(df_cleaned)} rows")
         logging.info(f"Outlier removal metadata: {meta}")
-        change_metadata += meta.get("summary", [])
+        if "summary" in meta:
+            change_metadata.extend(meta["summary"])
+        else:
+            change_metadata.append(meta)
 
     # Compute diff marks
     deleted, updated_cells = compute_diff_marks(df, df_cleaned)

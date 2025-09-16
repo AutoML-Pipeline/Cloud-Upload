@@ -72,29 +72,28 @@ export default function FillNullSelector({
                 <span className={`${styles.colName} ${hasNulls ? styles.hasNulls : ''}`}>
                   {col} ({count} nulls)
                 </span>
+                <div className={`${styles.strategySelector} ${!isSelected ? styles.disabled : ''}`}>
+                  <select
+                    value={info.strategy}
+                    onChange={e => handleStrategyChange(col, e.target.value)}
+                    className={styles.select}
+                  >
+                    <option value="mean">Mean</option>
+                    <option value="median">Median</option>
+                    <option value="mode">Mode</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                  {info.strategy === 'custom' && (
+                    <input
+                      type="text"
+                      className={styles.input}
+                      placeholder="Enter value"
+                      value={info.value || ''}
+                      onChange={e => handleCustomValueChange(col, e.target.value)}
+                    />
+                  )}
+                </div>
               </label>
-
-              <div className={`${styles.rightGroup} ${!isSelected ? styles.disabled : ''}`}>
-                <select
-                  value={info.strategy}
-                  onChange={e => handleStrategyChange(col, e.target.value)}
-                  className={styles.select}
-                >
-                  <option value="mean">Mean</option>
-                  <option value="median">Median</option>
-                  <option value="mode">Mode</option>
-                  <option value="custom">Custom</option>
-                </select>
-                {info.strategy === 'custom' && (
-                  <input
-                    type="text"
-                    className={styles.input}
-                    placeholder="Enter value"
-                    value={info.value || ''}
-                    onChange={e => handleCustomValueChange(col, e.target.value)}
-                  />
-                )}
-              </div>
             </div>
           );
         })}

@@ -7,7 +7,9 @@ def apply(df: pd.DataFrame, subset: List[str] | None) -> Tuple[pd.DataFrame, Dic
     df2 = df.drop_duplicates(subset=subset or None, keep="first")
     removed = before - len(df2)
     meta = {
-        "summary": [f"Remove Duplicates: removed {removed} rows (subset={subset or 'all'})"],
+        "operation": "Remove Duplicates",
+        "rows_removed": removed,
+        "columns": subset or "all",
     }
     return df2, meta
 

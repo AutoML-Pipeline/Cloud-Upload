@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery } from '@tanstack/react-query';
 import ShadcnNavbar from "../components/ShadcnNavbar";
 import GlobalBackButton from "../components/GlobalBackButton";
-import FloatingFilesPanel from '../components/FloatingFilesPanel';
 import FormField from "../components/FormField";
 import { toast } from 'react-hot-toast';
 import styles from "./Preprocessing.module.css";
@@ -47,7 +46,6 @@ export default function Preprocessing() {
     // Add more steps as needed
   });
   const [highlightChanges, setHighlightChanges] = useState(true);
-  const [showAll, setShowAll] = useState(false);
   const [fullData, setFullData] = useState(null);
   const [dataPreview, setDataPreview] = useState(null);
   const location = useLocation(); // Initialize useLocation
@@ -185,7 +183,7 @@ export default function Preprocessing() {
       // Add more steps to payload as needed
 
       console.log("Sending preprocessing payload:", { steps: stepsPayload });
-      const res = await fetch(`http://localhost:8000/data/preprocess/${selectedFile}`, {
+      const res = await fetch(`http://localhost:8000/data/preprocess/${selectedFile}?full=true`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ steps: stepsPayload }),
@@ -197,6 +195,7 @@ export default function Preprocessing() {
       } else {
         toast.success("Preprocessing completed!");
         setResult(data);
+        setFullData(data.full_data || data.preview); // Ensure fullData is set
       }
     } catch (err) {
       toast.error("Failed to preprocess: " + err.message);
@@ -235,34 +234,21 @@ export default function Preprocessing() {
   const renderPreviewTable = () => {
     if (!result) return null;
     
-    const tableData = showAll && fullData ? fullData : result.preview;
-    const originalData = showAll && result.original_preview ? result.original_preview : result.original_preview;
+    // Always use full data, or preview if full data is not available
+    const tableData = result.full_data || result.preview;
+    const originalData = result.original_preview;
     
     return (
       <div className={styles.card}>
         <div className={styles.previewHeader}>
           <h3 className={styles.heading} style={{ fontSize: '1.5rem', marginBottom: '1.2rem' }}>Data Preview</h3>
-          <div className={styles.previewControls}>
-            <button 
-              className={`${styles.previewToggle} ${!showAll ? styles.active : ''}`}
-              onClick={() => setShowAll(false)}
-            >
-              Preview 10 rows
-            </button>
-            <button 
-              className={`${styles.previewToggle} ${showAll ? styles.active : ''}`}
-              onClick={handleShowAll}
-            >
-              Preview all rows
-            </button>
-          </div>
         </div>
 
         <div className={styles.previewNote}>
-          {!showAll ? 'Showing first 10 rows' : 'Showing all rows'}
-          {result.diff_marks && (result.diff_marks.deleted_row_indices?.length > 0 || Object.keys(result.diff_marks.updated_cells || {}).length > 0) && (
+          <span>Showing all rows</span>
+          {result.diff_marks && (Object.keys(result.diff_marks.updated_cells || {}).length > 0) && (
             <span className={styles.diffInfo}>
-              • Deleted rows shown with strikethrough • Updated cells highlighted
+              • Updated cells highlighted
                         </span>
         )}
       </div>
@@ -274,71 +260,72 @@ export default function Preprocessing() {
           highlightChanges={highlightChanges} 
           diffMarks={result?.diff_marks}
           originalFilename={selectedFile}
+          filledNullColumns={preprocessingSteps.fillNullsColumns}
         />
+        
+        {result?.change_metadata && result.change_metadata.length > 0 && (
+          <div className={styles.summaryCard}>
+            <h4 className={styles.summaryHeading}>Preprocessing Summary:</h4>
+            <div className={styles.summaryDetails}>
+              {result.change_metadata.map((item, index) => {
+                if (item.operation === "Fill Nulls") {
+                  return (
+                    <div key={index} className={styles.summaryItem}>
+                      <span className={styles.summaryOperation}>Fill Nulls:</span>
+                      <span className={styles.summaryInfo}>Column: {item.column}, Strategy: {item.strategy} {item.value !== undefined ? `(Value: ${item.value})` : ''}</span>
+                    </div>
+                  );
+                } else if (item.operation === "Drop Columns") {
+                  return (
+                    <div key={index} className={styles.summaryItem}>
+                      <span className={styles.summaryOperation}>Drop Columns:</span>
+                      {item.columns_dropped && item.columns_dropped.length > 0 ? (
+                        <span className={styles.summaryInfo}>Dropped columns: {item.columns_dropped.join(', ')}</span>
+                      ) : (
+                        <span className={styles.summaryInfo}>No columns dropped.</span>
+                      )}
+                    </div>
+                  );
+                } else if (item.operation === "Remove Outliers") {
+                  return (
+                    <div key={index} className={styles.summaryItem}>
+                      <span className={styles.summaryOperation}>Remove Outliers:</span>
+                      <span className={styles.summaryInfo}>Method: {item.method}, Factor: {item.factor}, Removed {item.rows_removed} rows</span>
+                      {item.columns && item.columns !== 'all' && item.columns.length > 0 && (
+                        <span className={styles.summaryInfo}>on columns: {item.columns.join(', ')}</span>
+                      )}
+                      {item.columns === 'all' && (
+                        <span className={styles.summaryInfo}>on all numeric columns</span>
+                      )}
+                    </div>
+                  );
+                } 
+                else {
+                  return (
+                    <div key={index} className={styles.summaryItem}>
+                      <span className={styles.summaryOperation}>{item.operation}:</span>
+                      {item.rows_removed > 0 && (
+                        <span className={styles.summaryInfo}>Removed {item.rows_removed} rows</span>
+                      )}
+                      {item.columns && item.columns !== 'all' && item.columns.length > 0 && (
+                        <span className={styles.summaryInfo}>on columns: {item.columns.join(', ')}</span>
+                      )}
+                      {item.columns === 'all' && (
+                        <span className={styles.summaryInfo}>on all columns</span>
+                      )}
+                    </div>
+                  );
+                }
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
-  // Fetch full data when Show All is clicked
-  const handleShowAll = async () => {
-    setLoading(true);
-    try {
-      let stepsPayload = {};
-      if (preprocessingSteps.removeDuplicates) {
-        stepsPayload.removeDuplicates = true;
-        stepsPayload.duplicateSubset = preprocessingSteps.removeDuplicatesColumns;
-      }
-      if (preprocessingSteps.removeNulls) {
-        stepsPayload.removeNulls = true;
-        stepsPayload.removeNullsColumns = preprocessingSteps.removeNullsColumns; 
-      }
-      if (preprocessingSteps.fillNulls) {
-        stepsPayload.fillNulls = true;
-        // Transform fillColumnStrategies into a backend-friendly format
-        stepsPayload.fillStrategies = {};
-        for (const col of preprocessingSteps.fillNullsColumns) {
-          const strategyInfo = preprocessingSteps.fillColumnStrategies[col];
-          if (strategyInfo) {
-            stepsPayload.fillStrategies[col] = { 
-              strategy: strategyInfo.strategy,
-              value: strategyInfo.strategy === 'custom' ? strategyInfo.value : undefined
-            };
-          }
-        }
-      }
-      if (preprocessingSteps.dropColumns) {
-        stepsPayload.dropColumns = preprocessingSteps.dropColumnsColumns;
-      }
-      if (preprocessingSteps.removeOutliers) {
-        stepsPayload.removeOutliers = true;
-        stepsPayload.removeOutliersConfig = {
-          method: preprocessingSteps.removeOutliersConfig.method,
-          factor: preprocessingSteps.removeOutliersConfig.factor,
-          columns: preprocessingSteps.removeOutliersConfig.columns,
-        };
-      }
-      // Add more steps to payload as needed
-
-      console.log("Sending Show All preprocessing payload:", { steps: stepsPayload });
-      const res = await fetch(`http://localhost:8000/data/preprocess/${selectedFile}?full=true`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ steps: stepsPayload }),
-      });
-      const data = await res.json();
-      console.log("Received Show All preprocessing response:", data);
-      if (data.full_data) {
-        setFullData(data.full_data);
-        setShowAll(true);
-      } else {
-        toast.error("Full data not available.");
-      }
-    } catch (err) {
-      toast.error("Failed to load full data: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Fetch full data when Show All is clicked (removed functionality)
+  // const handleShowAll = async () => { ... };
 
   return (
     <div className={styles.pageShell}>
@@ -504,7 +491,10 @@ export default function Preprocessing() {
                         <ColumnMultiSelect
                           columns={columns}
                           selected={preprocessingSteps.removeOutliersConfig.columns}
-                          onChange={cols => setStepsStable(s => ({ ...s, removeOutliersConfig: { ...s.removeOutliersConfig, columns: cols } }))}
+                          onChange={cols => setStepsStable(s => ({
+                            ...s,
+                            removeOutliersConfig: { ...s.removeOutliersConfig, columns: cols }
+                          }))}
                           label="Columns for outlier detection (default: all numeric)"
                           placeholder="Select columns..."
                         />
@@ -568,7 +558,6 @@ export default function Preprocessing() {
         </div>
         <div className="mb-6" />
       </div>
-      <FloatingFilesPanel position="top-right" offsetTop={80} label="Show Uploaded Files" />
     </div>
   );
 }

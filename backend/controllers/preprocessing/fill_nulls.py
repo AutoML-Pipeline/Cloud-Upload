@@ -4,7 +4,7 @@ import pandas as pd
 
 def apply(df: pd.DataFrame, strategies: Dict[str, Dict]) -> Tuple[pd.DataFrame, Dict]:
     df2 = df.copy()
-    summaries = []
+    meta_list = []
     for col, info in (strategies or {}).items():
         strategy = (info.get("strategy") or "mean").lower()
         value = info.get("value")
@@ -24,7 +24,12 @@ def apply(df: pd.DataFrame, strategies: Dict[str, Dict]) -> Tuple[pd.DataFrame, 
         else:
             fill_val = None
         df2[col] = df2[col].fillna(fill_val)
-        summaries.append(f"Fill Nulls: {col} with {strategy}{'='+str(fill_val) if strategy=='custom' else ''}")
-    return df2, {"summary": summaries}
+        meta_list.append({
+            "operation": "Fill Nulls",
+            "column": col,
+            "strategy": strategy,
+            "value": fill_val
+        })
+    return df2, {"summary": meta_list}
 
 

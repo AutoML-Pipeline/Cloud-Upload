@@ -5,7 +5,6 @@ import GlobalBackButton from "../components/GlobalBackButton";
 import ShadcnNavbar from "../components/ShadcnNavbar";
 import SQLPreviewBox from "../components/SQLPreviewBox";
 import { toast } from 'react-hot-toast';
-import FloatingFilesPanel from "../components/FloatingFilesPanel";
 import '../auth.css';
 
 export default function UploadSQLWorkbench() {
@@ -326,7 +325,6 @@ export default function UploadSQLWorkbench() {
           </div>
         </div>
       </div>
-      <FloatingFilesPanel position="top-right" offsetTop={80} label="Show Uploaded Files" />
     </div>
   );
 }

@@ -56,7 +56,7 @@ async function saveToMinIO(data, originalFilename) {
   }
 }
 
-export default function DataTable({ data, columns, highlightChanges = false, originalData = null, pageSize = 10, compareOriginal = false, diffMarks = null, originalFilename = null }) {
+export default function DataTable({ data, columns, highlightChanges = false, originalData = null, compareOriginal = false, diffMarks = null, originalFilename = null, filledNullColumns = [], pageSize = 10 }) {
   const [page, setPage] = useState(0);
   const [sortCol, setSortCol] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
@@ -68,6 +68,7 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
   // Ensure all columns are visible when dataset/columns change (e.g., on Show All)
   useEffect(() => {
     setVisibleCols(allColumns);
+    setPage(0);
   }, [allColumns]);
 
   const handleResetCols = () => setVisibleCols(allColumns);
@@ -108,22 +109,14 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
     });
   }, [filteredData, sortCol, sortDir]);
 
-  // Pagination (based on augmented data length after we compute it)
-  // Placeholder; will recompute after augmentedData is ready
-  let totalPages = 1;
-  // Build augmented data with deleted rows (from originalData) prepended
-  const deletedIndexSet = useMemo(() => new Set(diffMarks?.deleted_row_indices || []), [diffMarks]);
-  const deletedRows = useMemo(() => {
-    if (!originalData || deletedIndexSet.size === 0) return [];
-    const rows = originalData.filter(r => r?._orig_idx != null && deletedIndexSet.has(r._orig_idx)).map(r => ({ ...r, _deletedRow: true }));
-    return rows;
-  }, [originalData, deletedIndexSet]);
+  // Build augmented data (no deleted-row strikethrough)
+  const augmentedData = useMemo(() => [...sortedData], [sortedData]);
 
-  const augmentedData = useMemo(() => [...deletedRows, ...sortedData], [deletedRows, sortedData]);
-  totalPages = Math.max(1, Math.ceil(augmentedData.length / pageSize));
-  const pagedData = augmentedData.slice(page * pageSize, (page + 1) * pageSize);
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(augmentedData.length / pageSize));
+  const pagedData = useMemo(() => augmentedData.slice(page * pageSize, (page + 1) * pageSize), [augmentedData, page, pageSize]);
 
-  // Deleted rows (strikethrough) support via diffMarks.deleted_row_indices based on _orig_idx
+  // Updated cells map from backend diff
   const updatedCells = useMemo(() => diffMarks?.updated_cells || {}, [diffMarks]);
 
   // Build a lookup of original rows by _orig_idx
@@ -169,26 +162,24 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
   };
 
   // Highlight changed cells
-  const isChanged = (rowIdx, col) => {
+  const isChanged = (pagedRowIdx, col) => {
     if (!highlightChanges) return false;
-    const row = pagedData[rowIdx];
-    if (!row || row._deletedRow) return false; // deleted rows should not show per-cell changes
+    if (filledNullColumns && !filledNullColumns.includes(col)) return false;
+
+    const globalIdx = pagedRowIdx + page * pageSize;
+    const row = augmentedData[globalIdx];
+    if (!row) return false;
+
     const origIdx = row._orig_idx;
-    const orig = origIdx != null ? originalByIdx.get(origIdx) : null;
-    const changedByValue = orig ? orig[col] !== row[col] : false;
     const changedByDiff = origIdx != null && updatedCells[origIdx]?.[col];
-    return Boolean(changedByValue || changedByDiff);
+    return Boolean(changedByDiff);
   };
 
-  // Single-table compare: show cleaned value only; rely on highlight and deleted row styling
-  const renderCompareCell = (rowIdx, col) => {
-    const row = pagedData[rowIdx];
+  // Single-table compare: show cleaned value only
+  const renderCompareCell = (pagedRowIdx, col) => {
+    const globalIdx = pagedRowIdx + page * pageSize;
+    const row = augmentedData[globalIdx];
     const cleanedVal = row[col];
-    const orig = row && row._orig_idx != null ? originalByIdx.get(row._orig_idx) : null;
-    if (!orig) {
-      // No original data for this row (e.g., in Show All mode, page > 1)
-      return <span>{renderCell(cleanedVal)}</span>;
-    }
     return <span>{renderCell(cleanedVal)}</span>;
   };
 
@@ -221,10 +212,9 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
           ))}
         </div>
       </div>
-      {/* Legend for compare mode */}
       {compareOriginal && (
         <div className={styles.compareLegend}>
-          <span className={styles.cellChanged}>Highlighted cell</span> = value will change after cleaning. Deleted rows are shown with strikethrough.
+          <span className={styles.cellChanged}>Highlighted cell</span> = value will change after cleaning.
         </div>
       )}
       <div className={styles.dataTableWrapper}>
@@ -250,13 +240,13 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
           </thead>
           <tbody>
             {pagedData.map((row, rowIdx) => (
-              <tr key={rowIdx} className={row?._deletedRow ? styles.rowDeleted : undefined}>
+              <tr key={rowIdx}>
                 {allColumns.filter(col => visibleCols.includes(col)).map(col => (
                   <td
                     key={col}
-                    className={isChanged(rowIdx + page * pageSize, col) ? styles.cellChanged : undefined}
+                    className={isChanged(rowIdx, col) ? styles.cellChanged : undefined}
                   >
-                    {compareOriginal && originalData && originalData[rowIdx + page * pageSize]
+                    {compareOriginal && originalData
                       ? renderCompareCell(rowIdx, col)
                       : renderCell(row[col])}
                   </td>
@@ -267,13 +257,13 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
         </table>
       </div>
       <div className={styles.paginationBar}>
-        <button onClick={() => setPage(0)} disabled={page === 0} aria-label="First Page">&laquo; First</button>
-        <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} aria-label="Previous Page">&lsaquo; Prev</button>
+        <button onClick={() => setPage(0)} disabled={page === 0} aria-label="First Page">« First</button>
+        <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} aria-label="Previous Page">‹ Prev</button>
         <span>
           Page {page + 1} of {totalPages}
         </span>
-        <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1} aria-label="Next Page">Next &rsaquo;</button>
-        <button onClick={() => setPage(totalPages - 1)} disabled={page === totalPages - 1} aria-label="Last Page">Last &raquo;</button>
+        <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1} aria-label="Next Page">Next ›</button>
+        <button onClick={() => setPage(totalPages - 1)} disabled={page === totalPages - 1} aria-label="Last Page">Last »</button>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from routes.file_routes import router as file_router
 from routes.data_routes import router as data_router
 from routes.auth_routes import router as auth_router
+from routes.feature_engineering_routes import router as feature_engineering_router
 
 load_dotenv()
 
@@ -26,3 +27,4 @@ app.add_middleware(
 app.include_router(file_router)
 app.include_router(data_router)
 app.include_router(auth_router)
+app.include_router(feature_engineering_router)

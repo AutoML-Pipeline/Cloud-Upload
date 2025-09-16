@@ -66,7 +66,10 @@ def apply(df: pd.DataFrame, config: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[
 
     pretty_method = "IQR" if method == "iqr" else "Z-Score"
     meta = {
-        "summary": [f"Remove Outliers (method={pretty_method}, factor={factor}) on {len(target_cols)} cols: removed {removed} rows"],
+        "operation": "Remove Outliers",
+        "method": pretty_method,
+        "factor": factor,
+        "columns": target_cols or "all",
         "rows_removed": int(removed),
         "bounds": bounds_info,
     }

@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import ShadcnNavbar from "../components/ShadcnNavbar";
 import GlobalBackButton from "../components/GlobalBackButton";
 import GDriveFilesTable from "../components/GDriveFilesTable";
-import FloatingFilesPanel from "../components/FloatingFilesPanel";
 import { Toaster, toast } from 'react-hot-toast';
 
 export default function GDriveFiles() {
@@ -124,6 +123,8 @@ export default function GDriveFiles() {
         toast.success(`Uploaded '${newGDriveFilename}' successfully!`);
         if (data.filename) {
           navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);
+        } else {
+          toast("File uploaded. Open Preprocessing to continue.");
         }
       } else {
         toast.error(`Failed to upload '${newGDriveFilename}': ${data.detail || res.status}`);
@@ -218,7 +219,6 @@ export default function GDriveFiles() {
           </div>
         )}
       </div>
-      <FloatingFilesPanel position="top-right" offsetTop={80} label="Show Uploaded Files" />
     </div>
   );
 }

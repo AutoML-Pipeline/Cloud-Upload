@@ -53,6 +53,9 @@ export default function UploadUrl() {
         body: JSON.stringify({ url, filename: renamedFilename }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Upload failed");
+      }
       toast.success(data.message || "Uploaded!");
       if (data.filename) {
         navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);

@@ -10,7 +10,9 @@ def apply(df: pd.DataFrame, columns: List[str] | None) -> Tuple[pd.DataFrame, Di
         df2 = df.dropna()
     removed = before - len(df2)
     meta = {
-        "summary": [f"Remove Nulls: removed {removed} rows (columns={columns or 'all'})"],
+        "operation": "Remove Nulls",
+        "rows_removed": removed,
+        "columns": columns or "all",
     }
     return df2, meta
 

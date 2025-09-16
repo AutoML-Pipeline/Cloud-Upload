@@ -19,3 +19,5 @@ pyarrow
 starlette
 pymongo
 cryptography
+pyspark
+numpy

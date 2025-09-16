@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect } from "react";
 import ShadcnNavbar from "../components/ShadcnNavbar";
 import GlobalBackButton from "../components/GlobalBackButton"; // Import the new component
-import FloatingFilesPanel from '../components/FloatingFilesPanel';
 import { useNavigate } from "react-router-dom";
 import { toast } from 'react-hot-toast';
 
@@ -92,7 +91,6 @@ export default function UploadCloud() {
           </div>
         </div>
       </div>
-      <FloatingFilesPanel position="top-right" offsetTop={80} label="Show Uploaded Files" />
     </div>
   );
 }

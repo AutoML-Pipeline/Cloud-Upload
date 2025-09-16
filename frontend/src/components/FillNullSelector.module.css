@@ -33,11 +33,13 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
-.rightGroup {
+.strategySelector {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  margin-left: 1rem; /* Adjust as needed */
 }
 .colName { color: #111827; }
 .hasNulls { color: #dc2626; font-weight: 600; }

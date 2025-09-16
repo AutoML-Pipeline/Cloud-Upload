@@ -16,6 +16,7 @@ import UploadCloud from "./pages/UploadCloud";
 import GDriveFiles from "./pages/GDriveFiles";
 import UploadSQLWorkbench from "./pages/UploadSQLWorkbench";
 import Preprocessing from "./pages/Preprocessing";
+import FeatureEngineering from "./pages/FeatureEngineering";
 import FilesPage from "./pages/Files";
 import DataIngestion from "./pages/DataIngestion";
 import { Toaster } from 'react-hot-toast';
@@ -47,6 +48,7 @@ function AnimatedRoutes({ user, setUser }) {
         <Route path="/gdrive-files" element={<GDriveFiles />} />
         <Route path="/upload-sqlworkbench" element={<UploadSQLWorkbench />} />
         <Route path="/preprocessing" element={<Preprocessing />} />
+        <Route path="/feature-engineering" element={<FeatureEngineering />} />
         <Route path="/files" element={<FilesPage />} />
         <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
       </Routes>

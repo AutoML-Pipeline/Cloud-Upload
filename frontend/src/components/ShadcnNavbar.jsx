@@ -1,6 +1,13 @@
 import React from "react";
+import { Link, useLocation } from 'react-router-dom';
+import styles from './ShadcnNavbar.module.css';
 
-const navLinks = [];
+const navLinks = [
+  { label: "Dashboard", href: "/dashboard" },
+  { label: "Data Ingestion", href: "/data-ingestion" },
+  { label: "Preprocessing", href: "/preprocessing" },
+  { label: "Feature Engineering", href: "/feature-engineering" },
+];
 
 const LogOutIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out-icon lucide-log-out mr-1 -ml-1">
@@ -10,83 +17,55 @@ const LogOutIcon = () => (
   </svg>
 );
 
-const ShadcnNavbar = ({ onLogout }) => (
-  <nav
-    className="fixed top-0 left-0 w-full z-50 bg-[#181c24] flex items-center justify-between px-0"
-    style={{
-      height: 54,
-      fontFamily: 'Montserrat, Poppins, Arial, sans-serif',
-      boxShadow: "0 2px 12px rgba(30,41,59,0.10)",
-      position: "fixed",
-      zIndex: 2010, // Increased z-index to be above SideMenu
-      width: "100vw",
-      left: 0,
-      top: 0
-    }}
-  >
-    <div className="w-full flex items-center justify-between h-full px-8">
-      {/* Left: Logo + Title */}
-      <div className="flex items-center gap-2">
-        {/* Previous SVG Logo */}
-        <span className="inline-block h-8 w-8 mr-2">
-          <svg width="32" height="32" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <g>
-              <rect x="8" y="18" width="32" height="18" rx="3" fill="#222" stroke="#bfa76a" strokeWidth="2"/>
-              <ellipse cx="24" cy="27" rx="8" ry="7" fill="#a3d39c" stroke="#4e6b4c" strokeWidth="1.5"/>
-              <path d="M20 27 Q21 25, 24 27 Q27 29, 28 27" stroke="#4e6b4c" strokeWidth="1" fill="none"/>
-              <path d="M22 29 Q23 28, 24 29 Q25 30, 26 29" stroke="#4e6b4c" strokeWidth="1" fill="none"/>
-              <g>
-                <path d="M24 6 L28 10 L24 14" stroke="#e1b955" strokeWidth="2" fill="none"/>
-                <path d="M24 14 Q24 16, 20 16" stroke="#e1b955" strokeWidth="2" fill="none"/>
-                <path d="M20 16 Q16 16, 16 20" stroke="#e1b955" strokeWidth="2" fill="none"/>
-                <path d="M16 20 Q16 24, 20 24" stroke="#e1b955" strokeWidth="2" fill="none"/>
-                <path d="M20 24 Q24 24, 24 28" stroke="#e1b955" strokeWidth="2" fill="none"/>
-              </g>
-            </g>
-          </svg>
-        </span>
-        {/* Modern, Sleek Title - theme-matched */}
-        <span className="font-black tracking-tight" style={{
-          fontSize: 18,
-          letterSpacing: '-0.04em',
-          color: '#f3f6fa',
-          fontFamily: 'Montserrat, Poppins, Arial, sans-serif',
-          textShadow: '0 2px 8px rgba(30,41,59,0.18)'
-        }}>
-          ML <span style={{color:'#60a5fa', fontWeight:800}}>Pipeline</span>
-        </span>
-      </div>
-      {/* Center: Nav Links */}
-      <div className="flex items-center gap-10">
-        {navLinks.map((link) => (
-          <a
-            key={link.label}
-            href={link.href}
-            className={
-              link.highlight
-                ? "text-[#ff715b] font-semibold text-sm"
-                : link.active
-                  ? "text-white font-normal text-sm"
-                  : "text-white/80 hover:text-white font-normal text-sm"
-            }
-            style={{fontFamily: 'Montserrat'}}
+const ShadcnNavbar = ({ onLogout }) => {
+  const location = useLocation();
+
+  return (
+    <nav className={styles.navbar}>
+      <div className={styles.navbarContent}>
+        {/* Left: Logo + Title */}
+        <div className={styles.logoContainer}>
+          <span className={styles.logoIcon}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7V17L12 22L22 17V7L12 2Z" stroke="#60a5fa" strokeWidth="2" strokeLinejoin="round"/>
+              <path d="M12 7L12 17" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M17 9.5L7 14.5" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M7 9.5L17 14.5" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="12" cy="12" r="2" fill="#f3f6fa" stroke="#60a5fa" strokeWidth="1.5"/>
+              <circle cx="7" cy="9.5" r="1.5" fill="#f3f6fa" stroke="#60a5fa" strokeWidth="1.5"/>
+              <circle cx="17" cy="9.5" r="1.5" fill="#f3f6fa" stroke="#60a5fa" strokeWidth="1.5"/>
+              <circle cx="7" cy="14.5" r="1.5" fill="#f3f6fa" stroke="#60a5fa" strokeWidth="1.5"/>
+              <circle cx="17" cy="14.5" r="1.5" fill="#f3f6fa" stroke="#60a5fa" strokeWidth="1.5"/>
+            </svg>
+          </span>
+          <span className={styles.title}>
+            ML <span className={styles.pipelineText}>Pipeline</span>
+          </span>
+        </div>
+        {/* Center: Nav Links */}
+        <div className={styles.navLinks}>
+          {navLinks.map((link) => (
+            <Link
+              key={link.label}
+              to={link.href}
+              className={`${styles.navLink} ${location.pathname === link.href ? styles.navLinkActive : ''}`}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+        {/* Right: Logout Button */}
+        <div className={styles.logoutContainer}>
+          <button
+            onClick={onLogout}
+            className={styles.logoutButton}
           >
-            {link.label}
-          </a>
-        ))}
+            <LogOutIcon className={styles.logoutIcon} />Logout
+          </button>
+        </div>
       </div>
-      {/* Right: Logout Button */}
-      <div className="flex items-center" style={{ paddingRight: 32 }}>
-        <button
-          onClick={onLogout}
-          className="bg-[#ff4747] hover:bg-[#e12d39] text-white px-3 py-1 rounded font-semibold text-xs transition shadow flex items-center gap-2"
-          style={{ fontSize: 13, minWidth: 0, minHeight: 0, lineHeight: '1.1', boxShadow: '0 1px 4px rgba(255,71,71,0.08)' }}
-        >
-          <LogOutIcon style={{ width: 16, height: 16 }} />Logout
-        </button>
-      </div>
-    </div>
-  </nav>
-);
+    </nav>
+  );
+};
 
 export default ShadcnNavbar;

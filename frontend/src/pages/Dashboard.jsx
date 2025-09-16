@@ -15,6 +15,12 @@ const steps = [
     icon: "🧹",
     color: "#fbbf24"
   },
+  {
+    label: "Feature Engineering",
+    route: "/feature-engineering",
+    icon: "⚙️",
+    color: "#34d399"
+  },
   // Add more steps as needed, e.g.:
   // { label: "Training", route: "/training", icon: "🤖", color: "#34d399" }
 ];
