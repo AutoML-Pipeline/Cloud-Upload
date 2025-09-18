@@ -20,7 +20,7 @@ from backend.controllers.feature_engineering.operations import (
 async def get_minio_files_for_feature_engineering() -> List[MinioFile]:
     files: List[MinioFile] = []
     try:
-        # List from CLEANED_BUCKET root
+        # List from CLEANED_BUCKET root (show only cleaned-data files)
         objects = minio_client.list_objects(CLEANED_BUCKET, recursive=True)
         for obj in objects:
             if getattr(obj, "is_dir", False):
@@ -209,16 +209,23 @@ async def apply_and_save_feature_engineering(request: ApplyFeatureEngineeringReq
 
         # When saving, keep all columns including changes (no filtering)
 
-        # Save to MinIO
-        engineered_filename = f"engineered/{request.filename.replace('cleaned-data/', '')}" # Ensure correct path
+        # Save to MinIO (feature-engineered bucket)
+        engineered_filename = request.filename.split('/')[-1]
         
         # Convert to parquet in-memory and upload
         parquet_buffer = io.BytesIO()
         processed_df.to_parquet(parquet_buffer, index=False)
         parquet_buffer.seek(0)
 
+        # Ensure destination bucket exists
+        try:
+            if not minio_client.bucket_exists("feature-engineered"):
+                minio_client.make_bucket("feature-engineered")
+        except Exception:
+            pass
+
         minio_client.put_object(
-            MINIO_BUCKET, # Use the main bucket for 'engineered' folder
+            "feature-engineered",
             engineered_filename,
             parquet_buffer,
             len(parquet_buffer.getvalue()),

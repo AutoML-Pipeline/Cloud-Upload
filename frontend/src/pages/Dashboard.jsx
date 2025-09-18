@@ -21,6 +21,12 @@ const steps = [
     icon: "⚙️",
     color: "#34d399"
   },
+  {
+    label: "Model Selection",
+    route: "/auto-model-selection",
+    icon: "🧠",
+    color: "#a78bfa"
+  },
   // Add more steps as needed, e.g.:
   // { label: "Training", route: "/training", icon: "🤖", color: "#34d399" }
 ];

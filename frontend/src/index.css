@@ -13,9 +13,11 @@
   }
   .page-shell {
     min-height: 100vh;
-    width: 100vw;
-    max-width: 100vw;
-    overflow: hidden;
+    width: 100%;
+    max-width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable both-edges;
     display: flex;
     flex-direction: column;
     background: black;
@@ -160,12 +162,14 @@
 body, #root, html {
   background: black !important;
   min-height: 100vh;
-  width: 100vw;
+  width: 100%;
   margin: 0;
   padding: 0;
   color: #e0e7ef;
   font-family: 'Poppins', 'Segoe UI', 'Montserrat', 'Roboto', Arial, sans-serif;
-  overflow-y: auto;
+  overflow-y: scroll; /* Always reserve scrollbar to prevent width shift */
+  overflow-x: hidden;
+  scrollbar-gutter: stable both-edges;
 }
 
 /* Global scrollbar minimization */
@@ -203,8 +207,6 @@ a:hover {
 }
 
 body {
-  display: flex;
-  place-items: center;
   min-width: 320px;
 }
 

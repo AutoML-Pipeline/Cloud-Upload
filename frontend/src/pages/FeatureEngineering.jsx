@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from "react"; // Added useRef
 import styles from "./FeatureEngineering.module.css";
 import DataTable from "../components/DataTable";
-import GlobalBackButton from "../components/GlobalBackButton";
 import { useNavigate } from "react-router-dom";
 import ColumnMultiSelect from "../components/ColumnMultiSelect";
 import FormField from "../components/FormField";
@@ -175,7 +174,6 @@ export default function FeatureEngineering() {
         sessionStorage.clear();
         window.location.replace("/");
       }} />
-      <GlobalBackButton className={styles.globalBackButtonAdjusted} /> {/* Moved GlobalBackButton here */}
       <div className={styles.pageSection} ref={pageSectionRef}> {/* Added ref */}
         <div className={styles.centeredContent}> {/* Added centeredContent */}
           <div className={styles.card}>

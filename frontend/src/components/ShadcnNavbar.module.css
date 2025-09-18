@@ -5,7 +5,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); /* Stronger shadow for depth */
   position: fixed;
   z-index: 2010;
-  width: 100vw;
+  width: 100%;
   left: 0;
   top: 0;
   display: flex;
@@ -69,7 +69,6 @@
 
 .navLink:hover {
   color: #fff;
-  transform: translateY(-2px); /* Slight lift on hover */
 }
 
 .navLink::after {
@@ -134,7 +133,6 @@
 .logoutButton:hover {
   background: linear-gradient(90deg, #e12d39 0%, #cc0000 100%); /* Darker red on hover */
   box-shadow: 0 4px 16px rgba(255, 71, 71, 0.3);
-  transform: translateY(-1px); /* Slight lift */
 }
 
 .logoutIcon {

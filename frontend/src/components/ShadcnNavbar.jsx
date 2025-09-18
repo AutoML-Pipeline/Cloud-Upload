@@ -6,6 +6,8 @@ const navLinks = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Data Ingestion", href: "/data-ingestion" },
   { label: "Preprocessing", href: "/preprocessing" },
+  { label: "Feature Engineering", href: "/feature-engineering" },
+  { label: "Model Selection", href: "/auto-model-selection" },
 ];
 
 const LogOutIcon = () => (

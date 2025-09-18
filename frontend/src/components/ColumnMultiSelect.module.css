@@ -45,6 +45,7 @@
   justify-content: flex-start;
   flex-wrap: nowrap;
   border-bottom: 1px solid #f3f4f6;
+  min-height: 40px; /* reserve height to avoid jump when inline controls render */
 }
 .option:hover {
   /* background-color: var(--gray-50); /* Subtle hover effect */

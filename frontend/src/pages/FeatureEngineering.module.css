@@ -10,6 +10,8 @@
   background: #ffffff; /* white */
   padding-bottom: 2rem;
   border-radius: 8px;
+  overflow: visible;
+  overflow-anchor: none;
 }
 
 .centeredContent {
@@ -32,13 +34,15 @@
 
 .pageShell {
   min-height: 100vh;
-  width: 100vw;
+  width: 100%;
   background: #ffffff; /* white background */
   color: var(--text-color-primary);
   display: flex;
   flex-direction: column;
   padding-bottom: 3rem;
-  overflow-x: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable both-edges; /* Prevent layout shift when scrollbar appears */
 }
 
 .backButtonTop {
@@ -165,7 +169,6 @@
 }
 
 .submitBtn:hover:not(:disabled) {
-  transform: translateY(-2px);
   box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
 }
 
@@ -193,7 +196,6 @@
 .backBtn:hover {
   background-color: #e5e7eb;
   color: #111827;
-  transform: translateY(-1px);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   border-color: #9ca3af;
 }
@@ -205,6 +207,7 @@
   margin-top: 1rem;
   margin-bottom: 1.5rem;
   width: 100%;
+  overflow-anchor: none;
 }
 
 .stepCard {
@@ -254,6 +257,8 @@
   padding-top: 0.75rem;
   border-top: 1px solid var(--gray-100);
   margin-top: 0.25rem;
+  min-height: 1px;
+  overflow-anchor: none;
 }
 
 .selectSm {

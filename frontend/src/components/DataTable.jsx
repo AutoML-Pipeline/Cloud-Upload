@@ -60,7 +60,7 @@ async function saveToMinIO(tableData, originalFilename) {
   }
 }
 
-export default function DataTable({ data, columns, highlightChanges = false, originalData = null, compareOriginal = false, diffMarks = null, originalFilename = null, filledNullColumns = [], pageSize = 10 }) {
+export default function DataTable({ data, columns, highlightChanges = false, originalData = null, compareOriginal = false, diffMarks = null, originalFilename = null, filledNullColumns = [], pageSize = 10, saveTarget = "engineered", saveFilename = null }) {
     const [page, setPage] = useState(0);
     const [sortCol, setSortCol] = useState(null);
     const [sortDir, setSortDir] = useState("asc");
@@ -100,11 +100,60 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
     const handleSaveToMinIO = async () => {
       setSavingToMinIO(true);
       try {
-        const result = await saveToMinIO(tableData, originalFilename); // Pass tableData to saveToMinIO
+        // Construct filename and endpoint based on save target
+        const isCleaned = saveTarget === "cleaned";
+
+        let targetFilename = null;
+        if (isCleaned) {
+          if (saveFilename && typeof saveFilename === 'string') {
+            targetFilename = saveFilename;
+          } else {
+            // Fallback if not provided
+            let baseName = 'data';
+            if (originalFilename) {
+              const filenameOnly = originalFilename.split('/').pop();
+              baseName = filenameOnly.replace(/\.(parquet|csv|xlsx|json)$/i, '');
+            }
+            targetFilename = `cleaned_${baseName}.parquet`;
+          }
+        }
+
+        // Build CSV payload from current tableData
+        const csvRows = [];
+        const headers = Object.keys(tableData[0] || {});
+        csvRows.push(headers.join(","));
+        for (const row of tableData) {
+          csvRows.push(headers.map(h => JSON.stringify(row[h] ?? "")).join(","));
+        }
+        const csvContent = csvRows.join("\n");
+
+        let response;
+        if (isCleaned) {
+          response = await fetch('http://localhost:8000/api/data/save_cleaned_to_minio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: csvContent, filename: targetFilename })
+          });
+        } else {
+          // Feature engineered save
+          let baseName = 'data';
+          if (originalFilename) {
+            const filenameOnly = originalFilename.split('/').pop();
+            baseName = filenameOnly.replace(/\.(parquet|csv|xlsx|json)$/i, '');
+          }
+          const featureEngineeredFilename = `feature_engineered_${baseName}.parquet`;
+          response = await fetch('http://localhost:8000/api/feature-engineering/save-to-minio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: csvContent, filename: featureEngineeredFilename })
+          });
+        }
+
+        const result = await response.json();
         if (result.success) {
           alert(`✅ ${result.message}`);
         } else {
-          alert(`❌ ${result.message}`);
+          alert(`❌ ${result.message || 'Failed to save to MinIO'}`);
         }
       } catch (error) {
         alert(`❌ Error: ${error.message}`);

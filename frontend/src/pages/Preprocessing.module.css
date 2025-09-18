@@ -1,12 +1,14 @@
 .pageShell {
   min-height: 100vh;
-  width: 100vw;
+  width: 100%;
   background: #f7fafd;
   color: #222;
   display: flex;
   flex-direction: column;
   padding-bottom: 3rem; /* Extra bottom spacing to avoid tight bottom area */
-  overflow-x: auto; /* Allow horizontal scrollbar on the outer shell */
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable both-edges; /* Prevent layout shift when scrollbar appears */
 }
 
 .globalBackButtonAdjusted {
@@ -24,13 +26,14 @@
   max-width: 1600px;
   margin: 1.5rem auto 0 auto;
   min-height: calc(100vh - 70px); /* Fill viewport height below navbar */
-  /* Remove internal scrolling to avoid mid-page scrollbar */
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: var(--card-bg); /* Changed from transparent to match card background */
-  padding-bottom: 2rem; /* Extra bottom padding to prevent bottom scrollbar appearing near content */
-  border-radius: 8px; /* Added border-radius for consistency */
+  background: var(--card-bg);
+  padding-bottom: 2rem;
+  border-radius: 8px;
+  overflow: visible; /* Ensure expanding cards don't cause nested scroll */
+  overflow-anchor: none; /* prevent browser scroll anchoring jumps */
 }
 
 .centeredContent {
@@ -40,6 +43,7 @@
   align-items: center;
   margin-bottom: 1rem; /* Reduced bottom margin */
   margin-top: 2rem; /* Reduced top margin */
+  overflow-anchor: none;
 }
 
 .card {
@@ -156,7 +160,6 @@
 }
 .submitBtn:hover:not(:disabled) {
   background: linear-gradient(90deg, #6366f1 0%, #6366f1 100%);
-  transform: scale(1.03);
   box-shadow: 0 4px 16px #6366f144;
 }
 .loadingWrapper {
@@ -693,6 +696,7 @@
   gap: 1rem; /* Reduced spacing between cards */
   margin-top: 1rem; /* Reduced top margin */
   margin-bottom: 1.5rem; /* Reduced bottom margin */
+  overflow-anchor: none;
 }
 
 .stepCard {
@@ -708,7 +712,6 @@
 
 .stepCard:hover {
   box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
 }
 
 .stepCardLabel {
@@ -739,6 +742,8 @@
   padding-top: 0.75rem; /* Reduced padding-top */
   border-top: 1px solid var(--gray-100);
   margin-top: 0.25rem; /* Reduced margin-top */
+  min-height: 1px; /* Reserve space to avoid layout jump when content toggles */
+  overflow-anchor: none;
 }
 
 .fillStrategySection {
@@ -837,7 +842,6 @@
 
 .backBtn:hover {
   background-color: var(--gray-300);
-  transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
 }
 
@@ -896,7 +900,6 @@
   outline: none;
   border-color: #4f46e5;
   box-shadow: 0 0 0 4px rgba(99,102,241,0.2);
-  transform: translateY(-1px);
 }
 
 /* Outlier configuration styles */

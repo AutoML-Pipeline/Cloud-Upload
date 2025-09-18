@@ -33,7 +33,6 @@
 }
 .csvBtn:hover {
   background: #6366f1;
-  transform: scale(1.04);
 }
 
 .minioBtn {
@@ -52,7 +51,6 @@
 
 .minioBtn:hover:not(:disabled) {
   background: #f5576c;
-  transform: scale(1.04);
 }
 
 .minioBtn:disabled {

@@ -31,8 +31,8 @@ async def save_cleaned_to_minio_route(request: Request):
     if "data" in body and "filename" in body:
         data = body.get("data")
         filename = body.get("filename")
-        folder = body.get("folder", "cleaned-data")
-        return minio_service.save_data_to_minio(data, filename, folder)
+        # Always save to cleaned-data bucket for cleaned outputs
+        return minio_service.save_data_to_minio(data, filename, "cleaned-data")
     else:
         temp_cleaned_path = body.get("temp_cleaned_path")
         cleaned_filename = body.get("cleaned_filename")

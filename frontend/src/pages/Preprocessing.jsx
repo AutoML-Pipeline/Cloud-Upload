@@ -1,7 +1,7 @@
+import GlobalBackButton from "../components/GlobalBackButton";
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery } from '@tanstack/react-query';
 import ShadcnNavbar from "../components/ShadcnNavbar";
-import GlobalBackButton from "../components/GlobalBackButton";
 import FormField from "../components/FormField";
 import { toast } from 'react-hot-toast';
 import styles from "./Preprocessing.module.css";
@@ -259,6 +259,8 @@ export default function Preprocessing() {
           diffMarks={result?.diff_marks}
           originalFilename={selectedFile}
           filledNullColumns={preprocessingSteps.fillNullsColumns}
+          saveTarget={"cleaned"}
+          saveFilename={result?.cleaned_filename}
         />
         
         {result?.change_metadata && result.change_metadata.length > 0 && (
@@ -331,7 +333,6 @@ export default function Preprocessing() {
         sessionStorage.clear();
         window.location.replace("/");
       }} />
-      <GlobalBackButton className={styles.globalBackButtonAdjusted} />
       <div className={styles.pageSection} ref={pageSectionRef}>
         <div className={styles.centeredContent}>
           <div className={styles.card}>

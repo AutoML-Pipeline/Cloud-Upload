@@ -87,3 +87,24 @@ class FeatureEngineeringRequest(BaseModel):
     dataset_id: Optional[str] = None
     backend: Literal["pandas", "pyspark"] = "pandas"
     steps: List[FeatureEngineeringStep] = []
+
+# Auto ML (Model Recommendation)
+class AutoMLRecommendRequest(BaseModel):
+    filename: str
+    task: Literal["classification", "regression", "clustering", "time_series"]
+    preference: Optional[Literal["speed", "accuracy", "interpretability"]] = None
+
+class ModelRecommendation(BaseModel):
+    model_family: str
+    library: str
+    rationale_simple: str
+    when_to_use: str
+    needs_preprocessing: List[str] = []
+    caveats: List[str] = []
+    est_training_time: Literal["low", "medium", "high"] = "medium"
+
+class AutoMLRecommendResponse(BaseModel):
+    task: str
+    filename: str
+    dataset_profile: Dict[str, Any]
+    recommendations: List[ModelRecommendation]
