@@ -17,7 +17,7 @@ import GDriveFiles from "./pages/GDriveFiles";
 import UploadSQLWorkbench from "./pages/UploadSQLWorkbench";
 import Preprocessing from "./pages/Preprocessing";
 import FeatureEngineering from "./pages/FeatureEngineering";
-import AutoModelSelection from "./pages/AutoModelSelection";
+import AutoMLTraining from "./pages/AutoMLTraining";
 import FilesPage from "./pages/Files";
 import DataIngestion from "./pages/DataIngestion";
 import { Toaster } from 'react-hot-toast';
@@ -50,7 +50,7 @@ function AnimatedRoutes({ user, setUser }) {
         <Route path="/upload-sqlworkbench" element={<UploadSQLWorkbench />} />
         <Route path="/preprocessing" element={<Preprocessing />} />
         <Route path="/feature-engineering" element={<FeatureEngineering />} />
-        <Route path="/auto-model-selection" element={<AutoModelSelection />} />
+        <Route path="/automl-training" element={<AutoMLTraining />} />
         <Route path="/files" element={<FilesPage />} />
         <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
       </Routes>

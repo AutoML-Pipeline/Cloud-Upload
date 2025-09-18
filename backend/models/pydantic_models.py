@@ -108,3 +108,36 @@ class AutoMLRecommendResponse(BaseModel):
     filename: str
     dataset_profile: Dict[str, Any]
     recommendations: List[ModelRecommendation]
+
+
+# AutoML Training Models
+class AutoMLStartRequest(BaseModel):
+    filename: str
+    task: Literal["classification", "regression"]
+    target_column: str
+    time_limit: int = 300  # seconds
+    presets: Optional[Literal["best_quality", "high_quality", "good_quality", "medium_quality", "optimize_for_deployment"]] = "medium_quality"
+    eval_metric: Optional[str] = None  # Auto-detect if None
+
+
+class AutoMLStatusResponse(BaseModel):
+    job_id: str
+    status: Literal["pending", "running", "done", "error"]
+    progress: float = 0.0
+    current_phase: Optional[str] = None
+    best_model: Optional[str] = None
+    best_score: Optional[float] = None
+    leaderboard: Optional[List[Dict[str, Any]]] = None
+    error: Optional[str] = None
+    training_time: Optional[float] = None
+
+
+class AutoMLPredictionRequest(BaseModel):
+    job_id: str
+    data: List[Dict[str, Any]]  # New data to predict on
+
+
+class AutoMLPredictionResponse(BaseModel):
+    predictions: List[Any]
+    prediction_probabilities: Optional[List[List[float]]] = None
+    model_info: Dict[str, Any]
