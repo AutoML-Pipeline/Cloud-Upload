@@ -78,4 +78,30 @@
 }
 .disabled { opacity: 0.6; }
 
+.selectedColumnsStrategies {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.strategyRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.strategyRow:last-child {
+  border-bottom: none;
+}
+
+.strategyControls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 

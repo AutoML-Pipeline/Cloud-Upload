@@ -1,8 +1,8 @@
 # FastAPI route definitions for file-related endpoints
 from fastapi import APIRouter, UploadFile, File, Form, Request, Query, Body
-from controllers import file_controller
-from models.pydantic_models import UploadFromURLRequest, UploadFromGoogleDriveRequest
-from services import minio_service, gdrive_service
+from backend.controllers import file_controller, data_controller
+from backend.models.pydantic_models import UploadFromURLRequest, UploadFromGoogleDriveRequest, SQLConnectRequest, SQLWorkbenchRequest
+from backend.services import minio_service, gdrive_service, sql_service
 from fastapi.responses import JSONResponse, StreamingResponse
 
 router = APIRouter()
@@ -36,3 +36,21 @@ async def download_file_route(filename: str):
 @router.get("/gdrive/list-files")
 async def gdrive_list_files_route(access_token: str = Query(...), folder_id: str = Query("root")):
     return gdrive_service.gdrive_list_files(access_token, folder_id)
+
+# Compatibility aliases (no-prefix) for SQL workbench endpoints
+@router.post("/sql-list-databases")
+async def sql_list_databases_compat(request_body: SQLConnectRequest):
+    return await sql_service.sql_list_databases(request_body)
+
+@router.post("/sql-preview")
+async def sql_preview_compat(request_body: SQLWorkbenchRequest):
+    return await sql_service.sql_preview(request_body)
+
+@router.post("/upload-from-sql")
+async def upload_from_sql_compat(request_body: SQLWorkbenchRequest):
+    return await sql_service.upload_from_sql(request_body)
+
+# Compatibility alias for data preview without /api prefix
+@router.get("/data/preview/{filename}")
+async def data_preview_compat(filename: str):
+    return data_controller.get_data_preview(filename)

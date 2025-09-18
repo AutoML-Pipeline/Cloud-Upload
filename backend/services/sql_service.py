@@ -1,5 +1,5 @@
 from fastapi.responses import JSONResponse
-from models.pydantic_models import SQLWorkbenchRequest, SQLConnectRequest
+from backend.models.pydantic_models import SQLWorkbenchRequest, SQLConnectRequest
 import pymysql
 import pandas as pd
 import pyarrow as pa
@@ -8,8 +8,8 @@ import os
 import tempfile
 import logging
 
-from services import minio_service
-from config import MINIO_BUCKET
+from backend.services import minio_service
+from backend.config import MINIO_BUCKET
 
 async def sql_preview(request: SQLWorkbenchRequest):
     try:

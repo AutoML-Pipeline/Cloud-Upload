@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from decimal import Decimal
 from minio import Minio
-from config import MINIO_BUCKET, minio_client
+from backend.config import MINIO_BUCKET, minio_client
 
 
 def read_parquet_from_minio(filename: str) -> pd.DataFrame:

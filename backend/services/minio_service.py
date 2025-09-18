@@ -1,4 +1,4 @@
-from config import minio_client, MINIO_BUCKET, ensure_minio_bucket_exists
+from backend.config import minio_client, MINIO_BUCKET, ensure_minio_bucket_exists
 import io
 import os
 import logging
@@ -37,6 +37,9 @@ def list_files(folder: str = None):
         files = []
         for obj in objects:
             if not obj.is_dir:
+                # For root folder listing, only include files that are not in subfolders
+                if folder is None and '/' in obj.object_name:
+                    continue  # Skip files in subfolders
                 files.append({
                     "name": obj.object_name,
                     "lastModified": getattr(obj, 'last_modified', None),

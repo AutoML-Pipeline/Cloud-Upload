@@ -5,28 +5,32 @@
   color: #222;
   display: flex;
   flex-direction: column;
+  padding-bottom: 3rem; /* Extra bottom spacing to avoid tight bottom area */
+  overflow-x: auto; /* Allow horizontal scrollbar on the outer shell */
 }
 
-.backButtonWrapper {
+.globalBackButtonAdjusted {
   position: absolute;
   left: 2rem;
-  top: 70px;
+  top: 70px; /* Adjust based on navbar height */
   z-index: 10000;
   pointer-events: auto;
+  padding-top: 1rem;
 }
 
 .pageSection {
   position: relative;
   width: 100%;
   max-width: 1600px;
-  margin: 3rem auto 0 auto;
-  min-height: 80vh;
-  max-height: 90vh;
-  overflow-y: auto;
+  margin: 1.5rem auto 0 auto;
+  min-height: calc(100vh - 70px); /* Fill viewport height below navbar */
+  /* Remove internal scrolling to avoid mid-page scrollbar */
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: transparent;
+  background: var(--card-bg); /* Changed from transparent to match card background */
+  padding-bottom: 2rem; /* Extra bottom padding to prevent bottom scrollbar appearing near content */
+  border-radius: 8px; /* Added border-radius for consistency */
 }
 
 .centeredContent {
@@ -34,8 +38,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 2rem;
-  margin-top: 3.5rem;
+  margin-bottom: 1rem; /* Reduced bottom margin */
+  margin-top: 2rem; /* Reduced top margin */
 }
 
 .card {
@@ -44,21 +48,21 @@
   background: #fff;
   border-radius: 1.25rem;
   box-shadow: 0 4px 32px rgba(0,0,0,0.10);
-  padding: 3rem 3rem 2.5rem 3rem;
+  padding: 2rem 2.5rem; /* Reduced padding */
   display: flex;
   flex-direction: column;
   align-items: center;
   border: 1.5px solid #e5e7eb;
-  min-height: 420px;
+  min-height: auto; /* Allow height to adjust dynamically */
   overflow: visible;
   z-index: 3;
 }
 
 .heading {
-  font-size: 2.5rem;
+  font-size: 2.2rem; /* Slightly smaller heading */
   font-weight: 700;
   color: #1e293b;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem; /* Reduced bottom margin */
   text-align: center;
 }
 
@@ -138,19 +142,13 @@
 }
 
 .submitBtn {
-  width: 100%;
-  background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
-  color: #fff;
-  font-weight: 600;
-  font-size: 1.15rem;
-  border: none;
-  border-radius: 0.75rem;
-  padding: 1.1rem 0;
-  margin-top: 1.5rem;
+  width: auto; /* Allow button to size itself based on content */
+  max-width: 300px; /* Limit max width */
+  padding: 0.8rem 2rem; /* Smaller padding */
+  font-size: 1rem; /* Smaller font size */
+  margin-top: 1rem; /* Adjust margin-top */
   margin-bottom: 0.5rem;
-  box-shadow: 0 2px 8px #6366f122;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.18s, box-shadow 0.2s;
+  border-radius: 0.6rem; /* Slightly smaller border-radius */
 }
 .submitBtn:disabled {
   opacity: 0.7;
@@ -440,18 +438,7 @@
 }
 
 .highlightToggleWrapper {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.5rem;
-  margin-top: 0.5rem;
-}
-.highlightToggleLabel {
-  margin-left: 0.5rem;
-  font-size: 1.05rem;
-  color: #6366f1;
-  font-weight: 500;
-  cursor: pointer;
-  user-select: none;
+  display: none; /* Hide the highlight toggle */
 }
 
 .changeMetadataSummary {
@@ -563,9 +550,9 @@
   background: #f3f6fb;
   color: #6366f1;
   border-radius: 0.7rem;
-  padding: 0.7rem 1.2rem;
-  margin-bottom: 1.1rem;
-  font-size: 1.05rem;
+  padding: 0.6rem 1rem; /* Reduced padding */
+  margin-bottom: 0.8rem; /* Reduced bottom margin */
+  font-size: 1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -703,16 +690,16 @@
 .preprocessingStepsList {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem; /* Spacing between cards */
-  margin-top: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 1rem; /* Reduced spacing between cards */
+  margin-top: 1rem; /* Reduced top margin */
+  margin-bottom: 1.5rem; /* Reduced bottom margin */
 }
 
 .stepCard {
   background-color: var(--white);
   border: 1px solid var(--gray-200);
   border-radius: var(--border-radius-lg);
-  padding: 1.5rem;
+  padding: 1rem 1.25rem; /* Reduced padding */
   transition: all 0.2s ease-in-out;
   box-shadow: var(--shadow-sm);
   display: flex;
@@ -728,7 +715,7 @@
   display: flex;
   align-items: center;
   cursor: pointer;
-  margin-bottom: 1rem; /* Space between label and content */
+  margin-bottom: 0.75rem; /* Reduced space below label */
 }
 
 .stepCardLabel input[type="checkbox"] {
@@ -748,10 +735,10 @@
 }
 
 .stepCardContent {
-  padding-left: 2.75rem; /* Align content with title, past checkbox and icon */
-  padding-top: 1rem;
+  padding-left: 2.75rem;
+  padding-top: 0.75rem; /* Reduced padding-top */
   border-top: 1px solid var(--gray-100);
-  margin-top: 0.5rem;
+  margin-top: 0.25rem; /* Reduced margin-top */
 }
 
 .fillStrategySection {
@@ -825,9 +812,10 @@
 
 .buttonGroup {
   display: flex;
-  justify-content: space-between;
+  justify-content: center; /* Center the start button */
   gap: 1rem;
-  margin-top: 2rem;
+  margin-top: 1.5rem;
+  padding-bottom: 2rem; /* Add bottom padding to avoid tight bottom spacing */
 }
 
 .backBtn {
@@ -854,7 +842,7 @@
 }
 
 .highlightToggleWrapper {
-  margin-top: 1.5rem;
+  margin-top: 1rem; /* Reduced top margin */
   display: flex;
   justify-content: flex-end;
   align-items: center;

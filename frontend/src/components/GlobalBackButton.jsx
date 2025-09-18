@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 const NAVBAR_HEIGHT = 54;
 
-const GlobalBackButton = () => {
+const GlobalBackButton = ({ className }) => {
   const navigate = useNavigate();
   const location = useLocation();
   // Don't show on dashboard or landing
@@ -18,7 +18,7 @@ const GlobalBackButton = () => {
           navigate("/dashboard", { replace: true });
         }
       }}
-      className="fixed left-6 z-[9999] p-1 rounded-full bg-[#23272f] hover:bg-[#374151] text-white text-base font-semibold shadow flex items-center border border-[#374151] transition"
+      className={`fixed left-6 z-[9999] p-1 rounded-full bg-[#23272f] hover:bg-[#374151] text-white text-base font-semibold shadow flex items-center border border-[#374151] transition ${className}`}
       style={{
         fontFamily: 'Montserrat',
         boxShadow: '0 2px 12px rgba(30,41,59,0.24)',

@@ -1,539 +1,173 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
-import { useQuery } from '@tanstack/react-query';
-import ShadcnNavbar from "../components/ShadcnNavbar";
-import GlobalBackButton from "../components/GlobalBackButton";
-import FormField from "../components/FormField";
-import { toast } from 'react-hot-toast';
+import React, { useEffect, useState, useRef } from "react"; // Added useRef
 import styles from "./FeatureEngineering.module.css";
 import DataTable from "../components/DataTable";
+import GlobalBackButton from "../components/GlobalBackButton";
+import { useNavigate } from "react-router-dom";
 import ColumnMultiSelect from "../components/ColumnMultiSelect";
-import CustomSelect from "../components/CustomSelect";
-import { useLocation } from 'react-router-dom';
+import FormField from "../components/FormField";
+import ShadcnNavbar from "../components/ShadcnNavbar"; // Import ShadcnNavbar
+
+const apiBase = "http://127.0.0.1:8000";
 
 export default function FeatureEngineering() {
-  const { data: filesData } = useQuery({
-    queryKey: ['files', 'cleaned-data'],
-    queryFn: async () => {
-      const res = await fetch('http://localhost:8000/files/list?folder=cleaned-data');
-      if (!res.ok) throw new Error('Failed to fetch cleaned files');
-      const data = await res.json();
-      console.log("Files from cleaned-data bucket:", data.files);
-      return data;
-    },
-    staleTime: 60 * 1000,
-  });
-  const files = useMemo(() => filesData?.files || [], [filesData]);
-  const [selectedFile, setSelectedFile] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState("select_file");
+  const [files, setFiles] = useState([]);
+  const [filename, setFilename] = useState("");
+  const [columns, setColumns] = useState([]);
+  const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
-  const [step, setStep] = useState('select_file');
-  const [featureSteps, setFeatureSteps] = useState([]);
-  const [highlightChanges, setHighlightChanges] = useState(true);
-  const [showAll, setShowAll] = useState(false);
-  const [fullData, setFullData] = useState(null);
-  const [dataPreview, setDataPreview] = useState(null);
-  const location = useLocation();
-  const pageSectionRef = useRef(null);
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const fileFromUrl = params.get('file');
-    console.log("URL parameter file:", fileFromUrl);
-    console.log("Available files:", files.map(f => f.name));
-    
-    if (fileFromUrl && fileFromUrl !== selectedFile) {
-      // Check if the file from URL exists in the cleaned files
-      const fileExists = files.some(f => f.name === fileFromUrl);
-      if (fileExists) {
-        console.log("Setting file from URL:", fileFromUrl);
-        setSelectedFile(fileFromUrl);
-        setStep('configure_features');
-        setDataPreview(null);
+  const navigate = useNavigate();
+  const pageSectionRef = useRef(null); // Added pageSectionRef
+
+  const setStepsStable = (updater) => {
+    const container = pageSectionRef.current;
+    const prevScroll = container ? container.scrollTop : window.scrollY;
+    if (typeof updater === 'function') {
+      // Handle function updaters for individual step states
+      updater();
+    }
+    requestAnimationFrame(() => {
+      if (container) {
+        container.scrollTop = prevScroll;
       } else {
-        console.log("File from URL not found in cleaned files:", fileFromUrl);
-        // If file doesn't exist, just select the first available file
-        if (files.length > 0) {
-          setSelectedFile(files[0].name);
-        }
+        window.scrollTo(0, prevScroll);
       }
-    } else if (!selectedFile && files.length && step === 'select_file') {
-      setSelectedFile(files[0].name);
-    }
-  }, [files, selectedFile, step, location.search]);
+    });
+  };
+
+  const [scaling, setScaling] = useState({ enabled: false, method: "standard", columns: [] });
+  const [encoding, setEncoding] = useState({ enabled: false, method: "onehot", columns: [] });
+  const [binning, setBinning] = useState({ enabled: false, method: "equal_width", bins: 5, columns: [] });
+  const [polynomial, setPolynomial] = useState({ enabled: false, degree: 2, include_bias: false, columns: [] });
+  const [datetimeDecompose, setDatetimeDecompose] = useState({ enabled: false, columns: [], date_part: "year" });
+  const [aggregation, setAggregation] = useState({ enabled: false, group_by: [], aggregations: {} });
+  const [selection, setSelection] = useState({ enabled: false, method: "correlation", threshold: 0.95, n_components: 2, columns: [] });
 
   useEffect(() => {
-    if (selectedFile && step === 'configure_features') {
-      setDataPreview(null);
-      console.log("Fetching preview for file:", selectedFile);
-      fetch(`http://localhost:8000/feature-engineering/preview/${selectedFile}`)
-        .then(res => {
-          if (!res.ok) {
-            throw new Error(`Failed to fetch file preview: ${res.statusText}`);
-          }
-          return res.json();
-        })
-        .then(data => {
-          console.log("Preview data received:", data);
-          setDataPreview(data);
-          setFeatureSteps([]);
-        })
-        .catch(error => {
-          console.error("Error fetching data preview:", error);
-          toast.error("Failed to load file preview: " + error.message);
-          setDataPreview(null);
-        });
-    }
-  }, [selectedFile, step]);
+    fetch(`${apiBase}/api/feature-engineering/files/cleaned`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d)) setFiles(d);
+      })
+      .catch(() => {});
+  }, []);
 
-  const addFeatureStep = (operation) => {
-    const newStep = {
-      step_id: `step_${Date.now()}`,
-      operation: operation,
-      config: getDefaultConfig(operation)
-    };
-    setFeatureSteps(prev => [...prev, newStep]);
-  };
-
-  const getDefaultConfig = (operation) => {
-    switch (operation) {
-      case 'scaling':
-        return { method: 'standard', columns: [] };
-      case 'encoding':
-        return { method: 'one_hot', columns: [], target_column: null };
-      case 'binning':
-        return { method: 'equal_width', columns: [], n_bins: 5 };
-      case 'feature_creation':
-        return { method: 'polynomial', polynomial: { degree: 2, columns: [], include_bias: false } };
-      case 'feature_selection':
-        return { method: 'variance_threshold', variance_threshold: { threshold: 0.01, columns: [] } };
-      default:
-        return {};
-    }
-  };
-
-  const updateStepConfig = (stepId, config) => {
-    setFeatureSteps(prev => prev.map(step => 
-      step.step_id === stepId ? { ...step, config } : step
-    ));
-  };
-
-  const removeStep = (stepId) => {
-    setFeatureSteps(prev => prev.filter(step => step.step_id !== stepId));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setResult(null);
+  const loadColumns = async (fname) => {
+    setBusy(true);
     try {
-      const payload = {
-        backend: 'pandas',
-        steps: featureSteps
-      };
-
-      console.log("Sending feature engineering payload:", payload);
-      const res = await fetch(`http://localhost:8000/feature-engineering/apply/${selectedFile}`, {
+      const resp = await fetch(`${apiBase}/api/feature-engineering/apply-preview`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ filename: fname, steps: [], current_step_index: -1 })
       });
-      const data = await res.json();
-      console.log("Received feature engineering response:", data);
-      if (data.error) {
-        toast.error(data.error);
-      } else {
-        toast.success("Feature engineering completed!");
-        setResult(data);
+      const data = await resp.json();
+      console.log("Backend Response for Preview:", data);
+      setResult(data);
+      // Extract columns from the preview data structure
+      if (data.preview && typeof data.preview === 'object') {
+        const extractedColumns = Object.keys(data.preview);
+        setColumns(extractedColumns);
       }
-    } catch (err) {
-      toast.error("Failed to apply feature engineering: " + err.message);
+      setStep("preview");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
-  const columns = dataPreview?.columns || [];
-  const nullCounts = dataPreview?.null_counts || {};
+  const onNextFromSelect = async () => {
+    if (!filename) return;
+    await loadColumns(filename);
+    setStep("configure");
+  };
 
-  function FeatureStepCard({ step, onUpdate, onRemove }) {
+  const apply = async () => {
+    setBusy(true);
+    try {
+      const steps = [
+        scaling.enabled ? { id: "scaling_step", type: "scaling", method: scaling.method, columns: scaling.columns } : null,
+        encoding.enabled ? { id: "encoding_step", type: "encoding", method: encoding.method === "onehot" ? "one-hot" : encoding.method, columns: encoding.columns } : null,
+        binning.enabled ? { id: "binning_step", type: "binning", method: binning.method, columns: binning.columns, bins: Number(binning.bins) || 5 } : null,
+        polynomial.enabled ? { id: "polynomial_creation_step", type: "feature_creation", method: "polynomial", degree: Number(polynomial.degree) || 2, columns: polynomial.columns } : null,
+        datetimeDecompose.enabled ? { id: "datetime_creation_step", type: "feature_creation", method: "datetime_decomposition", columns: datetimeDecompose.columns, date_part: datetimeDecompose.date_part } : null,
+        // aggregation.enabled ? { type: "feature_creation", method: "aggregations", group_by: aggregation.group_by, aggregations: aggregation.aggregations } : null,
+        selection.enabled ? { id: "selection_step", type: "feature_selection", method: selection.method === "correlation" ? "correlation_filter" : selection.method === "variance" ? "variance_threshold" : selection.method, threshold: Number(selection.threshold), n_components: Number(selection.n_components), columns: selection.columns } : null
+      ].filter(Boolean);
+
+      const resp = await fetch(`${apiBase}/api/feature-engineering/apply-preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename, steps, current_step_index: steps.length - 1 })
+      });
+      const data = await resp.json();
+      setResult(data);
+      // Extract columns from the preview data structure
+      if (data.preview && typeof data.preview === 'object') {
+        const extractedColumns = Object.keys(data.preview);
+        setColumns(extractedColumns);
+      }
+      setStep("preview");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const save = async () => {
+    if (!result?.preview) return;
+    setBusy(true);
+    try {
+      const engineeredName = `engineered_${filename.replace(/\.parquet$/i, "")}.parquet`;
+      const steps = [
+        scaling.enabled ? { id: "scaling_step", type: "scaling", method: scaling.method, columns: scaling.columns } : null,
+        encoding.enabled ? { id: "encoding_step", type: "encoding", method: encoding.method === "onehot" ? "one-hot" : encoding.method, columns: encoding.columns } : null,
+        binning.enabled ? { id: "binning_step", type: "binning", method: binning.method, columns: binning.columns, bins: Number(binning.bins) || 5 } : null,
+        polynomial.enabled ? { id: "polynomial_creation_step", type: "feature_creation", method: "polynomial", degree: Number(polynomial.degree) || 2, columns: polynomial.columns } : null,
+        datetimeDecompose.enabled ? { id: "datetime_creation_step", type: "feature_creation", method: "datetime_decomposition", columns: datetimeDecompose.columns, date_part: datetimeDecompose.date_part } : null,
+        // aggregation.enabled ? { type: "feature_creation", method: "aggregations", group_by: aggregation.group_by, aggregations: aggregation.aggregations } : null,
+        selection.enabled ? { id: "selection_step", type: "feature_selection", method: selection.method === "correlation" ? "correlation_filter" : selection.method === "variance" ? "variance_threshold" : selection.method, threshold: Number(selection.threshold), n_components: Number(selection.n_components), columns: selection.columns } : null
+      ].filter(Boolean);
+
+      await fetch(`${apiBase}/api/feature-engineering/apply-and-save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename, steps, new_filename: engineeredName })
+      });
+      alert("Saved to engineered bucket");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  function FeatureEngineeringStepCard({
+    checked, onToggle, icon, label, children }) {
     return (
       <div className={styles.stepCard}>
-        <div className={styles.stepCardHeader}>
-          <span className={styles.stepCardIcon}>{getStepIcon(step.operation)}</span>
-          <span className={styles.stepCardTitle}>{getStepTitle(step.operation)}</span>
-          <button 
-            type="button" 
-            onClick={() => onRemove(step.step_id)}
-            className={styles.removeStepBtn}
-          >
-            ✕
-          </button>
-        </div>
-        <div className={styles.stepCardContent}>
-          {renderStepConfig(step, onUpdate)}
-        </div>
+        <label className={styles.stepCardLabel}>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={onToggle}
+          />
+          <span className={styles.stepCardIcon}>{icon}</span>
+          <span className={styles.stepCardTitle}>{label}</span>
+        </label>
+        {checked && <div className={styles.stepCardContent}>{children}</div>}
       </div>
     );
   }
 
-  const getStepIcon = (operation) => {
-    const icons = {
-      scaling: '📊',
-      encoding: '🏷️',
-      binning: '📦',
-      feature_creation: '✨',
-      feature_selection: '🎯'
-    };
-    return icons[operation] || '⚙️';
-  };
-
-  const getStepTitle = (operation) => {
-    const titles = {
-      scaling: 'Scaling',
-      encoding: 'Encoding',
-      binning: 'Binning',
-      feature_creation: 'Feature Creation',
-      feature_selection: 'Feature Selection'
-    };
-    return titles[operation] || operation;
-  };
-
-  const renderStepConfig = (step, onUpdate) => {
-    const { operation, config } = step;
-    
-    switch (operation) {
-      case 'scaling':
-        return (
-          <div>
-            <label className={styles.configLabel}>Method:</label>
-            <CustomSelect
-              value={config.method || 'standard'}
-              onChange={(value) => {
-                console.log("Scaling method changed to:", value);
-                onUpdate(step.step_id, { ...config, method: value });
-              }}
-              options={[
-                { value: 'standard', label: 'Standard Scaling' },
-                { value: 'minmax', label: 'Min-Max Scaling' },
-                { value: 'robust', label: 'Robust Scaling' },
-                { value: 'log', label: 'Log Transformation' }
-              ]}
-              placeholder="Select scaling method..."
-            />
+  const ColumnMulti = ({ value, onChange, label, placeholder }) => (
             <ColumnMultiSelect
               columns={columns}
-              selected={config.columns || []}
-              onChange={cols => onUpdate(step.step_id, { ...config, columns: cols })}
-              label="Columns to scale (default: all numeric)"
-              placeholder="Select columns..."
-            />
-          </div>
-        );
-      
-      case 'encoding':
+      selected={value}
+      onChange={onChange}
+      label={label}
+      placeholder={placeholder}
+    />
+  );
+
         return (
-          <div>
-            <label className={styles.configLabel}>Method:</label>
-            <CustomSelect
-              value={config.method || 'one_hot'}
-              onChange={(value) => onUpdate(step.step_id, { ...config, method: value })}
-              options={[
-                { value: 'one_hot', label: 'One-Hot Encoding' },
-                { value: 'label', label: 'Label Encoding' },
-                { value: 'target', label: 'Target Encoding' }
-              ]}
-              placeholder="Select encoding method..."
-            />
-            <ColumnMultiSelect
-              columns={columns}
-              selected={config.columns || []}
-              onChange={cols => onUpdate(step.step_id, { ...config, columns: cols })}
-              label="Columns to encode (default: all categorical)"
-              placeholder="Select columns..."
-            />
-            {config.method === 'target' && (
-              <div>
-                <label className={styles.configLabel}>Target Column:</label>
-                <select
-                  value={config.target_column || ''}
-                  onChange={e => onUpdate(step.step_id, { ...config, target_column: e.target.value })}
-                  className={styles.configSelect}
-                >
-                  <option value="">Select target column...</option>
-                  {columns.map(col => (
-                    <option key={col} value={col}>{col}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        );
-      
-      case 'binning':
-        return (
-          <div>
-            <label className={styles.configLabel}>Method:</label>
-            <CustomSelect
-              value={config.method || 'equal_width'}
-              onChange={(value) => onUpdate(step.step_id, { ...config, method: value })}
-              options={[
-                { value: 'equal_width', label: 'Equal Width' },
-                { value: 'quantile', label: 'Quantile' }
-              ]}
-              placeholder="Select binning method..."
-            />
-            <label className={styles.configLabel}>Number of Bins:</label>
-            <input
-              type="number"
-              min="2"
-              max="20"
-              value={config.n_bins || 5}
-              onChange={e => onUpdate(step.step_id, { ...config, n_bins: parseInt(e.target.value) })}
-              className={styles.configInput}
-            />
-            <ColumnMultiSelect
-              columns={columns}
-              selected={config.columns || []}
-              onChange={cols => onUpdate(step.step_id, { ...config, columns: cols })}
-              label="Columns to bin (default: all numeric)"
-              placeholder="Select columns..."
-            />
-          </div>
-        );
-      
-      case 'feature_creation':
-        return (
-          <div>
-            <label className={styles.configLabel}>Method:</label>
-            <CustomSelect
-              value={config.method || 'polynomial'}
-              onChange={(value) => onUpdate(step.step_id, { ...config, method: value })}
-              options={[
-                { value: 'polynomial', label: 'Polynomial Features' },
-                { value: 'datetime_decomposition', label: 'Datetime Decomposition' },
-                { value: 'aggregations', label: 'Aggregations' }
-              ]}
-              placeholder="Select feature creation method..."
-            />
-            {config.method === 'polynomial' && (
-              <div>
-                <label className={styles.configLabel}>Degree:</label>
-                <input
-                  type="number"
-                  min="2"
-                  max="5"
-                  value={config.polynomial?.degree || 2}
-                  onChange={e => onUpdate(step.step_id, { 
-                    ...config, 
-                    polynomial: { ...config.polynomial, degree: parseInt(e.target.value) }
-                  })}
-                  className={styles.configInput}
-                />
-                <ColumnMultiSelect
-                  columns={columns}
-                  selected={config.polynomial?.columns || []}
-                  onChange={cols => onUpdate(step.step_id, { 
-                    ...config, 
-                    polynomial: { ...config.polynomial, columns: cols }
-                  })}
-                  label="Columns for polynomial features"
-                  placeholder="Select columns..."
-                />
-              </div>
-            )}
-          </div>
-        );
-      
-      case 'feature_selection':
-        return (
-          <div>
-            <label className={styles.configLabel}>Method:</label>
-            <CustomSelect
-              value={config.method || 'variance_threshold'}
-              onChange={(value) => onUpdate(step.step_id, { ...config, method: value })}
-              options={[
-                { value: 'variance_threshold', label: 'Variance Threshold' },
-                { value: 'correlation_filter', label: 'Correlation Filter' },
-                { value: 'pca', label: 'PCA' }
-              ]}
-              placeholder="Select feature selection method..."
-            />
-            {config.method === 'variance_threshold' && (
-              <div>
-                <label className={styles.configLabel}>Threshold:</label>
-                <input
-                  type="number"
-                  step="0.001"
-                  min="0"
-                  max="1"
-                  value={config.variance_threshold?.threshold || 0.01}
-                  onChange={e => onUpdate(step.step_id, { 
-                    ...config, 
-                    variance_threshold: { ...config.variance_threshold, threshold: parseFloat(e.target.value) }
-                  })}
-                  className={styles.configInput}
-                />
-              </div>
-            )}
-          </div>
-        );
-      
-      default:
-        return <div>Unknown operation</div>;
-    }
-  };
-
-  // Fetch full data when Show All is clicked
-  const handleShowAll = async () => {
-    setLoading(true);
-    try {
-      const payload = {
-        backend: 'pandas',
-        steps: featureSteps
-      };
-
-      console.log("Sending Show All feature engineering payload:", payload);
-      const res = await fetch(`http://localhost:8000/feature-engineering/apply/${selectedFile}?full=true`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      console.log("Received Show All feature engineering response:", data);
-      if (data.full_data) {
-        setFullData(data.full_data);
-        setShowAll(true);
-      } else {
-        toast.error("Full data not available.");
-      }
-    } catch (err) {
-      toast.error("Failed to load full data: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const renderPreviewTable = () => {
-    if (!result) return null;
-    
-    const tableData = showAll && fullData ? fullData : result.preview;
-    const originalData = showAll && result.original_preview ? result.original_preview : result.original_preview;
-    
-    return (
-      <div className={styles.card}>
-        <div className={styles.previewHeader}>
-          <h3 className={styles.heading} style={{ fontSize: '1.5rem', marginBottom: '1.2rem' }}>Feature Engineering Results</h3>
-          <div className={styles.previewControls}>
-            <button 
-              className={`${styles.previewToggle} ${!showAll ? styles.active : ''}`}
-              onClick={() => setShowAll(false)}
-            >
-              Preview 10 rows
-            </button>
-            <button 
-              className={`${styles.previewToggle} ${showAll ? styles.active : ''}`}
-              onClick={handleShowAll}
-            >
-              Preview all rows
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.previewNote}>
-          {!showAll ? 'Showing first 10 rows' : 'Showing all rows'}
-        </div>
-        
-        <DataTable 
-          data={tableData || []} 
-          originalData={originalData || []} 
-          compareOriginal={true} 
-          highlightChanges={highlightChanges} 
-          originalFilename={selectedFile}
-        />
-        
-        {/* Action buttons */}
-        <div className={styles.actionButtons}>
-          <button 
-            className={styles.downloadBtn}
-            onClick={() => {
-              const csvContent = convertToCSV(tableData || []);
-              downloadCSV(csvContent, `feature_engineered_${selectedFile.replace('.parquet', '.csv')}`);
-            }}
-          >
-            Download CSV
-          </button>
-          <button 
-            className={styles.saveMinioBtn}
-            onClick={handleSaveToMinIO}
-            disabled={loading}
-          >
-            {loading ? 'Saving...' : 'Save to MinIO'}
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // Convert data to CSV
-  const convertToCSV = (data) => {
-    if (!data || data.length === 0) return '';
-    const headers = Object.keys(data[0]);
-    const csvRows = [headers.join(',')];
-    for (const row of data) {
-      csvRows.push(headers.map(h => JSON.stringify(row[h] ?? '')).join(','));
-    }
-    return csvRows.join('\n');
-  };
-
-  // Download CSV
-  const downloadCSV = (csvContent, filename) => {
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-  };
-
-  // Save to MinIO
-  const handleSaveToMinIO = async () => {
-    setLoading(true);
-    try {
-      const data = showAll && fullData ? fullData : result.preview;
-      const csvContent = convertToCSV(data);
-      
-      // Create filename for feature engineered data
-      const baseName = selectedFile.replace(/\.(parquet|csv|xlsx|json)$/i, '');
-      const engineeredFilename = `feature_engineered_${baseName}.parquet`;
-      
-      const response = await fetch('http://localhost:8000/save_cleaned_to_minio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: csvContent,
-          filename: engineeredFilename,
-          folder: 'feature-engineered'
-        })
-      });
-      
-      const result = await response.json();
-      if (response.ok) {
-        toast.success(`Feature engineered data saved to MinIO as ${engineeredFilename}`);
-      } else {
-        throw new Error(result.error || 'Failed to save to MinIO');
-      }
-    } catch (error) {
-      toast.error('Failed to save to MinIO: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className={styles.pageShell}>
+    <div className={styles.pageShell}> {/* Changed to pageShell */}
       <ShadcnNavbar onLogout={() => {
         localStorage.removeItem("user");
         localStorage.removeItem("google_access_token");
@@ -541,116 +175,46 @@ export default function FeatureEngineering() {
         sessionStorage.clear();
         window.location.replace("/");
       }} />
-      <div className={styles.backButtonWrapper}>
-        <GlobalBackButton />
-      </div>
-      <div className={styles.pageSection} ref={pageSectionRef}>
-        <div className={styles.centeredContent}>
+      <GlobalBackButton className={styles.globalBackButtonAdjusted} /> {/* Moved GlobalBackButton here */}
+      <div className={styles.pageSection} ref={pageSectionRef}> {/* Added ref */}
+        <div className={styles.centeredContent}> {/* Added centeredContent */}
           <div className={styles.card}>
-            <h2 className={styles.heading}>Feature Engineering</h2>
-            {step === 'select_file' && (
+            {step === "select_file" && (
               <>
-                <FormField label="Select Cleaned File *">
+                <h2 className={styles.heading}>Feature Engineering</h2> {/* Changed to h2 and applied heading style */}
+                <p className={styles.description}>Select a cleaned file to begin feature engineering.</p>
+                {/* Removed label per request */}
+                <div>
                   <select
-                    value={selectedFile || ''}
-                    onChange={e => {
-                      console.log("File selected:", e.target.value);
-                      setSelectedFile(e.target.value);
-                    }}
+                    value={filename || ''}
+                    onChange={e => setFilename(e.target.value)}
                     className={styles.fileSelect}
                   >
-                    <option value="" disabled>
-                      {files.length === 0 ? 'No cleaned files available' : 'Select a cleaned file...'}
-                    </option>
-                    {files.map(f => (
+                    <option value="" disabled>Select a file...</option>
+                    {files.map(f => {
+                      const display = (f.name || '').split('/').pop();
+                      return (
                       <option key={f.name} value={f.name}>
-                        {f.name}
+                          {display}
                       </option>
-                    ))}
+                      );
+                    })}
                   </select>
-                </FormField>
-                {files.length === 0 && (
-                  <div className={styles.noFilesMessage}>
-                    <p>No cleaned files found in the cleaned-data bucket.</p>
-                    <p>Please run preprocessing first to create cleaned files for feature engineering.</p>
                   </div>
-                )}
-                {files.length > 0 && (
-                  <div className={styles.filesAvailableMessage}>
-                    <p>✅ Found {files.length} cleaned file{files.length > 1 ? 's' : ''} ready for feature engineering!</p>
+                <div className={styles.buttonRow}>
+                  <button className={styles.submitBtn} disabled={!filename || busy} onClick={onNextFromSelect}>
+                    {busy ? "Loading..." : "Next"}
+                  </button>
                   </div>
-                )}
-                <button
-                  type="button"
-                  disabled={!selectedFile}
-                  className={styles.submitBtn}
-                  onClick={() => setStep('configure_features')}
-                >
-                  <div className={styles.submitContent}>
-                    <span role="img" aria-label="next">➡️</span> Next
-                  </div>
-                </button>
               </>
             )}
 
-            {step === 'configure_features' && (
+            {step === "configure" && (
               <>
-                {dataPreview === null && selectedFile && !filesData?.isFetching && (
-                  <div className={styles.loadingContainer}>
-                    <div className={styles.loadingSpinner}></div>
-                    <p>Loading file preview...</p>
-                  </div>
-                )}
-                {dataPreview === null && selectedFile && filesData?.isFetching && (
-                  <p className={styles.loadingColumnsMsg}>Fetching file list...</p>
-                )}
-                {dataPreview && dataPreview.error && (
-                  <div className={styles.errorContainer}>
-                    <p className={styles.errorMessage}>Error: {dataPreview.error}</p>
-                    <p className={styles.errorHint}>Please check the file for corruption or unsupported content.</p>
-                  </div>
-                )}
-                <form onSubmit={handleSubmit} className={styles.form}>
-                  <div className={styles.selectedFileDisplay}>Selected Cleaned File: <strong>{selectedFile}</strong></div>
-                  
-                  {dataPreview && (
-                    <div className={styles.featureStepsList}>
-                      <div className={styles.addStepSection}>
-                        <h3>Add Feature Engineering Steps:</h3>
-                        <div className={styles.addStepButtons}>
-                          <button type="button" onClick={() => addFeatureStep('scaling')} className={styles.addStepBtn}>
-                            📊 Scaling
-                          </button>
-                          <button type="button" onClick={() => addFeatureStep('encoding')} className={styles.addStepBtn}>
-                            🏷️ Encoding
-                          </button>
-                          <button type="button" onClick={() => addFeatureStep('binning')} className={styles.addStepBtn}>
-                            📦 Binning
-                          </button>
-                          <button type="button" onClick={() => addFeatureStep('feature_creation')} className={styles.addStepBtn}>
-                            ✨ Feature Creation
-                          </button>
-                          <button type="button" onClick={() => addFeatureStep('feature_selection')} className={styles.addStepBtn}>
-                            🎯 Feature Selection
-                          </button>
-                        </div>
-                      </div>
-
-                      {featureSteps.map(step => (
-                        <FeatureStepCard
-                          key={step.step_id}
-                          step={step}
-                          onUpdate={updateStepConfig}
-                          onRemove={removeStep}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  <div className={styles.buttonGroup}>
+                <div className={styles.backButtonTop}> {/* Added backButtonTop div */}
                     <button
                       type="button"
-                      onClick={() => setStep('select_file')}
+                    onClick={() => setStep("select_file")}
                       className={styles.backBtn}
                     >
                       <div className={styles.submitContent}>
@@ -658,42 +222,150 @@ export default function FeatureEngineering() {
                         Back to File Selection
                       </div>
                     </button>
-                    <button 
-                      type="submit" 
-                      disabled={loading || !selectedFile || featureSteps.length === 0} 
-                      className={styles.submitBtn}
-                    >
-                      {loading ? (
-                        <div className={styles.loadingWrapper}>
-                          <div className={styles.loadingSpinner}></div>
-                          Processing...
-                        </div>
-                      ) : (
-                        <div className={styles.submitContent}>
-                          <span className={styles.submitIcon}>🚀</span>
-                          Apply Feature Engineering
-                        </div>
-                      )}
-                    </button>
+                </div>
+                <h2 className={styles.heading}>Configure Feature Engineering</h2>
+                <p className={styles.description}>Select and configure feature engineering steps.</p>
+                
+                {columns.length === 0 ? (
+                  <div className={styles.loadingContainer}>
+                    <div className={styles.loadingSpinner}></div>
+                    <p>Loading columns...</p>
                   </div>
-                </form>
+                ) : (
+                  <>
+                    <div className={styles.preprocessingStepsList}>
+
+                      <FeatureEngineeringStepCard title="Scaling"
+                        checked={scaling.enabled} onToggle={(e) => setStepsStable(() => setScaling({ ...scaling, enabled: e.target.checked }))} icon="📈" label="Scaling">
+                        <select className={styles.selectSm} value={scaling.method} onChange={(e) => setScaling({ ...scaling, method: e.target.value })}>
+                          <option value="standard">Standard</option>
+                          <option value="minmax">MinMax</option>
+                          <option value="robust">Robust</option>
+                          <option value="log">Log</option>
+                        </select>
+                        <ColumnMulti value={scaling.columns} onChange={(v) => setScaling({ ...scaling, columns: v })} label="Columns to scale" placeholder="Select columns..." />
+                      </FeatureEngineeringStepCard>
+
+                      <FeatureEngineeringStepCard title="Encoding"
+                        checked={encoding.enabled} onToggle={(e) => setStepsStable(() => setEncoding({ ...encoding, enabled: e.target.checked }))} icon="🏷️" label="Encoding">
+                        <select className={styles.selectSm} value={encoding.method} onChange={(e) => setEncoding({ ...encoding, method: e.target.value })}>
+                          <option value="one-hot">One-hot</option>
+                          <option value="label">Label</option>
+                          <option value="target">Target</option>
+                        </select>
+                        <ColumnMulti value={encoding.columns} onChange={(v) => setEncoding({ ...encoding, columns: v })} label="Columns to encode" placeholder="Select columns..." />
+                      </FeatureEngineeringStepCard>
+
+                      <FeatureEngineeringStepCard title="Binning/Discretization"
+                        checked={binning.enabled} onToggle={(e) => setStepsStable(() => setBinning({ ...binning, enabled: e.target.checked }))} icon="📦" label="Binning/Discretization">
+                        <select className={styles.selectSm} value={binning.method} onChange={(e) => setBinning({ ...binning, method: e.target.value })}>
+                          <option value="equal-width">Equal-width</option>
+                          <option value="quantile">Quantile</option>
+                        </select>
+                        <input className={styles.inputSm} type="number" min="2" value={binning.bins} onChange={(e) => setBinning({ ...binning, bins: e.target.value })} />
+                        <ColumnMulti value={binning.columns} onChange={(v) => setBinning({ ...binning, columns: v })} label="Columns to bin" placeholder="Select columns..." />
+                      </FeatureEngineeringStepCard>
+
+                      <FeatureEngineeringStepCard title="Feature Creation"
+                        checked={polynomial.enabled || datetimeDecompose.enabled} onToggle={(e) => setStepsStable(() => {
+                          if (e.target.checked) {
+                            // Enable both by default when checking the main checkbox
+                            setPolynomial(prev => ({ ...prev, enabled: true }));
+                            setDatetimeDecompose(prev => ({ ...prev, enabled: true }));
+                          } else {
+                            // Disable both when unchecking the main checkbox
+                            setPolynomial(prev => ({ ...prev, enabled: false }));
+                            setDatetimeDecompose(prev => ({ ...prev, enabled: false }));
+                          }
+                        })} icon="✨" label="Feature Creation">
+                        <div>
+                          <label className={styles.row}><input type="checkbox" checked={polynomial.enabled} onChange={(e) => setPolynomial({ ...polynomial, enabled: e.target.checked })} /> Polynomial Features</label>
+                          {polynomial.enabled && (
+                            <>
+                              <input className={styles.inputSm} type="number" min="2" value={polynomial.degree} onChange={(e) => setPolynomial({ ...polynomial, degree: e.target.value })} />
+                              <ColumnMulti value={polynomial.columns} onChange={(v) => setPolynomial({ ...polynomial, columns: v })} label="Columns for polynomial features" placeholder="Select columns..." />
+                            </>
+                          )}
+                            </div>
+                        <div>
+                          <label className={styles.row}><input type="checkbox" checked={datetimeDecompose.enabled} onChange={(e) => setDatetimeDecompose({ ...datetimeDecompose, enabled: e.target.checked })} /> Datetime Decomposition</label>
+                          {datetimeDecompose.enabled && (
+                            <>
+                              <select className={styles.selectSm} value={datetimeDecompose.date_part} onChange={(e) => setDatetimeDecompose({ ...datetimeDecompose, date_part: e.target.value })}>
+                                <option value="year">Year</option>
+                                <option value="month">Month</option>
+                                <option value="day">Day</option>
+                                <option value="hour">Hour</option>
+                                <option value="minute">Minute</option>
+                                <option value="second">Second</option>
+                              </select>
+                              <ColumnMulti value={datetimeDecompose.columns} onChange={(v) => setDatetimeDecompose({ ...datetimeDecompose, columns: v })} label="Datetime columns for decomposition" placeholder="Select columns..." />
+                            </>
+                          )}
+                            </div>
+                        {/* Aggregations will be added later if needed */}
+                      </FeatureEngineeringStepCard>
+
+                      <FeatureEngineeringStepCard title="Feature Selection"
+                        checked={selection.enabled} onToggle={(e) => setStepsStable(() => setSelection({ ...selection, enabled: e.target.checked }))} icon="🔍" label="Feature Selection">
+                        <select className={styles.selectSm} value={selection.method} onChange={(e) => setSelection({ ...selection, method: e.target.value })}>
+                          <option value="correlation_filter">Correlation Filter</option>
+                          <option value="variance_threshold">Variance Threshold</option>
+                          <option value="pca">PCA</option>
+                        </select>
+                        {selection.method !== "pca" && (
+                          <input className={styles.inputSm} type="number" step="0.01" value={selection.threshold} onChange={(e) => setSelection({ ...selection, threshold: e.target.value })} />
+                        )}
+                        {selection.method === "pca" && (
+                          <input className={styles.inputSm} type="number" min="1" value={selection.n_components} onChange={(e) => setSelection({ ...selection, n_components: e.target.value })} />
+                        )}
+                        <ColumnMulti value={selection.columns} onChange={(v) => setSelection({ ...selection, columns: v })} label="Columns for feature selection" placeholder="Select columns..." />
+                      </FeatureEngineeringStepCard>
+
+                    </div>
+                    <div className={styles.buttonRow}>
+                      <button className={styles.backBtn} onClick={() => setStep("select_file")}>Back</button>
+                      <button className={styles.submitBtn} disabled={busy} onClick={apply}>Apply Feature Engineering</button>
+                      </div>
+                  </>
+                )}
               </>
             )}
 
-            {result && (
-              <div className={styles.highlightToggleWrapper}>
-                <label>
-                  <input type="checkbox" checked={highlightChanges} onChange={e => setHighlightChanges(e.target.checked)} />
-                  <span className={styles.highlightToggleLabel}>Highlight Changes</span>
-                </label>
+            {step === "preview" && (
+              <>
+                <h2 className={styles.heading}>Feature Engineering Results</h2> {/* Changed to h2 and applied heading style */}
+                <p className={styles.description}>Review the changes and save the engineered data.</p>
+                {result?.preview && (
+                  <DataTable
+                    data={result.preview}
+                    filledNullColumns={[]}
+                    originalFilename={filename}
+                  />
+                )}
+                {result?.change_metadata && result.change_metadata.length > 0 && (
+                  <div className={styles.summaryCard}>
+                    <h4 className={styles.summaryHeading}>Feature Engineering Summary:</h4>
+                    <div className={styles.summaryDetails}>
+                      {result.change_metadata.map((m, i) => (
+                        <div key={i} className={styles.summaryItem}>
+                          <span className={styles.summaryOperation}>{m.operation}:</span>
+                          <span className={styles.summaryInfo}>{JSON.stringify(m.details)}</span>
+                        </div>
+                      ))}
+                    </div>
               </div>
             )}
-
-            {result && renderPreviewTable()}
+                <div className={styles.buttonRow}>
+                  <button className={styles.backBtn} onClick={() => setStep("configure")}>Back</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
-        <div className="mb-6" />
       </div>
     </div>
   );
 }
+
+

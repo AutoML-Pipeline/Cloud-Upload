@@ -208,12 +208,12 @@
 }
 .paginationBar button {
   background: #f3f6fb;
-  color: #6366f1;
-  border: 1px solid #e5e7eb;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
   border-radius: 0.5rem;
   padding: 0.3rem 0.9rem;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
@@ -224,6 +224,7 @@
 .paginationBar button:not(:disabled):hover {
   background: #6366f1;
   color: #fff;
+  font-weight: 700;
 }
 @media (max-width: 900px) {
   .dataTableShell {

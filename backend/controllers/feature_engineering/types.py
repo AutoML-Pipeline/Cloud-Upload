@@ -1,89 +1,62 @@
-from typing import Dict, List, Optional, TypedDict, Literal, Union, Any
+from pydantic import BaseModel, Field
+from typing import List, Literal, Optional, Dict, Any
 
-# Scaling types
-ScalingMethod = Literal["standard", "minmax", "robust", "log"]
 
-# Encoding types
-EncodingMethod = Literal["one_hot", "label", "target"]
-
-# Binning types
-BinningMethod = Literal["equal_width", "quantile"]
-
-# Feature creation types
-FeatureCreationMethod = Literal["polynomial", "datetime_decomposition", "aggregations"]
-
-# Feature selection types
-FeatureSelectionMethod = Literal["correlation_filter", "variance_threshold", "pca"]
-
-# Backend types
-BackendType = Literal["pandas", "pyspark"]
-
-class ScalingConfig(TypedDict, total=False):
-    method: ScalingMethod
+class FeatureEngineeringStep(BaseModel):
+    id: str
+    type: Literal["scaling", "encoding", "binning", "feature_creation", "feature_selection"]
     columns: List[str]
 
-class EncodingConfig(TypedDict, total=False):
-    method: EncodingMethod
-    columns: List[str]
-    target_column: Optional[str]  # For target encoding
+class ScalingConfig(FeatureEngineeringStep):
+    type: Literal["scaling"]
+    method: Literal["standard", "minmax", "robust", "log"]
 
-class BinningConfig(TypedDict, total=False):
-    method: BinningMethod
-    columns: List[str]
-    n_bins: int
+class EncodingConfig(FeatureEngineeringStep):
+    type: Literal["encoding"]
+    method: Literal["one-hot", "label", "target"]
 
-class PolynomialConfig(TypedDict, total=False):
-    degree: int
-    columns: List[str]
-    include_bias: bool
+class BinningConfig(FeatureEngineeringStep):
+    type: Literal["binning"]
+    method: Literal["equal-width", "quantile"]
+    bins: int
 
-class DatetimeDecompositionConfig(TypedDict, total=False):
-    columns: List[str]
-    components: List[str]  # ['year', 'month', 'day', 'hour', 'minute', 'second', 'dayofweek', 'dayofyear']
+class FeatureCreationConfig(FeatureEngineeringStep):
+    type: Literal["feature_creation"]
+    method: Literal["polynomial", "datetime_decomposition", "aggregations"]
+    degree: Optional[int] = None # For polynomial
+    date_part: Optional[Literal["year", "month", "day", "hour", "minute", "second"]] = None # For datetime decomposition
+    aggregation_type: Optional[Literal["sum", "mean", "min", "max", "count"]] = None # For aggregations
+    new_column_name: Optional[str] = None
 
-class AggregationConfig(TypedDict, total=False):
-    group_by: List[str]
-    aggregations: Dict[str, List[str]]  # {column: [aggregation_functions]}
+class FeatureSelectionConfig(FeatureEngineeringStep):
+    type: Literal["feature_selection"]
+    method: Literal["correlation_filter", "variance_threshold", "pca"]
+    threshold: Optional[float] = None # For correlation filter and variance threshold
+    n_components: Optional[int] = None # For PCA
 
-class FeatureCreationConfig(TypedDict, total=False):
-    method: FeatureCreationMethod
-    polynomial: Optional[PolynomialConfig]
-    datetime_decomposition: Optional[DatetimeDecompositionConfig]
-    aggregations: Optional[AggregationConfig]
+class ApplyFeatureEngineeringRequest(BaseModel):
+    filename: str
+    steps: List[
+        ScalingConfig | EncodingConfig | BinningConfig | FeatureCreationConfig | FeatureSelectionConfig
+    ]
 
-class CorrelationFilterConfig(TypedDict, total=False):
-    threshold: float
-    columns: List[str]
+class FeatureEngineeringPreviewRequest(BaseModel):
+    filename: str
+    steps: List[
+        ScalingConfig | EncodingConfig | BinningConfig | FeatureCreationConfig | FeatureSelectionConfig
+    ]
+    current_step_index: int
 
-class VarianceThresholdConfig(TypedDict, total=False):
-    threshold: float
-    columns: List[str]
+class FeatureEngineeringSummary(BaseModel):
+    operation: str
+    details: Dict[str, Any]
 
-class PCAConfig(TypedDict, total=False):
-    n_components: Union[int, float, str]  # int, float (0-1), or 'mle'
-    columns: List[str]
+class FeatureEngineeringResponse(BaseModel):
+    preview: Dict[str, List[Any]]
+    change_metadata: List[FeatureEngineeringSummary]
+    message: str = "Feature engineering applied successfully"
 
-class FeatureSelectionConfig(TypedDict, total=False):
-    method: FeatureSelectionMethod
-    correlation_filter: Optional[CorrelationFilterConfig]
-    variance_threshold: Optional[VarianceThresholdConfig]
-    pca: Optional[PCAConfig]
-
-class FeatureEngineeringStep(TypedDict, total=False):
-    step_id: str
-    operation: Literal["scaling", "encoding", "binning", "feature_creation", "feature_selection"]
-    config: Union[ScalingConfig, EncodingConfig, BinningConfig, FeatureCreationConfig, FeatureSelectionConfig]
-
-class FeatureEngineeringPayload(TypedDict, total=False):
-    dataset_id: Optional[str]
-    backend: BackendType
-    steps: List[FeatureEngineeringStep]
-
-class FeatureEngineeringResult(TypedDict, total=False):
-    original_preview: List[Dict]
-    preview: List[Dict]
-    full_data: Optional[List[Dict]]
-    feature_info: Dict[str, Any]
-    step_results: List[Dict[str, Any]]
-    engineered_filename: Optional[str]
-    temp_engineered_path: Optional[str]
+class MinioFile(BaseModel):
+    name: str
+    last_modified: str
+    size: int

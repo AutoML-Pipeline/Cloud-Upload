@@ -1,17 +1,17 @@
 # FastAPI route definitions for data-related endpoints
 from fastapi import APIRouter, Request
-from controllers import data_controller
-from services import minio_service, sql_service
-from models.pydantic_models import UploadFromURLRequest, SQLConnectRequest, SQLWorkbenchRequest
+from backend.controllers import data_controller
+from backend.services import minio_service, sql_service
+from backend.models.pydantic_models import UploadFromURLRequest, SQLConnectRequest, SQLWorkbenchRequest
 
 router = APIRouter()
 
-@router.post("/data/preprocess/{filename}")
-async def data_preprocessing(filename: str, request: Request):
+@router.post("/preprocess/{filename}")
+async def data_preprocessing(filename: str, request: Request, full: bool = False):
     body = await request.json()
     steps = body.get("steps", {})
     preprocessing = body.get("preprocessing", None)
-    return await data_controller.data_preprocessing(filename, steps, preprocessing, request)
+    return await data_controller.data_preprocessing(filename, steps, preprocessing, request, full)
 
 @router.post("/sql-list-databases")
 async def sql_list_databases_route(request_body: SQLConnectRequest):
@@ -45,9 +45,9 @@ async def download_cleaned_file_route(filename: str):
 @router.post("/files/upload-from-url")
 async def upload_from_url_route(request: UploadFromURLRequest):
     # This route is specifically for direct URL uploads, Google Drive handled elsewhere or within file_controller
-    from controllers import file_controller
+    from backend.controllers import file_controller
     return await file_controller.upload_from_url(request)
 
-@router.get("/data/preview/{filename}")
+@router.get("/preview/{filename}")
 async def data_preview(filename: str):
     return data_controller.get_data_preview(filename)

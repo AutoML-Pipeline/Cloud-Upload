@@ -1,229 +1,231 @@
-import pandas as pd
-import numpy as np
-import tempfile
-import os
 import io
-import json
 import logging
-from typing import Dict, List, Any, Optional
-from fastapi import Request
-from fastapi.responses import JSONResponse
+import pandas as pd
+from typing import Dict, Any, List
 
-from config import minio_client, MINIO_BUCKET
-from .operations import (
-    apply_scaling, apply_encoding, apply_binning, 
-    apply_feature_creation, apply_feature_selection, get_feature_info
+from backend.config import MINIO_BUCKET, CLEANED_BUCKET, minio_client
+from backend.controllers.feature_engineering.types import (
+    ApplyFeatureEngineeringRequest, FeatureEngineeringPreviewRequest, FeatureEngineeringResponse, MinioFile,
+    ScalingConfig, EncodingConfig, BinningConfig, FeatureCreationConfig, FeatureSelectionConfig, FeatureEngineeringSummary
 )
-from .types import (
-    FeatureEngineeringPayload, FeatureEngineeringResult, FeatureEngineeringStep,
-    ScalingConfig, EncodingConfig, BinningConfig, FeatureCreationConfig, FeatureSelectionConfig
+from backend.controllers.feature_engineering.operations import (
+    apply_scaling,
+    apply_encoding,
+    apply_binning,
+    apply_feature_creation,
+    apply_feature_selection,  # fixed name
 )
-from ..preprocessing.io_utils import read_parquet_from_minio, to_preview_records, sanitize_dataframe_for_parquet
 
-def _to_json_safe(value):
-    """Convert values to JSON-safe format"""
-    if value is None:
-        return None
-    # pandas NA
+
+async def get_minio_files_for_feature_engineering() -> List[MinioFile]:
+    files: List[MinioFile] = []
     try:
-        if pd.isna(value):
-            return None
-    except Exception:
-        pass
-    # numpy scalars
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating,)):
-        f = float(value)
-        if np.isnan(f) or np.isinf(f):
-            return None
-        return f
-    if isinstance(value, (np.bool_,)):
-        return bool(value)
-    # python floats
-    if isinstance(value, float):
-        if np.isnan(value) or np.isinf(value):
-            return None
-        return value
-    # containers
-    if isinstance(value, dict):
-        return {k: _to_json_safe(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple, set)):
-        return [_to_json_safe(v) for v in value]
-    return value
-
-async def apply_feature_engineering(filename: str, payload: FeatureEngineeringPayload, request: Request = None) -> Dict[str, Any]:
-    """Apply feature engineering transformations to a dataset"""
-    
-    # Load dataframe from cleaned-data bucket
-    try:
-        # Use cleaned-data bucket for feature engineering
-        cleaned_bucket = "cleaned-data"
-        
-        if filename.endswith('.parquet'):
-            # Read parquet from cleaned-data bucket
-            response = minio_client.get_object(cleaned_bucket, filename)
-            file_bytes = io.BytesIO(response.read())
-            df = pd.read_parquet(file_bytes, engine='pyarrow')
-        else:
-            response = minio_client.get_object(cleaned_bucket, filename)
-            file_bytes = io.BytesIO(response.read())
-            if filename.endswith('.csv'):
-                df = pd.read_csv(file_bytes)
-            elif filename.endswith('.xlsx'):
-                df = pd.read_excel(file_bytes)
-            elif filename.endswith('.json'):
-                df = pd.read_json(file_bytes)
-            else:
-                return JSONResponse(content={"error": "Unsupported file format."}, status_code=400)
-
-        if "_orig_idx" not in df.columns:
-            df = df.reset_index(drop=False).rename(columns={"index": "_orig_idx"})
-            
+        # List from CLEANED_BUCKET root
+        objects = minio_client.list_objects(CLEANED_BUCKET, recursive=True)
+        for obj in objects:
+            if getattr(obj, "is_dir", False):
+                continue
+            files.append(MinioFile(
+                name=obj.object_name,
+                last_modified=getattr(obj, "last_modified", None).isoformat() if getattr(obj, "last_modified", None) else None,
+                size=getattr(obj, "size", 0),
+            ))
     except Exception as e:
-        return JSONResponse(content={"error": f"Error reading file: {e}"}, status_code=500)
-    
-    # Get original feature info
-    original_feature_info = get_feature_info(df)
-    
-    # Apply feature engineering steps
-    df_engineered = df.copy()
-    step_results = []
-    
-    for step in payload.get('steps', []):
-        step_id = step.get('step_id', f"step_{len(step_results)}")
-        operation = step.get('operation')
-        config = step.get('config', {})
-        
-        try:
-            if operation == 'scaling':
-                df_engineered, metadata = apply_scaling(df_engineered, config)
-            elif operation == 'encoding':
-                df_engineered, metadata = apply_encoding(df_engineered, config)
-            elif operation == 'binning':
-                df_engineered, metadata = apply_binning(df_engineered, config)
-            elif operation == 'feature_creation':
-                df_engineered, metadata = apply_feature_creation(df_engineered, config)
-            elif operation == 'feature_selection':
-                df_engineered, metadata = apply_feature_selection(df_engineered, config)
-            else:
-                metadata = {
-                    'operation': operation,
-                    'summary': [f"Unknown operation: {operation}"]
-                }
-            
-            step_results.append({
-                'step_id': step_id,
-                'operation': operation,
-                'config': config,
-                'metadata': metadata
-            })
-            
-        except Exception as e:
-            logging.error(f"Error in step {step_id}: {e}")
-            step_results.append({
-                'step_id': step_id,
-                'operation': operation,
-                'config': config,
-                'metadata': {
-                    'operation': operation,
-                    'summary': [f"Error: {str(e)}"]
-                }
-            })
-    
-    # Get engineered feature info
-    engineered_feature_info = get_feature_info(df_engineered)
-    
-    # Save engineered parquet to temp file
-    try:
-        df_to_save = sanitize_dataframe_for_parquet(df_engineered)
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.parquet') as tmp_file:
-            df_to_save.to_parquet(tmp_file.name, engine='pyarrow', index=False)
-            temp_engineered_path = tmp_file.name
-            engineered_filename = f"engineered_{os.path.splitext(filename)[0]}.parquet"
-    except Exception as e:
-        return JSONResponse(content={"error": f"Error saving engineered Parquet: {e}"}, status_code=500)
-    
-    # Build previews
-    full_flag = (request and hasattr(request, 'query_params') and request.query_params.get('full') == 'true')
-    if full_flag:
-        original_preview = to_preview_records(df, None)
-        preview = to_preview_records(df_engineered, None)
-        full_data = preview
+        logging.exception("Failed to list cleaned-data files from MinIO")
+        raise
+    return files
+
+
+def _load_dataframe_from_minio(filename: str, bucket_name: str) -> pd.DataFrame:
+    response = minio_client.get_object(bucket_name, filename)
+    data = io.BytesIO(response.read())
+    if filename.endswith('.parquet'):
+        return pd.read_parquet(data, engine='pyarrow')
+    elif filename.endswith('.csv'):
+        return pd.read_csv(data)
+    elif filename.endswith('.xlsx'):
+        return pd.read_excel(data)
+    elif filename.endswith('.json'):
+        return pd.read_json(data)
     else:
-        original_preview = to_preview_records(df, 10)
-        preview = to_preview_records(df_engineered, 10)
-        full_data = None
-    
-    # Prepare response
-    response_payload = {
-        "original_preview": original_preview,
-        "preview": preview,
-        "full_data": full_data,
-        "feature_info": {
-            "original": original_feature_info,
-            "engineered": engineered_feature_info
-        },
-        "step_results": step_results,
-        "engineered_filename": engineered_filename,
-        "temp_engineered_path": temp_engineered_path,
+        raise ValueError("Unsupported file format")
+
+
+def _to_preview(df: pd.DataFrame) -> list[dict]:
+    # Convert DataFrame to a list of dictionaries, handling non-finite values
+    df = df.replace([float('inf'), float('-inf')], pd.NA)
+    df = df.where(pd.notna(df), None)
+    return df.head(100).to_dict(orient='list')
+
+
+def _filter_ml_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Filter out columns that are not suitable for feature engineering"""
+    # Columns to exclude from feature engineering
+    exclude_columns = {
+        '_orig_idx',  # Index column
+        'customer_id',  # ID column
+        'id',  # Generic ID column
+        'index',  # Index column
+        'row_id',  # Row identifier
+        'uuid',  # UUID column
+        'key',  # Key column
     }
     
-    return _to_json_safe(response_payload)
+    # Get columns that are suitable for ML
+    ml_columns = [col for col in df.columns if col.lower() not in exclude_columns]
+    
+    # If no ML columns found, return original dataframe
+    if not ml_columns:
+        return df
+    
+    return df[ml_columns]
 
-def get_feature_engineering_preview(filename: str) -> Dict[str, Any]:
-    """Get preview information for feature engineering"""
+async def get_feature_engineering_preview(request: FeatureEngineeringPreviewRequest) -> FeatureEngineeringResponse:
     try:
-        # Load dataframe from cleaned-data bucket
-        cleaned_bucket = "cleaned-data"
+        df = _load_dataframe_from_minio(request.filename, CLEANED_BUCKET) # Use CLEANED_BUCKET
         
-        if filename.endswith('.parquet'):
-            # Read parquet from cleaned-data bucket
-            response = minio_client.get_object(cleaned_bucket, filename)
-            file_bytes = io.BytesIO(response.read())
-            df = pd.read_parquet(file_bytes, engine='pyarrow')
-            # Limit to 100 rows for preview
-            df = df.head(100)
-        else:
-            response = minio_client.get_object(cleaned_bucket, filename)
-            file_bytes = io.BytesIO(response.read())
-            if filename.endswith('.csv'):
-                df = pd.read_csv(file_bytes, nrows=100)
-            elif filename.endswith('.xlsx'):
-                df = pd.read_excel(file_bytes, nrows=100)
-            elif filename.endswith('.json'):
-                df = pd.read_json(file_bytes, nrows=100)
+        # If no steps are provided (initial load), filter to ML-suitable columns only
+        if not request.steps or request.current_step_index < 0:
+            original_columns = set(df.columns)
+            df = _filter_ml_columns(df)
+            filtered_columns = original_columns - set(df.columns)
+            
+            message = "Preview generated successfully"
+            if filtered_columns:
+                message += f" (Filtered out {len(filtered_columns)} non-ML columns: {', '.join(sorted(filtered_columns))})"
+            
+            return FeatureEngineeringResponse(
+                preview=_to_preview(df),
+                change_metadata=[],
+                message=message
+            )
+        
+        processed_df = df.copy()
+        change_metadata = []
+        
+        # Collect all columns that are used in feature engineering steps
+        used_columns = set()
+        for step_config in request.steps:
+            if hasattr(step_config, 'columns') and step_config.columns:
+                used_columns.update(step_config.columns)
+
+        for i, step_config in enumerate(request.steps):
+            if i > request.current_step_index:
+                break # Only apply up to the current step for preview
+
+            if step_config.type == "scaling":
+                config: ScalingConfig = step_config
+                processed_df, meta = apply_scaling(processed_df, config.columns, config.method)
+            elif step_config.type == "encoding":
+                config: EncodingConfig = step_config
+                processed_df, meta = apply_encoding(processed_df, config.columns, config.method)
+            elif step_config.type == "binning":
+                config: BinningConfig = step_config
+                processed_df, meta = apply_binning(processed_df, config.columns, config.method, config.bins)
+            elif step_config.type == "feature_creation":
+                config: FeatureCreationConfig = step_config
+                processed_df, meta = apply_feature_creation(
+                    processed_df,
+                    config.columns,
+                    config.method,
+                    degree=config.degree,
+                    date_part=config.date_part,
+                    aggregation_type=config.aggregation_type,
+                    new_column_name=config.new_column_name
+                )
+            elif step_config.type == "feature_selection":
+                config: FeatureSelectionConfig = step_config
+                processed_df, meta = apply_feature_selection(
+                    processed_df,
+                    config.columns,
+                    config.method,
+                    threshold=config.threshold,
+                    n_components=config.n_components
+                )
             else:
-                return JSONResponse(content={"error": "Unsupported file format."}, status_code=400)
-        
-        # Get feature information
-        feature_info = get_feature_info(df)
-        
-        # Get column information
-        columns = list(df.columns)
-        dtypes = {col: str(df[col].dtype) for col in df.columns}
-        null_counts = {col: int(df[col].isnull().sum()) for col in df.columns}
-        
-        # Sample values
-        def to_py(val):
-            if pd.isna(val):
-                return None
-            if isinstance(val, (np.integer, np.int64)):
-                return int(val)
-            if isinstance(val, (np.floating, np.float64)):
-                return float(val)
-            return val
-        
-        sample_values = {col: to_py(df[col].dropna().iloc[0]) if df[col].dropna().shape[0] > 0 else None for col in df.columns}
-        
-        return {
-            "columns": columns,
-            "dtypes": dtypes,
-            "null_counts": null_counts,
-            "sample_values": sample_values,
-            "feature_info": feature_info
-        }
-        
+                continue # Skip unknown step types
+            change_metadata.append(FeatureEngineeringSummary(**meta))
+
+        # When applying feature engineering, show all columns including changes
+        return FeatureEngineeringResponse(
+            preview=_to_preview(processed_df),
+            change_metadata=change_metadata,
+            message="Preview generated successfully"
+        )
     except Exception as e:
-        logging.error(f"Error getting feature engineering preview for {filename}: {e}")
-        return JSONResponse(content={"error": f"Error loading file for preview: {e}"}, status_code=500)
+        logging.exception("Feature engineering preview failed")
+        return FeatureEngineeringResponse(
+            preview={}, # Return empty preview on error
+            change_metadata=[],
+            message=f"Error generating preview: {e}"
+        )
+
+async def apply_and_save_feature_engineering(request: ApplyFeatureEngineeringRequest) -> Dict[str, str]:
+    try:
+        df = _load_dataframe_from_minio(request.filename, CLEANED_BUCKET) # Use CLEANED_BUCKET
+        
+        processed_df = df.copy()
+        change_metadata = [] # Not used for saving, but good to keep track
+        
+        # Collect all columns that are used in feature engineering steps
+        used_columns = set()
+        for step_config in request.steps:
+            if hasattr(step_config, 'columns') and step_config.columns:
+                used_columns.update(step_config.columns)
+
+        for step_config in request.steps:
+            if step_config.type == "scaling":
+                config: ScalingConfig = step_config
+                processed_df, meta = apply_scaling(processed_df, config.columns, config.method)
+            elif step_config.type == "encoding":
+                config: EncodingConfig = step_config
+                processed_df, meta = apply_encoding(processed_df, config.columns, config.method)
+            elif step_config.type == "binning":
+                config: BinningConfig = step_config
+                processed_df, meta = apply_binning(processed_df, config.columns, config.method, config.bins)
+            elif step_config.type == "feature_creation":
+                config: FeatureCreationConfig = step_config
+                processed_df, meta = apply_feature_creation(
+                    processed_df,
+                    config.columns,
+                    config.method,
+                    degree=config.degree,
+                    date_part=config.date_part,
+                    aggregation_type=config.aggregation_type,
+                    new_column_name=config.new_column_name
+                )
+            elif step_config.type == "feature_selection":
+                config: FeatureSelectionConfig = step_config
+                processed_df, meta = apply_feature_selection(
+                    processed_df,
+                    config.columns,
+                    config.method,
+                    threshold=config.threshold,
+                    n_components=config.n_components
+                )
+            else:
+                continue
+            change_metadata.append(FeatureEngineeringSummary(**meta)) # Keep track of changes
+
+        # When saving, keep all columns including changes (no filtering)
+
+        # Save to MinIO
+        engineered_filename = f"engineered/{request.filename.replace('cleaned-data/', '')}" # Ensure correct path
+        
+        # Convert to parquet in-memory and upload
+        parquet_buffer = io.BytesIO()
+        processed_df.to_parquet(parquet_buffer, index=False)
+        parquet_buffer.seek(0)
+
+        minio_client.put_object(
+            MINIO_BUCKET, # Use the main bucket for 'engineered' folder
+            engineered_filename,
+            parquet_buffer,
+            len(parquet_buffer.getvalue()),
+            content_type="application/octet-stream"
+        )
+        return {"message": f"Engineered data saved to {engineered_filename} in MinIO."}
+    except Exception as e:
+        logging.exception("Apply and save feature engineering failed")
+        return {"error": f"Error applying and saving feature engineering: {e}"}
+

@@ -1,7 +1,7 @@
 # Handles file upload, download, and MinIO logic
 from fastapi import UploadFile, File, Form, Header, APIRouter, Request
 from fastapi.responses import JSONResponse
-from models.pydantic_models import UploadFromURLRequest, UploadFromGoogleDriveRequest
+from backend.models.pydantic_models import UploadFromURLRequest, UploadFromGoogleDriveRequest
 import requests
 import warnings
 import logging
@@ -11,8 +11,8 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from services import minio_service, gdrive_service
-from config import MINIO_BUCKET
+from backend.services import minio_service, gdrive_service
+from backend.config import MINIO_BUCKET
 
 
 # --- FILE UPLOADS ---

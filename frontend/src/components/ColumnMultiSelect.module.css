@@ -16,31 +16,35 @@
   box-shadow: 0 1px 4px #6366f122;
 }
 .placeholder {
-  color: #64748b;
-  font-size: 0.98rem;
+  color: #1f2937;
+  font-size: 1rem;
+  font-weight: 600;
   margin-bottom: 0.5rem;
 }
 /* .options styles */
 .options {
   display: flex;
   flex-direction: column;
-  /* max-height: 200px; /* Example max height for scroll */
-  /* overflow-y: auto; */
-  border: 1px solid var(--gray-200);
-  border-radius: var(--border-radius-md);
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   padding: 0.5rem;
-  background-color: var(--white);
-  box-shadow: var(--shadow-sm);
-  /* For debugging: This is a test comment */
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  gap: 0;
 }
 .option {
   display: flex;
   align-items: center;
   gap: 0.5rem; /* Space between elements */
-  font-size: 0.9rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
   white-space: nowrap;
   padding: 0.3rem 0;
   width: 100%; /* Ensure option takes full width for flex-wrap */
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  border-bottom: 1px solid #f3f4f6;
 }
 .option:hover {
   /* background-color: var(--gray-50); /* Subtle hover effect */
@@ -52,10 +56,11 @@
 }
 
 .columnNameText {
-  /* margin-right: auto;  Pushes strategy controls to the right */
   flex-shrink: 1;
   min-width: 80px; /* Ensure column name has enough space */
-  color: var(--gray-800); /* Default color for column name */
+  color: #1f2937; /* Dark prominent color for column name */
+  font-weight: 600;
+  flex-grow: 1;
 }
 
 .hasNulls {
@@ -64,7 +69,8 @@
 }
 
 .placeholder {
-  color: var(--gray-500);
+  color: #1f2937;
+  font-weight: 600;
   text-align: center;
   padding: 1rem;
   font-style: italic;
@@ -76,7 +82,8 @@
 .selectAllOption {
   display: flex;
   align-items: center;
-  font-weight: 600;
+  font-weight: 700;
+  color: #1f2937;
   margin-bottom: 0.5rem; /* Space between select all and first column */
   padding: 0.3rem 0;
 }
@@ -111,4 +118,52 @@
 
 .disabledControls {
   opacity: 0.6;
+}
+
+.nullCount {
+  color: #dc2626;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.inlineStrategy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.strategySelect {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #1e40af;
+  min-width: 80px;
+}
+
+.strategySelect:focus {
+  outline: none;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.customInput {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #10b981;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #047857;
+  min-width: 100px;
+}
+
+.customInput:focus {
+  outline: none;
+  border-color: #059669;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
 }

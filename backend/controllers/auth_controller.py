@@ -1,13 +1,13 @@
 # Handles user upsert and OAuth logic for Google, OneDrive, Box
 from fastapi import Request
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
-from config import users_collection
+from backend.config import users_collection
 import os
 import json
 import warnings
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
-from models.pydantic_models import UploadFromGoogleDriveRequest
+from backend.models.pydantic_models import UploadFromGoogleDriveRequest
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -42,6 +42,15 @@ SCOPES = [
 ]
 
 async def upsert_google_user(google_id, email, name, picture=None):
+    if users_collection is None:
+        # If Mongo is not configured, operate in no-op mode
+        return {
+            "google_id": google_id,
+            "email": email,
+            "name": name,
+            "picture": picture,
+            "note": "users_collection not configured; skipped DB write"
+        }
     user_doc = {
         "google_id": google_id,
         "email": email,

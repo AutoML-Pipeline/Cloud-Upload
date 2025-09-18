@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 # TODO: Move sql_preview, sql_list_databases here from main.py
 
 # Handles data preprocessing logic
-from config import minio_client, MINIO_BUCKET
+from backend.config import minio_client, MINIO_BUCKET
 import tempfile
 import os
 import io
@@ -28,7 +28,7 @@ from .preprocessing.drop_columns import apply as apply_drop_columns
 from .preprocessing.remove_outliers import apply as apply_remove_outliers
 from .preprocessing.diff_utils import compute_diff_marks
 from .preprocessing.types import StepsPayload, PreprocessResult
-from utils.json_utils import _to_json_safe
+from backend.utils.json_utils import _to_json_safe
 
 def analyze_data_quality(df):
     """Comprehensive data quality analysis"""
@@ -211,7 +211,7 @@ def smart_scaling(df, quality_report):
 def get_original_preview(df):
     return df.head(10).replace([float('nan'), float('inf'), float('-inf')], None).where(pd.notnull(df.head(10)), None).to_dict(orient='records')
 
-async def data_preprocessing(filename: str, steps: dict = {}, preprocessing: str = None, request: Request = None):
+async def data_preprocessing(filename: str, steps: dict = {}, preprocessing: str = None, request: Request = None, full: bool = False):
     # Load dataframe (prefer parquet, fallback to other formats)
     try:
         if filename.endswith('.parquet'):
@@ -286,8 +286,7 @@ async def data_preprocessing(filename: str, steps: dict = {}, preprocessing: str
         return JSONResponse(content={"error": f"Error saving cleaned Parquet: {e}"}, status_code=500)
     
     # Build previews
-    full_flag = (request and hasattr(request, 'query_params') and request.query_params.get('full') == 'true')
-    if full_flag:
+    if full:
         original_preview = to_preview_records(df, None)
         preview = to_preview_records(df_cleaned, None)
         full_data = preview
@@ -328,7 +327,7 @@ async def data_preprocessing(filename: str, steps: dict = {}, preprocessing: str
 def get_data_preview(filename: str):
     try:
         # First, ensure the MinIO bucket exists before trying to access objects
-        from config import ensure_minio_bucket_exists
+        from backend.config import ensure_minio_bucket_exists
         ensure_minio_bucket_exists()
         
         response = minio_client.get_object(MINIO_BUCKET, filename)

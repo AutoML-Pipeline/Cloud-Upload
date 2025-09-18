@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import ShadcnNavbar from "../components/ShadcnNavbar";
 import GlobalBackButton from "../components/GlobalBackButton"; // Import the GlobalBackButton component
-import UploadedFilesTable from '../components/UploadedFilesTable';
+// import UploadedFilesTable from '../components/UploadedFilesTable'; // Removed UploadedFilesTable import
 import { toast } from 'react-hot-toast';
 
 export default function UploadUrl() {
@@ -138,7 +138,7 @@ export default function UploadUrl() {
           </div>
         </div>
         <div style={{ marginBottom: 24 }}>
-          <UploadedFilesTable />
+          {/* <UploadedFilesTable /> */}
         </div>
       </div>
     </div>

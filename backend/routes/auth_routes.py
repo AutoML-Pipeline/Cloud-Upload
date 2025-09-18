@@ -1,6 +1,6 @@
 # FastAPI route definitions for authentication endpoints
 from fastapi import APIRouter, Request
-from controllers import auth_controller
+from backend.controllers import auth_controller
 
 router = APIRouter()
 

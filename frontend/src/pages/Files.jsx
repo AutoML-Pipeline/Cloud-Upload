@@ -1,6 +1,6 @@
 import React from 'react';
 import ShadcnNavbar from "../components/ShadcnNavbar";
-import UploadedFilesTable from "../components/UploadedFilesTable";
+// import UploadedFilesTable from "../components/UploadedFilesTable"; // Removed UploadedFilesTable import
 import GlobalBackButton from "../components/GlobalBackButton";
 
 export default function FilesPage() {
@@ -19,7 +19,8 @@ export default function FilesPage() {
         </div>
         <div style={{ width: 'min(1200px, 92vw)', background: 'rgba(17,24,39,0.9)', border: '1px solid #334155', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.5)', padding: 24 }}>
           <h2 style={{ color: '#e0e7ef', marginBottom: 16, fontWeight: 800, letterSpacing: '0.02em' }}>Uploaded Files</h2>
-          <UploadedFilesTable />
+          {/* <UploadedFilesTable /> */}
+          <p style={{ color: '#cbd5e1', textAlign: 'center', marginTop: '20px' }}>This page is no longer in use.</p>
         </div>
       </div>
     </div>

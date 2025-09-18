@@ -1,5 +1,5 @@
 from fastapi.responses import JSONResponse
-from models.pydantic_models import UploadFromGoogleDriveRequest
+from backend.models.pydantic_models import UploadFromGoogleDriveRequest
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -7,8 +7,8 @@ import io
 import logging
 import re
 
-from services.minio_service import ensure_bucket_exists, upload_object
-from config import MINIO_BUCKET
+from backend.services.minio_service import ensure_bucket_exists, upload_object
+from backend.config import MINIO_BUCKET
 
 def gdrive_list_files(access_token: str, folder_id: str = "root"):
     try:
