@@ -1,96 +1,102 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import ShadcnNavbar from "../components/ShadcnNavbar";
 import GlobalBackButton from "../components/GlobalBackButton";
 import GDriveFilesTable from "../components/GDriveFilesTable";
-import { Toaster, toast } from 'react-hot-toast';
+import { Toaster, toast } from "react-hot-toast";
+import styles from "./GDriveFiles.module.css";
+
+const ROOT_FOLDER_ID = "root";
 
 export default function GDriveFiles() {
   const location = useLocation();
   const navigate = useNavigate();
   const [token, setToken] = useState(null);
   const [files, setFiles] = useState([]);
-  const [currentFolderId, setCurrentFolderId] = useState("root");
+  const [currentFolderId, setCurrentFolderId] = useState(ROOT_FOLDER_ID);
   const [folderStack, setFolderStack] = useState([]);
-  const [folderNames, setFolderNames] = useState([{ id: "root", name: "/" }]);
-  const [uploadingFileId, setUploadingFileId] = useState(null);
   const [uploadMessage, setUploadMessage] = useState("");
-  const [showRenameModal, setShowRenameModal] = useState(false); // New state for modal visibility
-  const [fileToRename, setFileToRename] = useState(null); // New state to hold the file being renamed
-  const [newGDriveFilename, setNewGDriveFilename] = useState(""); // New state for the user's input filename
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [fileToRename, setFileToRename] = useState(null);
+  const [newGDriveFilename, setNewGDriveFilename] = useState("");
+  const [currentFolderLabel, setCurrentFolderLabel] = useState("My Drive");
+
+  const fetchFiles = useCallback(
+    async (accessToken, folderId = ROOT_FOLDER_ID) => {
+      try {
+        const res = await fetch(
+          `http://localhost:8000/gdrive/list-files?access_token=${accessToken}&folder_id=${folderId}`
+        );
+
+        if (!res.ok) {
+          const err = await res.text();
+          setFiles([]);
+          setUploadMessage(`Error: ${res.status} - ${err}`);
+          return;
+        }
+
+        const data = await res.json();
+        const nextFiles = data.files || [];
+        setFiles(nextFiles);
+        setUploadMessage(nextFiles.length ? "" : "No files found in Google Drive.");
+      } catch (error) {
+        setFiles([]);
+        setUploadMessage(`Failed to fetch files: ${error.message}`);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
-    // Get token from query params or localStorage
     const params = new URLSearchParams(location.search);
     let accessToken = params.get("access_token");
     if (!accessToken) {
       accessToken = localStorage.getItem("google_access_token");
     }
+
     if (!accessToken) {
       navigate("/upload-cloud");
       return;
     }
+
     setToken(accessToken);
-    fetchFiles(accessToken, "root");
-    setCurrentFolderId("root");
+    setCurrentFolderId(ROOT_FOLDER_ID);
+    setCurrentFolderLabel("My Drive");
     setFolderStack([]);
-    setFolderNames([{ id: "root", name: "/" }]);
-  }, [location, navigate]);
+    fetchFiles(accessToken, ROOT_FOLDER_ID);
+  }, [fetchFiles, location.search, navigate]);
 
   useEffect(() => {
     if (token) {
-      localStorage.setItem('google_access_token', token);
-    } else {
-      // Try to recover token from localStorage if missing
-      const stored = localStorage.getItem('google_access_token');
-      if (stored) setToken(stored);
+      localStorage.setItem("google_access_token", token);
     }
   }, [token]);
 
-  const fetchFiles = async (accessToken, folderId = "root") => {
-    try {
-      const res = await fetch(`http://localhost:8000/gdrive/list-files?access_token=${accessToken}&folder_id=${folderId}`);
-      if (!res.ok) {
-        const err = await res.text();
-        setFiles([]);
-        setUploadMessage(`Error: ${res.status} - ${err}`);
-        return;
-      }
-      const data = await res.json();
-      // DEBUG: log the response to help user debug
-      console.log('Google Drive API response:', data);
-      setFiles(data.files || []);
-      if (!data.files || data.files.length === 0) {
-        setUploadMessage('No files found in Google Drive.');
-      } else {
-        setUploadMessage("");
-      }
-    } catch (e) {
-      setFiles([]);
-      setUploadMessage('Failed to fetch files: ' + e.message);
-    }
-  };
+  const handleFolderClick = useCallback(
+    (folder) => {
+      if (!token) return;
+      setFolderStack((prev) => [...prev, { id: currentFolderId, name: currentFolderLabel }]);
+      setCurrentFolderId(folder.id);
+      setCurrentFolderLabel(folder.name || "Untitled Folder");
+      fetchFiles(token, folder.id);
+    },
+    [currentFolderId, currentFolderLabel, fetchFiles, token]
+  );
 
-  const handleFolderClick = (folder) => {
-    setFolderStack([...folderStack, currentFolderId]);
-    setCurrentFolderId(folder.id);
-    setFolderNames([...folderNames, { id: folder.id, name: folder.name }]);
-    fetchFiles(token, folder.id);
-  };
+  const handleFolderBack = useCallback(() => {
+    if (!token || folderStack.length === 0) return;
 
-  const handleBack = () => {
-    if (folderStack.length === 0) return;
-    const prevFolderId = folderStack[folderStack.length - 1];
-    setFolderStack(folderStack.slice(0, -1));
-    setCurrentFolderId(prevFolderId);
-    setFolderNames(folderNames.slice(0, -1));
-    fetchFiles(token, prevFolderId);
-  };
+    const nextStack = [...folderStack];
+    const parent = nextStack.pop() ?? { id: ROOT_FOLDER_ID, name: "My Drive" };
+    setFolderStack(nextStack);
+    setCurrentFolderId(parent.id);
+    setCurrentFolderLabel(parent.name);
+    fetchFiles(token, parent.id);
+  }, [folderStack, fetchFiles, token]);
 
-  const handleUpload = async (file) => {
+  const handleUpload = (file) => {
     setFileToRename(file);
-    const fileNameWithoutExtension = file.name.split('.').slice(0, -1).join('.');
-    setNewGDriveFilename(`${fileNameWithoutExtension || 'google_drive_file'}.parquet`);
+    const fileNameWithoutExtension = file.name.split(".").slice(0, -1).join(".");
+    setNewGDriveFilename(`${fileNameWithoutExtension || "google_drive_file"}.parquet`);
     setShowRenameModal(true);
   };
 
@@ -104,8 +110,7 @@ export default function GDriveFiles() {
       return;
     }
 
-    setShowRenameModal(false); // Close modal
-    setUploadingFileId(fileToRename.id); // Show loading state for the specific file
+    setShowRenameModal(false);
     setUploadMessage("");
 
     try {
@@ -118,6 +123,7 @@ export default function GDriveFiles() {
           filename: newGDriveFilename,
         }),
       });
+
       const data = await res.json();
       if (res.ok) {
         toast.success(`Uploaded '${newGDriveFilename}' successfully!`);
@@ -129,10 +135,9 @@ export default function GDriveFiles() {
       } else {
         toast.error(`Failed to upload '${newGDriveFilename}': ${data.detail || res.status}`);
       }
-    } catch (e) {
-      toast.error(`Error uploading '${newGDriveFilename}': ${e.message}`);
+    } catch (error) {
+      toast.error(`Error uploading '${newGDriveFilename}': ${error.message}`);
     } finally {
-      setUploadingFileId(null);
       setFileToRename(null);
       setNewGDriveFilename("");
     }
@@ -144,81 +149,101 @@ export default function GDriveFiles() {
     setNewGDriveFilename("");
   };
 
-  const handleNewGDriveFilenameChange = (e) => {
-    const inputName = e.target.value;
-    const baseName = inputName.split('.')[0];
+  const handleNewGDriveFilenameChange = (event) => {
+    const inputName = event.target.value;
+    const baseName = inputName.split(".")[0];
     setNewGDriveFilename(`${baseName}.parquet`);
   };
 
-  const handleFolderNavigation = (folder) => {
-    setCurrentFolderId(folder.id);
-    setFiles([]); // Clear current files for loading effect
-    setUploadMessage("");
-    // Refetch files from API for the selected folder
-    fetchFiles(token, folder.id);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const atRoot = currentFolderId === ROOT_FOLDER_ID;
+  const itemsLabel = files.length === 1 ? "1 item" : `${files.length} items`;
 
   return (
-    <div className="page-shell">
+    <div className={styles.page}>
       <Toaster position="top-right" />
-      <div className="min-h-screen w-screen overflow-hidden relative flex flex-col items-center justify-center">
-        <ShadcnNavbar onLogout={() => {
-          localStorage.removeItem("user");
-          localStorage.removeItem("google_access_token");
-          localStorage.removeItem("access_token");
-          sessionStorage.clear();
-          window.location.replace("/");
-        }} />
-        <div className="w-full flex justify-start items-center relative z-[10000] pointer-events-auto">
-          <div className="ml-8 mt-6 z-[10001] pointer-events-auto relative">
+      <div className={styles.container}>
+        <div className={styles.topBar}>
+          <div className={styles.backWrapper}>
             <GlobalBackButton />
           </div>
         </div>
-        <div className="w-screen min-h-[calc(100vh-54px)] flex items-center justify-center p-0 m-0 relative">
-          <div className="w-full max-w-[1400px] min-w-[1100px] rounded-2xl shadow-soft p-10 text-slate-800 min-h-[500px] flex flex-col items-center justify-start m-0 relative z-2 overflow-visible">
-            <h2 className="text-[34px] font-black mb-6 text-center tracking-tighter bg-gradient-to-r from-sky-400 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_2px_14px_#0ea5e9cc]">Google Drive Files</h2>
-            <div className="w-full h-[60vh] overflow-auto mx-auto relative z-3">
+
+        <section className={styles.card}>
+          <header className={styles.header}>
+            <div className={styles.titleBlock}>
+              <h1 className={styles.title}>Google Drive Explorer</h1>
+              <p className={styles.subtitle}>
+                Browse your Drive, preview folder contents, and upload files directly into your workflow.
+              </p>
+              <span className={styles.statusNote}>
+                {itemsLabel} · {atRoot ? "My Drive" : "Nested folder"}
+              </span>
+            </div>
+            <div className={styles.toolbar}>
+              <span className={styles.breadcrumb}>
+                <span className={styles.folderIcon} aria-hidden="true">
+                  📂
+                </span>
+                {atRoot ? "My Drive" : `Folder • ${currentFolderLabel}`}
+              </span>
+              {folderStack.length > 0 && (
+                <button type="button" className={styles.primaryButton} onClick={handleFolderBack}>
+                  ← Up one level
+                </button>
+              )}
+            </div>
+          </header>
+
+          {uploadMessage && <div className={styles.message}>{uploadMessage}</div>}
+
+          <section className={styles.tableSection}>
+            <div className={styles.tableScroller}>
               <GDriveFilesTable
                 gdriveFiles={files}
                 onUpload={handleUpload}
                 onFolderClick={handleFolderClick}
               />
             </div>
-          </div>
-        </div>
-        {/* Rename Modal */}
-        {showRenameModal && fileToRename && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100000]">
-            <div className="bg-white p-8 rounded-lg shadow-xl flex flex-col items-center justify-center" style={{ width: '90%', maxWidth: '400px' }}>
-              <h3 className="text-xl font-bold mb-4">Rename File for Upload</h3>
-              <p className="text-gray-700 mb-4">Original: <strong>{fileToRename.name}</strong></p>
+          </section>
+        </section>
+      </div>
+
+      {showRenameModal && fileToRename && (
+        <div className={styles.modalBackdrop}>
+          <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="rename-gdrive-file">
+            <h3 id="rename-gdrive-file" className={styles.modalTitle}>
+              Rename File for Upload
+            </h3>
+            <div>
+              <span className={styles.modalFieldLabel}>Original filename</span>
+              <p>{fileToRename.name}</p>
+            </div>
+            <div>
+              <span className={styles.modalFieldLabel}>Upload as</span>
               <input
                 type="text"
                 value={newGDriveFilename}
                 onChange={handleNewGDriveFilenameChange}
-                className="w-full p-2 border border-gray-300 rounded-md mb-4"
-                placeholder="Enter new file name (will be .parquet)"
+                className={styles.modalInput}
+                placeholder="Enter a new file name"
               />
-              <div className="flex justify-end gap-4 w-full">
-                <button
-                  onClick={handleCloseRenameModal}
-                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmRenameUpload}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  disabled={!newGDriveFilename.trim()}
-                >
-                  Upload as {newGDriveFilename.split('.').pop() === 'parquet' ? newGDriveFilename : `${newGDriveFilename}.parquet`}
-                </button>
-              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.modalSecondary} onClick={handleCloseRenameModal}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.modalPrimary}
+                onClick={handleConfirmRenameUpload}
+                disabled={!newGDriveFilename.trim()}
+              >
+                Upload as {newGDriveFilename}
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

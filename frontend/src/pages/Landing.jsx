@@ -6,7 +6,6 @@ export default function Landing() {
   const navigate = useNavigate();
   const boxRef = useRef(null);
 
-  // Animated redirect
   const handleRedirect = () => {
     // Overlap navigation and animation for snappy feel
     gsap.to(boxRef.current, {
@@ -38,15 +37,17 @@ export default function Landing() {
   };
 
   useEffect(() => {
+    let ctx;
     if (boxRef.current) {
-      gsap.to(boxRef.current, {
-        duration: 1.5,
-        ease: "power1.inOut",
-        y: 0,
-        opacity: 1,
-        delay: 1.5,
-      });
+      ctx = gsap.context(() => {
+        gsap.fromTo(
+          boxRef.current,
+          { autoAlpha: 0, y: 48 },
+          { autoAlpha: 1, y: 0, duration: 0.65, ease: "power3.out", delay: 0.35 }
+        );
+      }, boxRef);
     }
+    return () => ctx?.revert();
   }, []);
 
   // Preload Spline asset for login/register
@@ -69,10 +70,10 @@ export default function Landing() {
         style={{
           position: "fixed",
           inset: 0,
-          width: "100vw",
+          width: "100%",
           height: "100vh",
           minHeight: "100vh",
-          minWidth: "100vw",
+          minWidth: "100%",
           overflow: "hidden",
           background: "black",
           zIndex: 0,
@@ -84,7 +85,7 @@ export default function Landing() {
           title="ClarityStream 3D Hero"
           allowFullScreen
           style={{
-            width: "100vw",
+            width: "100%",
             height: "100vh",
             border: "none",
             display: "block",
@@ -92,7 +93,7 @@ export default function Landing() {
             top: 0,
             left: 0,
             background: "black",
-            maxWidth: "100vw",
+            maxWidth: "100%",
             maxHeight: "100vh",
             overflow: "hidden"
           }}
@@ -102,7 +103,7 @@ export default function Landing() {
             position: "absolute",
             top: 0,
             left: 0,
-            width: "100vw",
+            width: "100%",
             height: "100vh",
             display: "flex",
             alignItems: "center",

@@ -1,4 +1,6 @@
 # Handles data preprocessing and SQL logic
+import asyncio
+from typing import Optional
 from fastapi import Form
 from fastapi.responses import JSONResponse
 import pandas as pd
@@ -20,15 +22,24 @@ import json
 from fastapi import Request
 import logging
 import pyarrow.parquet as pq
-from .preprocessing.io_utils import read_parquet_from_minio, to_preview_records, sanitize_dataframe_for_parquet
+from .preprocessing.io_utils import (
+    read_parquet_from_minio,
+    to_preview_records,
+    sanitize_dataframe_for_parquet,
+    _download_to_tempfile,
+)
 from .preprocessing.remove_duplicates import apply as apply_remove_duplicates
 from .preprocessing.remove_nulls import apply as apply_remove_nulls
 from .preprocessing.fill_nulls import apply as apply_fill_nulls
 from .preprocessing.drop_columns import apply as apply_drop_columns
 from .preprocessing.remove_outliers import apply as apply_remove_outliers
 from .preprocessing.diff_utils import compute_diff_marks
-from .preprocessing.types import StepsPayload, PreprocessResult
 from backend.utils.json_utils import _to_json_safe
+from backend.services import progress_tracker
+
+MAX_PREVIEW_ROWS = int(os.getenv("PREVIEW_ROW_LIMIT", "1000"))
+MAX_FULL_ROWS = int(os.getenv("MAX_FULL_ROWS", "5000"))
+DIFF_ROW_LIMIT = int(os.getenv("DIFF_ROW_LIMIT", "1000"))
 
 def analyze_data_quality(df):
     """Comprehensive data quality analysis"""
@@ -211,56 +222,89 @@ def smart_scaling(df, quality_report):
 def get_original_preview(df):
     return df.head(10).replace([float('nan'), float('inf'), float('-inf')], None).where(pd.notnull(df.head(10)), None).to_dict(orient='records')
 
-async def data_preprocessing(filename: str, steps: dict = {}, preprocessing: str = None, request: Request = None, full: bool = False):
-    # Load dataframe (prefer parquet, fallback to other formats)
+def _update_progress(job_id: Optional[str], progress: float, message: str) -> None:
+    if not job_id:
+        return
+    try:
+        progress_tracker.update_job(job_id, progress=progress, message=message, status="running")
+    except progress_tracker.JobNotFoundError:
+        logging.warning("Skipping progress update; job %s no longer tracked", job_id)
+
+
+def run_preprocessing_pipeline(
+    filename: str,
+    steps: Optional[dict] = None,
+    preprocessing: Optional[str] = None,
+    full: bool = False,
+    job_id: Optional[str] = None,
+):
+    steps = steps or {}
+    _update_progress(job_id, 5, "Loading dataset from storage")
+    temp_path: Optional[str] = None
+
     try:
         if filename.endswith('.parquet'):
             df = read_parquet_from_minio(filename)
         else:
-            response = minio_client.get_object(MINIO_BUCKET, filename)
-            file_bytes = io.BytesIO(response.read())
+            temp_path = _download_to_tempfile(filename)
             if filename.endswith('.csv'):
-                df = pd.read_csv(file_bytes)
+                df = pd.read_csv(temp_path)
             elif filename.endswith('.xlsx'):
-                df = pd.read_excel(file_bytes)
+                df = pd.read_excel(temp_path)
             elif filename.endswith('.json'):
-                df = pd.read_json(file_bytes)
+                df = pd.read_json(temp_path)
             else:
-                return JSONResponse(content={"error": "Unsupported file format."}, status_code=400)
+                raise ValueError("Unsupported file format.")
 
         if "_orig_idx" not in df.columns:
             df = df.reset_index(drop=False).rename(columns={"index": "_orig_idx"})
-    except Exception as e:
-        return JSONResponse(content={"error": f"Error reading file: {e}"}, status_code=500)
-    
+        _update_progress(job_id, 12, f"Dataset loaded ({len(df)} rows)")
+    except Exception as exc:
+        raise RuntimeError(f"Error reading file: {exc}") from exc
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+
     change_metadata: list[dict] = []
     df_cleaned = df.copy()
-        
-    # Apply modular steps mirroring frontend
+    original_row_count = len(df)
+
     if steps.get("removeDuplicates"):
+        _update_progress(job_id, 25, "Removing duplicate rows")
         df_cleaned, meta = apply_remove_duplicates(df_cleaned, steps.get("duplicateSubset", []))
         change_metadata.append(meta)
+    else:
+        _update_progress(job_id, 25, "Duplicate removal skipped")
 
     if steps.get("removeNulls"):
+        _update_progress(job_id, 35, "Removing rows with null values")
         df_cleaned, meta = apply_remove_nulls(df_cleaned, steps.get("removeNullsColumns", []))
         change_metadata.append(meta)
+    else:
+        _update_progress(job_id, 35, "Null-row removal skipped")
 
     if steps.get("fillNulls"):
+        _update_progress(job_id, 45, "Filling missing values")
         df_cleaned, meta = apply_fill_nulls(df_cleaned, steps.get("fillStrategies", {}))
         if "summary" in meta:
             change_metadata.extend(meta["summary"])
         else:
             change_metadata.append(meta)
+    else:
+        _update_progress(job_id, 45, "No fill-null strategy requested")
 
     if steps.get("dropColumns"):
+        _update_progress(job_id, 55, "Dropping selected columns")
         df_cleaned, meta = apply_drop_columns(df_cleaned, steps.get("dropColumns", []))
         if "summary" in meta:
             change_metadata.extend(meta["summary"])
         else:
             change_metadata.append(meta)
+    else:
+        _update_progress(job_id, 55, "No columns dropped")
 
-    # Remove outliers step (method: iqr, factor: number, columns: list)
     if steps.get("removeOutliers"):
+        _update_progress(job_id, 65, "Handling statistical outliers")
         outlier_cfg = steps.get("removeOutliersConfig", {"method": "iqr", "factor": 1.5, "columns": []})
         logging.info(f"Outlier removal config: {outlier_cfg}")
         logging.info(f"DataFrame before outlier removal: {len(df_cleaned)} rows")
@@ -271,31 +315,45 @@ async def data_preprocessing(filename: str, steps: dict = {}, preprocessing: str
             change_metadata.extend(meta["summary"])
         else:
             change_metadata.append(meta)
+    else:
+        _update_progress(job_id, 65, "Outlier handling skipped")
 
-    # Compute diff marks
+    _update_progress(job_id, 75, "Analyzing changes against original data")
     deleted, updated_cells = compute_diff_marks(df, df_cleaned)
+    diff_truncated = False
+    if len(deleted) > DIFF_ROW_LIMIT:
+        deleted = deleted[:DIFF_ROW_LIMIT]
+        diff_truncated = True
+    if len(updated_cells) > DIFF_ROW_LIMIT:
+        limited_updates = {}
+        for idx in list(updated_cells.keys())[:DIFF_ROW_LIMIT]:
+            limited_updates[idx] = updated_cells[idx]
+        updated_cells = limited_updates
+        diff_truncated = True
 
-    # Save cleaned parquet to temp file
+    _update_progress(job_id, 85, "Packaging cleaned dataset")
     try:
         df_to_save = sanitize_dataframe_for_parquet(df_cleaned)
         with tempfile.NamedTemporaryFile(delete=False, suffix='.parquet') as tmp_file:
             df_to_save.to_parquet(tmp_file.name, engine='pyarrow', index=False)
             temp_cleaned_path = tmp_file.name
             cleaned_filename = f"cleaned_{os.path.splitext(filename)[0]}.parquet"
-    except Exception as e:
-        return JSONResponse(content={"error": f"Error saving cleaned Parquet: {e}"}, status_code=500)
-    
-    # Build previews
-    if full:
-        original_preview = to_preview_records(df, None)
-        preview = to_preview_records(df_cleaned, None)
-        full_data = preview
-    else:
-        original_preview = to_preview_records(df, 10)
-        preview = to_preview_records(df_cleaned, 10)
-        full_data = None
+    except Exception as exc:
+        raise RuntimeError(f"Error saving cleaned Parquet: {exc}") from exc
 
-    # Quality report (basic)
+    _update_progress(job_id, 92, "Building preview tables")
+    original_preview_limit = min(MAX_PREVIEW_ROWS, len(df))
+    cleaned_preview_limit = min(MAX_PREVIEW_ROWS, len(df_cleaned))
+
+    original_preview = to_preview_records(df, original_preview_limit)
+    preview = to_preview_records(df_cleaned, cleaned_preview_limit)
+
+    full_data = None
+    if full and len(df_cleaned) <= MAX_FULL_ROWS:
+        full_data = to_preview_records(df_cleaned, None)
+        preview = full_data
+
+    _update_progress(job_id, 97, "Summarizing data quality insights")
     try:
         quality_report = analyze_data_quality(df_cleaned)
     except Exception:
@@ -303,26 +361,82 @@ async def data_preprocessing(filename: str, steps: dict = {}, preprocessing: str
 
     response_payload = {
         "original_preview": original_preview,
-        "preview": preview, 
+        "preview": preview,
         "full_data": full_data,
         "diff_marks": {"deleted_row_indices": deleted, "updated_cells": updated_cells},
         "change_metadata": change_metadata,
         "quality_report": quality_report,
-        "cleaned_filename": cleaned_filename, 
+        "cleaned_filename": cleaned_filename,
         "temp_cleaned_path": temp_cleaned_path,
+        "original_row_count": int(original_row_count),
+        "cleaned_row_count": int(len(df_cleaned)),
+        "preview_row_limit": MAX_PREVIEW_ROWS,
+        "diff_truncated": diff_truncated,
+        "diff_row_limit": DIFF_ROW_LIMIT,
     }
-    
-    # Debug logging
-    logging.info(f"Response payload sizes: original_preview={len(original_preview)}, preview={len(preview)}, full_data={len(full_data) if full_data else 'None'}")
+
+    logging.info(
+        "Response payload sizes: original_preview=%s, preview=%s, full_data=%s",
+        len(original_preview),
+        len(preview),
+        len(full_data) if full_data else 'None',
+    )
     logging.info(f"Deleted row indices: {deleted}")
     if original_preview:
-        orig_indices = [row.get('_orig_idx') for row in original_preview[:5]]  # First 5 rows
+        orig_indices = [row.get('_orig_idx') for row in original_preview[:5]]
         logging.info(f"Sample original_preview _orig_idx values: {orig_indices}")
     if preview:
-        clean_indices = [row.get('_orig_idx') for row in preview[:5]]  # First 5 rows
+        clean_indices = [row.get('_orig_idx') for row in preview[:5]]
         logging.info(f"Sample preview _orig_idx values: {clean_indices}")
-    
+
     return _to_json_safe(response_payload)
+
+
+async def run_preprocessing_job(
+    job_id: str,
+    filename: str,
+    steps: Optional[dict] = None,
+    preprocessing: Optional[str] = None,
+    full: bool = False,
+):
+    try:
+        progress_tracker.update_job(job_id, status="running", progress=1, message="Initializing preprocessing pipeline")
+    except progress_tracker.JobNotFoundError:
+        logging.warning("Preprocessing job %s started but no longer tracked", job_id)
+
+    try:
+        result = await asyncio.to_thread(
+            run_preprocessing_pipeline,
+            filename,
+            steps or {},
+            preprocessing,
+            full,
+            job_id,
+        )
+        progress_tracker.complete_job(job_id, result)
+    except Exception as exc:  # noqa: BLE001
+        logging.exception("Preprocessing job %s failed", job_id, exc_info=True)
+        try:
+            progress_tracker.fail_job(job_id, str(exc))
+        except progress_tracker.JobNotFoundError:
+            logging.warning("Unable to mark job %s as failed; job no longer tracked", job_id)
+
+
+async def data_preprocessing(
+    filename: str,
+    steps: Optional[dict] = None,
+    preprocessing: Optional[str] = None,
+    request: Optional[Request] = None,
+    full: bool = False,
+):
+    return await asyncio.to_thread(
+        run_preprocessing_pipeline,
+        filename,
+        steps or {},
+        preprocessing,
+        full,
+        None,
+    )
 
 def get_data_preview(filename: str):
     try:

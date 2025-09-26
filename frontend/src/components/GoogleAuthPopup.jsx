@@ -1,6 +1,13 @@
 import React from "react";
 
 export default function GoogleAuthPopup({ onSuccess, onError, backendUrl, askForConsent }) {
+  const backendOrigin = React.useMemo(() => {
+    try {
+      return new URL(backendUrl).origin;
+    } catch {
+      return backendUrl;
+    }
+  }, [backendUrl]);
   const handleGoogleLogin = () => {
     // Open backend Google login in a popup
     const width = 500, height = 600;
@@ -16,6 +23,9 @@ export default function GoogleAuthPopup({ onSuccess, onError, backendUrl, askFor
     if (!popup) return onError && onError("Popup blocked");
     // Listen for message from popup
     const listener = (event) => {
+      if (event.origin !== backendOrigin && backendOrigin !== '*') {
+        return;
+      }
       if (!event.data) return;
       // Accept both legacy and new google_creds format
       let accessToken = event.data.access_token;
@@ -27,14 +37,27 @@ export default function GoogleAuthPopup({ onSuccess, onError, backendUrl, askFor
       if (accessToken) {
         // Save user info for dashboard
         localStorage.setItem("google_access_token", accessToken);
-        localStorage.setItem("user", JSON.stringify(userObj));
-        onSuccess && onSuccess(userObj);
+        const userProfile = userObj?.user ?? userObj;
+        if (userProfile) {
+          localStorage.setItem("user", JSON.stringify(userProfile));
+          onSuccess && onSuccess(userProfile);
+        } else {
+          onSuccess && onSuccess(userObj);
+        }
         window.removeEventListener("message", listener);
-        try { popup.close(); } catch (e) {}
+        try {
+          popup.close();
+        } catch {
+          /* noop */
+        }
       } else if (event.data.error) {
         onError && onError(event.data.detail || event.data.error);
         window.removeEventListener("message", listener);
-        try { popup.close(); } catch (e) {}
+        try {
+          popup.close();
+        } catch {
+          /* noop */
+        }
       }
     };
     window.addEventListener("message", listener);

@@ -1,14 +1,11 @@
-import { useState, useEffect } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { useState, useEffect, useCallback } from 'react'
 import './App.css'
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import gsap from "gsap";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
-import GoogleAuthPopup from "./components/GoogleAuthPopup";
 import Landing from "./pages/Landing";
 import UploadFile from "./pages/UploadFile";
 import UploadUrl from "./pages/UploadUrl";
@@ -20,41 +17,77 @@ import FeatureEngineering from "./pages/FeatureEngineering";
 import AutoMLTraining from "./pages/AutoMLTraining";
 import FilesPage from "./pages/Files";
 import DataIngestion from "./pages/DataIngestion";
+import ManageAccount from "./pages/ManageAccount";
 import { Toaster } from 'react-hot-toast';
+import ShadcnNavbar from "./components/ShadcnNavbar";
 
 function AnimatedRoutes({ user, setUser }) {
+  return (
+    <Routes>
+      <Route path="/" element={<Landing />} />
+  <Route path="/login" element={<Login onGoogleSuccess={setUser} />} />
+  <Route path="/register" element={<Register onAuthSuccess={setUser} />} />
+      <Route path="/manage-account" element={<ManageAccount onLogout={() => {
+        localStorage.removeItem('user');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('access_token');
+        setUser(null);
+      }} />} />
+      <Route path="/dashboard" element={<Dashboard user={user} />} />
+      <Route path="/data-ingestion" element={<DataIngestion />} />
+      <Route path="/upload-file" element={<UploadFile />} />
+      <Route path="/upload-url" element={<UploadUrl />} />
+      <Route path="/upload-cloud" element={<UploadCloud />} />
+      <Route path="/gdrive-files" element={<GDriveFiles />} />
+      <Route path="/upload-sqlworkbench" element={<UploadSQLWorkbench />} />
+      <Route path="/preprocessing" element={<Preprocessing />} />
+      <Route path="/feature-engineering" element={<FeatureEngineering />} />
+      <Route path="/automl-training" element={<AutoMLTraining />} />
+      <Route path="/files" element={<FilesPage />} />
+      <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
+    </Routes>
+  );
+}
+
+function AppFrame({ user, setUser }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const showChrome = !(location.pathname === "/" || location.pathname === "/login" || location.pathname === "/register");
+
   useEffect(() => {
-    if (location.pathname === "/login" || location.pathname === "/register" || location.pathname === "/") {
-      gsap.fromTo(
-        "#page-content",
-        { opacity: 0, y: 40, filter: "blur(7px)", scale: 0.985 },
-        { opacity: 1, y: 0, filter: "blur(0px)", scale: 1, duration: 0.72, ease: "expo.out" }
-      );
+    const target = "#page-content";
+    if (!showChrome) {
+      const ctx = gsap.context(() => {
+        gsap.fromTo(
+          target,
+          { autoAlpha: 0, y: 28, filter: "blur(8px)", scale: 0.97 },
+          { autoAlpha: 1, y: 0, filter: "blur(0px)", scale: 1, duration: 0.45, ease: "power3.out" }
+        );
+      });
+      return () => ctx.revert();
     }
-    // No animation for other routes
-  }, [location.pathname]);
+    gsap.set(target, { clearProps: "all" });
+  }, [location.pathname, showChrome]);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("google_access_token");
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("auth_token");
+    sessionStorage.clear();
+    setUser(null);
+    navigate("/", { replace: true });
+  }, [navigate, setUser]);
 
   return (
-    <div id="page-content">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login onGoogleSuccess={setUser} />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard user={user} />} />
-        <Route path="/data-ingestion" element={<DataIngestion />} />
-        <Route path="/upload-file" element={<UploadFile />} />
-        <Route path="/upload-url" element={<UploadUrl />} />
-        <Route path="/upload-cloud" element={<UploadCloud />} />
-        <Route path="/gdrive-files" element={<GDriveFiles />} />
-        <Route path="/upload-sqlworkbench" element={<UploadSQLWorkbench />} />
-        <Route path="/preprocessing" element={<Preprocessing />} />
-        <Route path="/feature-engineering" element={<FeatureEngineering />} />
-        <Route path="/automl-training" element={<AutoMLTraining />} />
-        <Route path="/files" element={<FilesPage />} />
-        <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
-      </Routes>
-    </div>
+    <>
+  {showChrome && (
+    <ShadcnNavbar user={user} onLogout={handleLogout} />
+  )}
+      <div id="page-content" className={showChrome ? "app-shell-with-chrome" : undefined}>
+        <AnimatedRoutes user={user} setUser={setUser} />
+      </div>
+    </>
   );
 }
 
@@ -76,7 +109,7 @@ function App() {
   return (
     <Router>
       <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
-      <AnimatedRoutes user={user} setUser={setUser} />
+      <AppFrame user={user} setUser={setUser} />
     </Router>
   )
 }

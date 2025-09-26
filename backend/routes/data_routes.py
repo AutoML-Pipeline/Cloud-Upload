@@ -1,17 +1,35 @@
 # FastAPI route definitions for data-related endpoints
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from backend.controllers import data_controller
-from backend.services import minio_service, sql_service
+from backend.services import minio_service, sql_service, progress_tracker
 from backend.models.pydantic_models import UploadFromURLRequest, SQLConnectRequest, SQLWorkbenchRequest
 
 router = APIRouter()
 
 @router.post("/preprocess/{filename}")
-async def data_preprocessing(filename: str, request: Request, full: bool = False):
+async def data_preprocessing(filename: str, request: Request, background_tasks: BackgroundTasks, full: bool = False):
     body = await request.json()
     steps = body.get("steps", {})
-    preprocessing = body.get("preprocessing", None)
-    return await data_controller.data_preprocessing(filename, steps, preprocessing, request, full)
+    preprocessing = body.get("preprocessing")
+
+    job_id = progress_tracker.create_job()
+    background_tasks.add_task(
+        data_controller.run_preprocessing_job,
+        job_id,
+        filename,
+        steps,
+        preprocessing,
+        full,
+    )
+    return {"job_id": job_id}
+
+
+@router.get("/preprocess/status/{job_id}")
+async def data_preprocessing_status(job_id: str):
+    job = progress_tracker.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
 
 @router.post("/sql-list-databases")
 async def sql_list_databases_route(request_body: SQLConnectRequest):

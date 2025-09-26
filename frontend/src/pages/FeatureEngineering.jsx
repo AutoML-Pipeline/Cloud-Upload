@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useRef } from "react"; // Added useRef
 import styles from "./FeatureEngineering.module.css";
 import DataTable from "../components/DataTable";
-import { useNavigate } from "react-router-dom";
 import ColumnMultiSelect from "../components/ColumnMultiSelect";
 import FormField from "../components/FormField";
-import ShadcnNavbar from "../components/ShadcnNavbar"; // Import ShadcnNavbar
+import GlobalBackButton from "../components/GlobalBackButton";
 
 const apiBase = "http://127.0.0.1:8000";
 
@@ -16,7 +15,6 @@ export default function FeatureEngineering() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
 
-  const navigate = useNavigate();
   const pageSectionRef = useRef(null); // Added pageSectionRef
 
   const setStepsStable = (updater) => {
@@ -40,7 +38,6 @@ export default function FeatureEngineering() {
   const [binning, setBinning] = useState({ enabled: false, method: "equal_width", bins: 5, columns: [] });
   const [polynomial, setPolynomial] = useState({ enabled: false, degree: 2, include_bias: false, columns: [] });
   const [datetimeDecompose, setDatetimeDecompose] = useState({ enabled: false, columns: [], date_part: "year" });
-  const [aggregation, setAggregation] = useState({ enabled: false, group_by: [], aggregations: {} });
   const [selection, setSelection] = useState({ enabled: false, method: "correlation", threshold: 0.95, n_components: 2, columns: [] });
 
   useEffect(() => {
@@ -111,31 +108,6 @@ export default function FeatureEngineering() {
     }
   };
 
-  const save = async () => {
-    if (!result?.preview) return;
-    setBusy(true);
-    try {
-      const engineeredName = `engineered_${filename.replace(/\.parquet$/i, "")}.parquet`;
-      const steps = [
-        scaling.enabled ? { id: "scaling_step", type: "scaling", method: scaling.method, columns: scaling.columns } : null,
-        encoding.enabled ? { id: "encoding_step", type: "encoding", method: encoding.method === "onehot" ? "one-hot" : encoding.method, columns: encoding.columns } : null,
-        binning.enabled ? { id: "binning_step", type: "binning", method: binning.method, columns: binning.columns, bins: Number(binning.bins) || 5 } : null,
-        polynomial.enabled ? { id: "polynomial_creation_step", type: "feature_creation", method: "polynomial", degree: Number(polynomial.degree) || 2, columns: polynomial.columns } : null,
-        datetimeDecompose.enabled ? { id: "datetime_creation_step", type: "feature_creation", method: "datetime_decomposition", columns: datetimeDecompose.columns, date_part: datetimeDecompose.date_part } : null,
-        // aggregation.enabled ? { type: "feature_creation", method: "aggregations", group_by: aggregation.group_by, aggregations: aggregation.aggregations } : null,
-        selection.enabled ? { id: "selection_step", type: "feature_selection", method: selection.method === "correlation" ? "correlation_filter" : selection.method === "variance" ? "variance_threshold" : selection.method, threshold: Number(selection.threshold), n_components: Number(selection.n_components), columns: selection.columns } : null
-      ].filter(Boolean);
-
-      await fetch(`${apiBase}/api/feature-engineering/apply-and-save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename, steps, new_filename: engineeredName })
-      });
-      alert("Saved to engineered bucket");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   function FeatureEngineeringStepCard({
     checked, onToggle, icon, label, children }) {
@@ -166,14 +138,10 @@ export default function FeatureEngineering() {
   );
 
         return (
-    <div className={styles.pageShell}> {/* Changed to pageShell */}
-      <ShadcnNavbar onLogout={() => {
-        localStorage.removeItem("user");
-        localStorage.removeItem("google_access_token");
-        localStorage.removeItem("access_token");
-        sessionStorage.clear();
-        window.location.replace("/");
-      }} />
+    <div className={`app-shell-with-chrome ${styles.pageShell}`}>
+      <div className={styles.globalBackButtonAdjusted}>
+        <GlobalBackButton />
+      </div>
       <div className={styles.pageSection} ref={pageSectionRef}> {/* Added ref */}
         <div className={styles.centeredContent}> {/* Added centeredContent */}
           <div className={styles.card}>

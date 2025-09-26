@@ -1,0 +1,47 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hexStroke" x1="18" y1="110" x2="110" y2="18" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1d4ed8" />
+      <stop offset="1" stop-color="#22d3ee" />
+    </linearGradient>
+    <linearGradient id="nodeGradient" x1="40" y1="100" x2="92" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0ea5e9" />
+      <stop offset="1" stop-color="#34d399" />
+    </linearGradient>
+    <radialGradient id="coreGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(64 64) scale(46)">
+      <stop offset="0" stop-color="#1d4ed8" stop-opacity="0.4" />
+      <stop offset="1" stop-color="#1d4ed8" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M64 6L13 36v56l51 30 51-30V36L64 6Z" stroke="url(#hexStroke)" stroke-width="6" fill="rgba(15,23,42,0.92)" />
+    <circle cx="64" cy="64" r="44" fill="url(#coreGlow)" stroke="rgba(56,189,248,0.25)" stroke-width="1" />
+  </g>
+
+  <g stroke="url(#hexStroke)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M64 36 70 46h-5v28h-10V46h-5l7-10h7Z" fill="#0f172a" />
+    <path d="M64 36 70 46h-5v28h-10V46h-5l7-10h7Z" fill="url(#nodeGradient)" opacity="0.9" />
+  </g>
+
+  <g fill="rgba(15,23,42,0.95)" stroke="url(#hexStroke)" stroke-width="3">
+    <path d="M48 63h16v16H48z" rx="4" />
+    <path d="M64 63h16v16H64z" rx="4" />
+  </g>
+
+  <g stroke="url(#nodeGradient)" stroke-width="3" stroke-linecap="round">
+    <path d="M56 79v12" />
+    <path d="M72 79v12" />
+    <path d="M56 91h-8l-8 10" />
+    <path d="M72 91h8l8 10" />
+    <circle cx="40" cy="101" r="4" fill="#0f172a" />
+    <circle cx="88" cy="101" r="4" fill="#0f172a" />
+  </g>
+
+  <g stroke="url(#hexStroke)" stroke-width="3" stroke-linecap="round">
+    <path d="M48 48l-10-8" />
+    <path d="M80 48l10-8" />
+    <circle cx="38" cy="40" r="4" fill="#0f172a" />
+    <circle cx="90" cy="40" r="4" fill="#0f172a" />
+  </g>
+</svg>

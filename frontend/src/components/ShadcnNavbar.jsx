@@ -1,51 +1,75 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from 'react-router-dom';
 import styles from './ShadcnNavbar.module.css';
+import brandLogo from '../assets/logo.png';
+import ConfirmDialog from './ConfirmDialog';
 
-  const navLinks = [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Data Ingestion", href: "/data-ingestion" },
-    { label: "Preprocessing", href: "/preprocessing" },
-    { label: "Feature Engineering", href: "/feature-engineering" },
-    { label: "Model Selection", href: "/automl-training" },
-  ];
+const primaryLinks = [
+  { label: "Dashboard", href: "/dashboard" },
+];
 
-const LogOutIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out-icon lucide-log-out mr-1 -ml-1">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" x2="9" y1="12" y2="12" />
-  </svg>
-);
+const workflowLinks = [
+  { label: "Data Ingestion", href: "/data-ingestion" },
+  { label: "Preprocessing", href: "/preprocessing" },
+  { label: "Feature Engineering", href: "/feature-engineering" },
+  { label: "Model Selection", href: "/automl-training" },
+];
 
-const ShadcnNavbar = ({ onLogout }) => {
+const getInitial = (value) => {
+  if (!value || typeof value !== "string") return "U";
+  return value.trim().charAt(0).toUpperCase() || "U";
+};
+
+const ShadcnNavbar = ({ user, onLogout }) => {
   const location = useLocation();
+  const [workflowOpen, setWorkflowOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const profileRef = useRef(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.picture]);
+
+  useEffect(() => {
+    setWorkflowOpen(false);
+    setUserMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!workflowOpen && !userMenuOpen) return;
+    const handler = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setWorkflowOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [workflowOpen, userMenuOpen]);
 
   return (
     <nav className={styles.navbar}>
       <div className={styles.navbarContent}>
-        {/* Left: Logo + Title */}
         <div className={styles.logoContainer}>
-          <span className={styles.logoIcon}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7V17L12 22L22 17V7L12 2Z" stroke="#60a5fa" strokeWidth="2" strokeLinejoin="round"/>
-              <path d="M12 7L12 17" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M17 9.5L7 14.5" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M7 9.5L17 14.5" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="12" cy="12" r="2" fill="#f3f6fa" stroke="#60a5fa" strokeWidth="1.5"/>
-              <circle cx="7" cy="9.5" r="1.5" fill="#f3f6fa" stroke="#60a5fa" strokeWidth="1.5"/>
-              <circle cx="17" cy="9.5" r="1.5" fill="#f3f6fa" stroke="#60a5fa" strokeWidth="1.5"/>
-              <circle cx="7" cy="14.5" r="1.5" fill="#f3f6fa" stroke="#60a5fa" strokeWidth="1.5"/>
-              <circle cx="17" cy="14.5" r="1.5" fill="#f3f6fa" stroke="#60a5fa" strokeWidth="1.5"/>
-            </svg>
-          </span>
-          <span className={styles.title}>
-            ML <span className={styles.pipelineText}>Pipeline</span>
-          </span>
+          <img src={brandLogo} alt="Automated Machine Learning Pipeline logo" className={styles.logo} />
+          <div className={styles.brandText}>
+            <span className={styles.brandTitle}>
+              Automated Machine Learning
+            </span>
+            <span className={styles.brandSubtitle}>
+              Pipeline for
+              <span className={styles.brandSubtitleAccent}> Big Data Analysis</span>
+            </span>
+          </div>
         </div>
         {/* Center: Nav Links */}
         <div className={styles.navLinks}>
-          {navLinks.map((link) => (
+          {primaryLinks.map((link) => (
             <Link
               key={link.label}
               to={link.href}
@@ -54,15 +78,102 @@ const ShadcnNavbar = ({ onLogout }) => {
               {link.label}
             </Link>
           ))}
+
+          <div
+            ref={dropdownRef}
+            className={`${styles.dropdown} ${workflowOpen ? styles.dropdownOpen : ''}`}
+          >
+            <button
+              type="button"
+              className={styles.dropdownTrigger}
+              onClick={() => setWorkflowOpen((prev) => !prev)}
+            >
+              <span>Workflow</span>
+              <svg
+                className={styles.dropdownIcon}
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            <div className={styles.dropdownPanel}>
+              {workflowLinks.map((link) => (
+                <Link
+                  key={link.label}
+                  to={link.href}
+                  className={`${styles.dropdownItem} ${location.pathname === link.href ? styles.dropdownItemActive : ''}`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
         {/* Right: Logout Button */}
-        <div className={styles.logoutContainer}>
-          <button
-            onClick={onLogout}
-            className={styles.logoutButton}
-          >
-            <LogOutIcon className={styles.logoutIcon} />Logout
-          </button>
+        <div className={styles.profileSlot} ref={profileRef}>
+          {user ? (
+            <>
+              <button
+                type="button"
+                className={`${styles.avatarButton} ${userMenuOpen ? styles.avatarButtonActive : ''}`}
+                onClick={() => setUserMenuOpen((prev) => !prev)}
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+              >
+                {user.picture && !avatarError ? (
+                  <img
+                    src={user.picture}
+                    alt={user.name || user.email || "User"}
+                    className={styles.avatarImage}
+                    onError={() => setAvatarError(true)}
+                  />
+                ) : (
+                  <span className={styles.avatarFallback}>
+                    {getInitial(user.name || user.email)}
+                  </span>
+                )}
+              </button>
+              <div className={`${styles.userDropdown} ${userMenuOpen ? styles.userDropdownOpen : ''}`} role="menu">
+                <div className={styles.userMeta}>
+                  <span className={styles.userName}>{user.name || user.given_name || user.email || "User"}</span>
+                  {user.email && <span className={styles.userEmail}>{user.email}</span>}
+                </div>
+                <Link to="/manage-account" className={styles.loginLink} role="menuitem" onClick={()=>setUserMenuOpen(false)}>
+                  Manage account
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(true)}
+                  className={styles.userAction}
+                  role="menuitem"
+                >
+                  Log out
+                </button>
+              </div>
+              <ConfirmDialog
+                open={showLogoutConfirm}
+                title="Log out"
+                message="Are you sure you want to log out?"
+                confirmText="Log out"
+                cancelText="Cancel"
+                onCancel={() => setShowLogoutConfirm(false)}
+                onConfirm={() => { setShowLogoutConfirm(false); onLogout && onLogout(); }}
+              />
+            </>
+          ) : (
+            <Link to="/login" className={styles.loginLink}>
+              Sign in
+            </Link>
+          )}
         </div>
       </div>
     </nav>

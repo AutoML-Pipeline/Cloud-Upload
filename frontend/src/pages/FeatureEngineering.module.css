@@ -42,7 +42,6 @@
   padding-bottom: 3rem;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-gutter: stable both-edges; /* Prevent layout shift when scrollbar appears */
 }
 
 .backButtonTop {

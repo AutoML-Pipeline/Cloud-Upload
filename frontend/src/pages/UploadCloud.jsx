@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect } from "react";
-import ShadcnNavbar from "../components/ShadcnNavbar";
-import GlobalBackButton from "../components/GlobalBackButton"; // Import the new component
+import GlobalBackButton from "../components/GlobalBackButton";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'react-hot-toast';
+import styles from "./UploadFile.module.css";
 
 export default function UploadCloud() {
   const navigate = useNavigate();
@@ -51,46 +51,61 @@ export default function UploadCloud() {
       window.addEventListener("message", handler);
       return;
     }
-    if (provider === "onedrive") window.open("http://localhost:8000/auth/onedrive/login", "_blank", "width=500,height=700");
-    if (provider === "box") window.open("http://localhost:8000/auth/box/login", "_blank", "width=500,height=700");
-    // For S3, show a form for credentials
   }, [navigate]);
 
   return (
-    <div className="page-shell">
-      <ShadcnNavbar onLogout={() => {
-        localStorage.removeItem("user");
-        localStorage.removeItem("google_access_token");
-        localStorage.removeItem("access_token");
-        sessionStorage.clear();
-        window.location.replace("/");
-      }} />
-      <div className="min-h-[calc(100vh-54px)] w-screen overflow-hidden relative flex flex-col items-center justify-center mt-[54px]">
-        <div className="page-section min-h-[80vh] justify-start">
-          <div className="absolute left-0 top-0 z-[10000] pointer-events-auto">
-            <div className="ml-8 mt-6 z-[10001] pointer-events-auto">
-              <GlobalBackButton />
+    <div className={styles.page}>
+      <main className={styles.main}>
+        <div className={styles.layout}>
+          <GlobalBackButton />
+          <section className={styles.card}>
+            <header className={styles.header}>
+              <span className={styles.kicker}>Cloud sources</span>
+              <h1 className={styles.title}>Connect your storage</h1>
+              <p className={styles.subtitle}>
+                Authorize a provider to browse and ingest files directly from your connected cloud drives. We’ll bring
+                back the dataset as an optimized Parquet file ready for analysis.
+              </p>
+            </header>
+
+            <div className={styles.providerList}>
+              <button
+                onClick={() => handleProviderLogin("google")}
+                className={`${styles.providerButton} ${styles.providerPrimary}`}
+              >
+                <span className={styles.providerIcon}>📁</span>
+                <span>Connect Google Drive</span>
+              </button>
             </div>
-          </div>
-          <div className="w-full flex flex-col items-center z-10 mb-8 mt-14">
-            <div className="auth-card w-[420px] max-w-[96vw]">
-              <h2 className="heading-xl">Upload from Cloud</h2>
-              <div className="muted mb-8">Connect your cloud storage to upload files securely.</div>
-              <div className="w-[340px] max-w-[90%] flex flex-col gap-4">
-                <button onClick={() => handleProviderLogin("google")} className="w-full bg-[#4285F4] text-white font-semibold rounded-xl text-[18px] px-8 py-3 border-0 shadow [box-shadow:0_2px_12px_rgba(66,133,244,0.15)] cursor-pointer tracking-wider flex items-center justify-center gap-2">
-                  <span className="text-[20px]">📁</span> Connect Google Drive
-                </button>
-                <button onClick={() => handleProviderLogin("onedrive")} className="w-full bg-[#0061FF] text-white font-semibold rounded-xl text-[18px] px-8 py-3 border-0 shadow [box-shadow:0_2px_12px_rgba(0,97,255,0.15)] cursor-pointer tracking-wider flex items-center justify-center gap-2">
-                  <span className="text-[20px]">🗂️</span> Connect OneDrive
-                </button>
-                <button onClick={() => handleProviderLogin("box")} className="w-full bg-[#0061FF] text-white font-semibold rounded-xl text-[18px] px-8 py-3 border-0 shadow [box-shadow:0_2px_12px_rgba(0,97,255,0.15)] cursor-pointer tracking-wider flex items-center justify-center gap-2">
-                  <span className="text-[20px]">🗂️</span> Connect Box
-                </button>
+
+            <p className={styles.providerNote}>
+              Already connected? We’ll detect your active Google session and jump straight to file browsing. You can
+              manage or revoke access anytime from your account settings.
+            </p>
+
+            <div className={styles.featureGrid}>
+              <div className={styles.featureCard}>
+                <div className={styles.featureTitle}>Secure OAuth</div>
+                <div className={styles.featureDescription}>
+                  Tokens stay encrypted in your browser storage—only you can trigger data movement from your drives.
+                </div>
+              </div>
+              <div className={styles.featureCard}>
+                <div className={styles.featureTitle}>Selective ingest</div>
+                <div className={styles.featureDescription}>
+                  Browse your folders, preview column profiles, and ingest only the tables you need into Cloud Upload.
+                </div>
+              </div>
+              <div className={styles.featureCard}>
+                <div className={styles.featureTitle}>Unified workflow</div>
+                <div className={styles.featureDescription}>
+                  Connected datasets automatically appear in preprocessing with the same safeguards as manual uploads.
+                </div>
               </div>
             </div>
-          </div>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

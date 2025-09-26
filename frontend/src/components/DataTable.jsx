@@ -150,10 +150,10 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
         }
 
         const result = await response.json();
-        if (result.success) {
+        if (result.message && !result.error) {
           alert(`✅ ${result.message}`);
         } else {
-          alert(`❌ ${result.message || 'Failed to save to MinIO'}`);
+          alert(`❌ ${result.error || result.message || 'Failed to save to MinIO'}`);
         }
       } catch (error) {
         alert(`❌ Error: ${error.message}`);

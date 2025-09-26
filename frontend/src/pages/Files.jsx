@@ -1,18 +1,10 @@
 import React from 'react';
-import ShadcnNavbar from "../components/ShadcnNavbar";
 // import UploadedFilesTable from "../components/UploadedFilesTable"; // Removed UploadedFilesTable import
 import GlobalBackButton from "../components/GlobalBackButton";
 
 export default function FilesPage() {
   return (
     <div className="page-fullscreen" style={{ background: 'black', minHeight: '100vh' }}>
-      <ShadcnNavbar onLogout={() => {
-        localStorage.removeItem("user");
-        localStorage.removeItem("google_access_token");
-        localStorage.removeItem("access_token");
-        sessionStorage.clear();
-        window.location.replace("/");
-      }} />
       <div style={{ position: 'relative', width: '100%', minHeight: 'calc(100vh - 60px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ position: 'absolute', left: 24, top: 24, zIndex: 10 }}>
           <GlobalBackButton />

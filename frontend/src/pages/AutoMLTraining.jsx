@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import ShadcnNavbar from "../components/ShadcnNavbar";
+import GlobalBackButton from "../components/GlobalBackButton";
 import styles from "./AutoMLTraining.module.css";
 
 const apiBase = "http://localhost:8000";
@@ -22,12 +22,44 @@ export default function AutoMLTraining() {
   const [polling, setPolling] = useState(false);
   
 
+  const fetchFiles = useCallback(async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/automl/files`);
+      const data = await response.json();
+      const list = Array.isArray(data) ? data : [];
+      setFiles(list);
+      if (list.length > 0 && !filename) {
+        setFilename(list[0]);
+      }
+    } catch (err) {
+      console.error("Failed to load files", err);
+      toast.error("Failed to load files");
+      setFiles([]);
+    }
+  }, [filename]);
+
   // Load files on mount
   useEffect(() => {
     fetchFiles();
-  }, []);
+  }, [fetchFiles]);
 
-  // Load columns when filename changes
+  const loadColumns = useCallback(async () => {
+    if (!filename) return;
+    setLoadingColumns(true);
+    try {
+      const response = await fetch(`${apiBase}/api/automl/files/${encodeURIComponent(filename)}/columns`);
+      const data = await response.json();
+      setColumns(Array.isArray(data) ? data : []);
+      setTargetColumn("");
+    } catch (err) {
+      console.error("Failed to load columns", err);
+      toast.error("Failed to load columns");
+      setColumns([]);
+    } finally {
+      setLoadingColumns(false);
+    }
+  }, [filename]);
+
   useEffect(() => {
     if (filename) {
       loadColumns();
@@ -35,7 +67,27 @@ export default function AutoMLTraining() {
       setColumns([]);
       setTargetColumn("");
     }
-  }, [filename]);
+  }, [filename, loadColumns]);
+
+  const checkJobStatus = useCallback(async () => {
+    if (!currentJob) return;
+
+    try {
+      const response = await fetch(`${apiBase}/api/automl/status/${currentJob}`);
+      const data = await response.json();
+      setJobStatus(data);
+
+      if (data.status === "done") {
+        setPolling(false);
+        toast.success("AutoML training completed!");
+      } else if (data.status === "error") {
+        setPolling(false);
+        toast.error(`Training failed: ${data.error}`);
+      }
+    } catch (err) {
+      console.error("Failed to check job status:", err);
+    }
+  }, [currentJob]);
 
   // Poll job status when training
   useEffect(() => {
@@ -45,36 +97,7 @@ export default function AutoMLTraining() {
       }, 2000);
       return () => clearInterval(interval);
     }
-  }, [polling, currentJob]);
-
-  const fetchFiles = async () => {
-    try {
-      const response = await fetch(`${apiBase}/api/automl/files`);
-      const data = await response.json();
-      setFiles(Array.isArray(data) ? data : []);
-      if (data.length > 0 && !filename) {
-        setFilename(data[0]);
-      }
-    } catch (error) {
-      toast.error("Failed to load files");
-      setFiles([]);
-    }
-  };
-
-  const loadColumns = async () => {
-    setLoadingColumns(true);
-    try {
-      const response = await fetch(`${apiBase}/api/automl/files/${encodeURIComponent(filename)}/columns`);
-      const data = await response.json();
-      setColumns(Array.isArray(data) ? data : []);
-      setTargetColumn("");
-    } catch (error) {
-      toast.error("Failed to load columns");
-      setColumns([]);
-    } finally {
-      setLoadingColumns(false);
-    }
-  };
+  }, [polling, currentJob, checkJobStatus]);
 
   const detectTaskType = async (columnName) => {
     if (!columnName) return;
@@ -87,8 +110,8 @@ export default function AutoMLTraining() {
         toast.info(`Auto-detected task type: ${data.detected_task} (${data.unique_values} unique values)`);
         setTask(data.detected_task);
       }
-    } catch (error) {
-      console.warn("Could not detect task type:", error);
+    } catch (err) {
+      console.warn("Could not detect task type:", err);
     }
   };
 
@@ -121,33 +144,13 @@ export default function AutoMLTraining() {
       } else {
         throw new Error(data.detail || "Failed to start training");
       }
-    } catch (error) {
-      toast.error(error.message || "Failed to start training");
+    } catch (err) {
+      console.error("Failed to start training", err);
+      toast.error(err.message || "Failed to start training");
     } finally {
       setLoading(false);
     }
   };
-
-  const checkJobStatus = async () => {
-    if (!currentJob) return;
-
-    try {
-      const response = await fetch(`${apiBase}/api/automl/status/${currentJob}`);
-      const data = await response.json();
-      setJobStatus(data);
-
-      if (data.status === "done") {
-        setPolling(false);
-        toast.success("AutoML training completed!");
-      } else if (data.status === "error") {
-        setPolling(false);
-        toast.error(`Training failed: ${data.error}`);
-      }
-    } catch (error) {
-      console.error("Failed to check job status:", error);
-    }
-  };
-
 
   const cancelTraining = async () => {
     if (!currentJob) return;
@@ -160,7 +163,8 @@ export default function AutoMLTraining() {
       setCurrentJob(null);
       setJobStatus(null);
       toast.success("Training cancelled");
-    } catch (error) {
+    } catch (err) {
+      console.error("Failed to cancel training", err);
       toast.error("Failed to cancel training");
     }
   };
@@ -172,9 +176,11 @@ export default function AutoMLTraining() {
   };
 
   return (
-    <div className={styles.pageShell}>
-      <ShadcnNavbar />
+    <div className={`app-shell-with-chrome ${styles.pageShell}`}>
       <div className={styles.pageSection}>
+        <div className={styles.backButtonArea}>
+          <GlobalBackButton />
+        </div>
         <div className={styles.centeredContent}>
           <div className={styles.header}>
             <h1 className={styles.title}>Model Selection</h1>

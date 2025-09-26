@@ -17,7 +17,6 @@
     max-width: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    scrollbar-gutter: stable both-edges;
     display: flex;
     flex-direction: column;
     background: black;
@@ -160,16 +159,15 @@
 }
 
 body, #root, html {
-  background: black !important;
+  background: white !important;
   min-height: 100vh;
   width: 100%;
   margin: 0;
   padding: 0;
-  color: #e0e7ef;
+  color: #0f172a;
   font-family: 'Poppins', 'Segoe UI', 'Montserrat', 'Roboto', Arial, sans-serif;
-  overflow-y: scroll; /* Always reserve scrollbar to prevent width shift */
-  overflow-x: hidden;
-  scrollbar-gutter: stable both-edges;
+  overflow-y: auto; /* Let browser manage vertical scrollbar */
+  overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
 /* Global scrollbar minimization */
@@ -187,6 +185,7 @@ body, #root, html {
 }
 
 :root {
+  --navbar-height: 76px;
   line-height: 1.5;
   font-weight: 400;
 
@@ -285,4 +284,9 @@ button:focus-visible {
   font-size: 12px;
   color: #6b7280;
   margin-top: 4px;
+}
+
+.app-shell-with-chrome {
+  padding-top: var(--navbar-height, 60px);
+  min-height: 100vh;
 }

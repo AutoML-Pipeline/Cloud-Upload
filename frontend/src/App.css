@@ -1,16 +1,10 @@
 #root {
-  max-width: 100vw;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-  height: 100%;
+  width: 100%;
+  min-height: 100vh;
   margin: 0;
   padding: 0;
-  width: 100vw;
-  min-height: 100vh;
-  max-width: 100vw;
-  overflow: hidden;
-  background: #000;
+  text-align: left;
+  background: transparent; /* Allow global index.css to define page background */
 }
 
 .logo {
@@ -52,13 +46,12 @@
 #page-content {
   min-height: 100vh;
   height: 100vh;
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  overflow: hidden;
   box-sizing: border-box;
 }
 
@@ -66,25 +59,23 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  width: 100vw;
+  width: 100%;
   min-height: 100vh;
-  max-width: 100vw;
-  overflow: hidden;
-  background: #000;
+  max-width: 100%;
+  background: transparent; /* Use global background from index.css */
 }
 
 /* Ensure all main page containers fill the viewport */
 .page-fullscreen {
   min-height: 100vh;
   height: 100vh;
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   box-sizing: border-box;
-  overflow: hidden;
 }
 
 /* Use minimal scrollbars (global styles in index.css). Add .no-scrollbar where you want to hide. */
@@ -108,7 +99,7 @@ html, body, #root {
   justify-content: center;
   align-items: center;
   min-height: 80vh;
-  width: 100vw;
+  width: 100%;
 }
 
 .dashboard-stepper {
@@ -150,64 +141,6 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.dashboard-stepper-fun {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 2.5rem;
-  justify-content: center;
-  margin-top: 2rem;
-}
-
-.dashboard-step-box-fun {
-  min-width: 160px;
-  min-height: 160px;
-  background: linear-gradient(135deg, #232b38 70%, #181c25 100%);
-  border: 4px solid #60a5fa;
-  border-radius: 22px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: #e0e7ef;
-  transition: box-shadow 0.2s, border-color 0.2s, background 0.2s, transform 0.18s;
-  box-shadow: 0 4px 24px #60a5fa55;
-  cursor: pointer;
-  outline: none;
-  margin: 0 0.2rem;
-  position: relative;
-}
-.dashboard-step-box-fun:hover, .dashboard-step-box-fun:focus {
-  transform: scale(1.07) rotate(-2deg);
-  background: linear-gradient(135deg, #6366f1 60%, #232b38 100%);
-  box-shadow: 0 8px 32px #6366f155;
-  border-color: #6366f1;
-}
-.dashboard-step-icon {
-  margin-bottom: 0.5rem;
-  filter: drop-shadow(0 2px 8px #0008);
-}
-.dashboard-step-label-fun {
-  font-size: 1.2rem;
-  font-weight: 700;
-  text-align: center;
-  color: #e0e7ef;
-  letter-spacing: 0.01em;
-}
-.dashboard-step-arrow-fun {
-  font-size: 3rem;
-  font-weight: bold;
-  color: #a3aed6;
-  user-select: none;
-  margin: 0 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  filter: drop-shadow(0 2px 8px #0006);
 }
 
 .ingestion-options-game {

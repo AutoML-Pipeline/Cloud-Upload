@@ -1,0 +1,130 @@
+.page {
+  composes: page from "./UploadFile.module.css";
+}
+
+.main {
+  composes: main from "./UploadFile.module.css";
+}
+
+.layout {
+  composes: layout from "./UploadFile.module.css";
+}
+
+.card {
+  composes: card from "./UploadFile.module.css";
+}
+
+.header {
+  composes: header from "./UploadFile.module.css";
+}
+
+.kicker {
+  composes: kicker from "./UploadFile.module.css";
+}
+
+.title {
+  composes: title from "./UploadFile.module.css";
+}
+
+.subtitle {
+  composes: subtitle from "./UploadFile.module.css";
+}
+
+.renameBlock {
+  composes: renameBlock from "./UploadFile.module.css";
+}
+
+.label {
+  composes: label from "./UploadFile.module.css";
+}
+
+.textInput {
+  composes: textInput from "./UploadFile.module.css";
+}
+
+.actions {
+  composes: actions from "./UploadFile.module.css";
+  justify-content: center;
+}
+
+.primaryButton {
+  composes: primaryButton from "./UploadFile.module.css";
+}
+
+.note {
+  composes: note from "./UploadFile.module.css";
+  text-align: center;
+}
+
+.featureGrid {
+  composes: featureGrid from "./UploadFile.module.css";
+}
+
+.featureCard {
+  composes: featureCard from "./UploadFile.module.css";
+}
+
+.featureTitle {
+  composes: featureTitle from "./UploadFile.module.css";
+}
+
+.featureDescription {
+  composes: featureDescription from "./UploadFile.module.css";
+}
+
+.urlForm {
+  margin-top: clamp(1.6rem, 3.5vw, 2.6rem);
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(0.85rem, 3vw, 1.2rem);
+  align-items: stretch;
+}
+
+.urlInput {
+  composes: textInput from "./UploadFile.module.css";
+  flex: 1 1 240px;
+  min-width: 220px;
+  padding: 0 1.6rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.06);
+}
+
+.urlButton {
+  composes: primaryButton from "./UploadFile.module.css";
+  width: auto;
+  padding: 0 2.75rem;
+  border-radius: 999px;
+  box-shadow: 0 18px 40px rgba(59, 130, 246, 0.28);
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.urlButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.helper {
+  margin-top: 0.9rem;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  max-width: 42rem;
+}
+
+.renameHint {
+  margin-top: 0.6rem;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .urlButton {
+    width: 100%;
+  }
+}

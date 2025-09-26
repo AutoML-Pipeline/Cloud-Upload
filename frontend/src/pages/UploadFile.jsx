@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
-import ShadcnNavbar from "../components/ShadcnNavbar";
 import GlobalBackButton from "../components/GlobalBackButton"; // Import the GlobalBackButton component
 import { toast } from 'react-hot-toast';
+import styles from "./UploadFile.module.css";
 
 export default function UploadFile() {
   const [file, setFile] = useState(null);
@@ -58,47 +58,87 @@ export default function UploadFile() {
     setUploading(false);
   };
 
+  const fileInputId = "dataset-upload-input";
+
   return (
-    <div className="page-shell">
-      <div className="min-h-[calc(100vh-54px)] w-screen overflow-hidden relative flex flex-col items-center justify-start mt-[54px]">
-        <ShadcnNavbar onLogout={() => {
-          // Remove all possible auth tokens and user info
-          localStorage.removeItem("user");
-          localStorage.removeItem("google_access_token");
-          localStorage.removeItem("access_token");
-          sessionStorage.clear();
-          window.location.replace("/");
-        }} />
-        <div className="page-section">
-          <div className="absolute left-0 top-0 z-[10000] pointer-events-auto">
-            <div className="ml-8 mt-6 z-[10001] pointer-events-auto">
-              <GlobalBackButton />
-            </div>
-          </div>
-          <div className="w-full flex flex-col items-center z-10 mb-8 mt-14">
-            <div className="auth-card">
-              <h2 className="heading-xl">Upload File</h2>
-              <input type="file" onChange={handleFileChange} className="input" />
-              {file && (
-                <div className="mt-4 w-full max-w-[340px]">
-                  <label htmlFor="rename-file" className="block text-sm font-medium text-gray-700 mb-1">Rename File (will be saved as .parquet):</label>
-                  <input
-                    type="text"
-                    id="rename-file"
-                    value={renamedFilename}
-                    onChange={handleRenamedFilenameChange}
-                    className="input"
-                    placeholder="Enter new file name"
-                  />
-                </div>
-              )}
-              <button onClick={handleUpload} disabled={uploading} className="btn-primary max-w-[340px]" style={{ background: uploading ? '#444' : undefined }}>
-                {uploading ? 'Uploading...' : 'Upload'}
+    <div className={styles.page}>
+      <main className={styles.main}>
+        <div className={styles.layout}>
+          <GlobalBackButton />
+          <section className={styles.card}>
+            <header className={styles.header}>
+              <span className={styles.kicker}>Dataset intake</span>
+              <h1 className={styles.title}>Upload your dataset</h1>
+              <p className={styles.subtitle}>
+                Bring your CSV, Excel, JSON, or Parquet file. We’ll store it as an optimized Parquet file
+                so downstream preprocessing stays lightning fast.
+              </p>
+            </header>
+
+            <label className={styles.dropZone} htmlFor={fileInputId}>
+              <input
+                id={fileInputId}
+                type="file"
+                accept=".csv,.tsv,.txt,.xlsx,.xls,.json,.parquet"
+                onChange={handleFileChange}
+                className={styles.nativeInput}
+              />
+              <span className={styles.fileStatus}>{file ? "File ready" : "Step 1"}</span>
+              <span className={styles.fileName}>
+                {file ? file.name : "Drag in or click to browse your dataset"}
+              </span>
+              <span className={styles.fileHint}>Automatic validation & schema detection</span>
+            </label>
+
+            {file && (
+              <div className={styles.renameBlock}>
+                <label className={styles.label} htmlFor="rename-file">
+                  Save as
+                  <span>.parquet for cloud-ready performance</span>
+                </label>
+                <input
+                  type="text"
+                  id="rename-file"
+                  value={renamedFilename}
+                  onChange={handleRenamedFilenameChange}
+                  className={styles.textInput}
+                  placeholder="e.g. churn_customers"
+                />
+              </div>
+            )}
+
+            <div className={styles.actions}>
+              <button onClick={handleUpload} disabled={uploading} className={styles.primaryButton}>
+                {uploading ? "Uploading…" : "Upload dataset"}
               </button>
+              <p className={styles.note}>
+                Your file remains private and is processed securely inside your workspace.
+              </p>
             </div>
-          </div>
+
+            <div className={styles.featureGrid}>
+              <div className={styles.featureCard}>
+                <div className={styles.featureTitle}>Quality checks</div>
+                <div className={styles.featureDescription}>
+                  Instant validation flags missing headers, incompatible types, and duplicate rows before they spread.
+                </div>
+              </div>
+              <div className={styles.featureCard}>
+                <div className={styles.featureTitle}>Smart conversion</div>
+                <div className={styles.featureDescription}>
+                  Automatic Parquet conversion keeps your data lightweight and analytics-ready without extra steps.
+                </div>
+              </div>
+              <div className={styles.featureCard}>
+                <div className={styles.featureTitle}>Seamless hand-off</div>
+                <div className={styles.featureDescription}>
+                  Jump directly into preprocessing with preserved column metadata and profile insights.
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

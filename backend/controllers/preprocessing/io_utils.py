@@ -1,16 +1,35 @@
-import io
+import os
+import tempfile
 from typing import Tuple
 import pandas as pd
 import numpy as np
 from decimal import Decimal
-from minio import Minio
 from backend.config import MINIO_BUCKET, minio_client
 
 
+CHUNK_SIZE = 32 * 1024
+
+
+def _download_to_tempfile(object_name: str, bucket: str = MINIO_BUCKET) -> str:
+    """Stream a MinIO object to a temporary file and return the path."""
+    response = minio_client.get_object(bucket, object_name)
+    try:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            for chunk in response.stream(CHUNK_SIZE):
+                tmp.write(chunk)
+            return tmp.name
+    finally:
+        response.close()
+        response.release_conn()
+
+
 def read_parquet_from_minio(filename: str) -> pd.DataFrame:
-    response = minio_client.get_object(MINIO_BUCKET, filename)
-    data = io.BytesIO(response.read())
-    df = pd.read_parquet(data, engine="pyarrow")
+    temp_path = _download_to_tempfile(filename)
+    try:
+        df = pd.read_parquet(temp_path, engine="pyarrow")
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
     # Preserve a stable original index for diffing
     if "_orig_idx" not in df.columns:
         df = df.reset_index(drop=False).rename(columns={"index": "_orig_idx"})

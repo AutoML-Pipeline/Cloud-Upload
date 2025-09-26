@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
-import ShadcnNavbar from "../components/ShadcnNavbar";
-import GlobalBackButton from "../components/GlobalBackButton"; // Import the GlobalBackButton component
-// import UploadedFilesTable from '../components/UploadedFilesTable'; // Removed UploadedFilesTable import
+import GlobalBackButton from "../components/GlobalBackButton";
 import { toast } from 'react-hot-toast';
+import styles from "./UploadFile.module.css";
 
 export default function UploadUrl() {
   const [url, setUrl] = useState("");
@@ -60,87 +59,87 @@ export default function UploadUrl() {
       if (data.filename) {
         navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);
       }
-    } catch (e) {
+    } catch {
       toast.error("Upload failed");
     }
     setUploading(false);
   };
 
-  const inputStyle = {
-    width: "100%",
-    maxWidth: 340,
-    padding: "0.75rem 1rem",
-    borderRadius: "0.75rem",
-    border: "1px solid #334155",
-    background: "rgba(30,41,59,0.85)",
-    color: "#e0e7ef",
-    fontSize: 16,
-    outline: "none",
-    marginTop: 2,
-    marginBottom: 10,
-    boxSizing: "border-box",
-    fontFamily: "'Poppins', 'Segoe UI', 'Montserrat', 'Roboto', Arial, sans-serif",
-    fontWeight: 500
-  };
+  // No inline styles needed; all styling handled via Tailwind classes above.
 
   return (
-    <div className="page-fullscreen" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'black' }}>
-      <ShadcnNavbar onLogout={() => {
-        localStorage.removeItem("user");
-        localStorage.removeItem("google_access_token");
-        localStorage.removeItem("access_token");
-        sessionStorage.clear();
-        window.location.replace("/");
-      }} />
-      <div style={{
-        position: 'relative',
-        zIndex: 1,
-        width: '100%',
-        maxWidth: 1100,
-        margin: '0 auto',
-        padding: 32,
-        background: 'rgba(0,0,0,0.7)',
-        borderRadius: 16,
-        boxShadow: '0 4px 32px rgba(0,0,0,0.8)',
-        minHeight: '80vh',
-        maxHeight: '90vh',
-        overflowY: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-start',
-      }}>
-        {/* Global Back Button (left-aligned, below navbar, with high z-index and pointerEvents) */}
-        <div style={{ position: 'absolute', left: 0, top: 0, zIndex: 10000, pointerEvents: 'auto' }}>
-          <div style={{ marginLeft: 32, marginTop: 24, zIndex: 10001, pointerEvents: 'auto' }}>
-            <GlobalBackButton />
-          </div>
-        </div>
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10, marginBottom: 32, marginTop: 56 }}>
-          <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 600, margin: '0 auto', padding: 32, background: 'rgba(0,0,0,0.7)', borderRadius: 16, boxShadow: '0 4px 32px rgba(0,0,0,0.8)' }}>
-            <h2 style={{ color: 'white', marginBottom: 24 }}>Upload from URL</h2>
-            <input type="text" style={inputStyle} placeholder="Enter file URL" value={url} onChange={e => setUrl(e.target.value)} />
+    <div className={styles.page}>
+      <main className={styles.main}>
+        <div className={styles.layout}>
+          <GlobalBackButton />
+          <section className={styles.card}>
+            <header className={styles.header}>
+              <span className={styles.kicker}>Remote file</span>
+              <h1 className={styles.title}>Fetch from a URL</h1>
+              <p className={styles.subtitle}>
+                Drop in a direct download link. We’ll retrieve the file, validate its structure, and store it as a
+                cloud-optimized Parquet ready for preprocessing.
+              </p>
+            </header>
+
+            <div className={styles.inlineForm}>
+              <input
+                id="file-url"
+                type="text"
+                placeholder="https://example.com/data.csv"
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                className={styles.pillInput}
+              />
+              <button onClick={handleUpload} disabled={uploading} className={styles.pillButton}>
+                {uploading ? "Fetching…" : "Fetch & save"}
+              </button>
+            </div>
+            <p className={styles.helperText}>
+              Works best with public HTTPS links to CSV, TSV, Excel, JSON, or Parquet files. Authenticated sources will
+              require presigned URLs.
+            </p>
+
             {url && (
-              <div style={{ width: "100%", maxWidth: 340, marginBottom: 10, marginTop: 5 }}>
-                <label htmlFor="rename-url-file" style={{ color: '#e0e7ef', fontSize: 13, display: 'block', marginBottom: 5, fontWeight: 500 }}>Rename File (will be saved as .parquet):</label>
+              <div className={styles.renameBlock}>
+                <label className={styles.label} htmlFor="rename-url-file">
+                  Save as
+                  <span>.parquet with automatic timestamp</span>
+                </label>
                 <input
                   type="text"
                   id="rename-url-file"
-                  style={inputStyle}
                   value={renamedFilename}
                   onChange={handleRenamedFilenameChange}
-                  placeholder="Enter new file name"
+                  placeholder="e.g. marketing_spend"
+                  className={styles.textInput}
                 />
               </div>
             )}
-            <button onClick={handleUpload} disabled={uploading} style={{ ...inputStyle, background: uploading ? '#444' : '#2563eb', color: 'white', cursor: uploading ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
-              {uploading ? 'Uploading...' : 'Upload'}
-            </button>
-          </div>
+
+            <div className={styles.featureGrid}>
+              <div className={styles.featureCard}>
+                <div className={styles.featureTitle}>Auto filename</div>
+                <div className={styles.featureDescription}>
+                  We infer a clean dataset name from your URL and keep everything in sync across preprocessing steps.
+                </div>
+              </div>
+              <div className={styles.featureCard}>
+                <div className={styles.featureTitle}>Integrity checks</div>
+                <div className={styles.featureDescription}>
+                  Validation catches unreachable links, download errors, or unsupported formats before they waste time.
+                </div>
+              </div>
+              <div className={styles.featureCard}>
+                <div className={styles.featureTitle}>Immediate pipeline</div>
+                <div className={styles.featureDescription}>
+                  Successful ingests drop you straight into preprocessing with the dataset preloaded for transformation.
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
-        <div style={{ marginBottom: 24 }}>
-          {/* <UploadedFilesTable /> */}
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

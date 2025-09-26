@@ -1,6 +1,25 @@
 # Pydantic request/response models for API endpoints
 from typing import Optional, List, Dict, Any, Union, Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
+
+
+class AuthRegisterRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+    remember_me: bool = False
+
+
+class AuthLoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=1, max_length=128)
+    remember_me: bool = False
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: Dict[str, Any]
 
 class UploadFromURLRequest(BaseModel):
     url: str

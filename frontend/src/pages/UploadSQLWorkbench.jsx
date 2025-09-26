@@ -1,11 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
-import Button from "../components/Button";
+import { useNavigate } from 'react-router-dom';
 import GlobalBackButton from "../components/GlobalBackButton";
-import ShadcnNavbar from "../components/ShadcnNavbar";
 import SQLPreviewBox from "../components/SQLPreviewBox";
 import { toast } from 'react-hot-toast';
-import '../auth.css';
+import styles from "./UploadFile.module.css";
 
 export default function UploadSQLWorkbench() {
   const [host, setHost] = useState("");
@@ -184,147 +182,200 @@ export default function UploadSQLWorkbench() {
   };
 
   React.useEffect(() => {
+    let ctx;
+    let mounted = true;
     if (contentRef.current) {
       import('gsap').then(({ gsap }) => {
-        gsap.fromTo(
-          contentRef.current,
-          { opacity: 0, y: 52, filter: "blur(16px)", scale: 0.93 },
-          { opacity: 1, y: 0, filter: "blur(0px)", scale: 1, duration: 0.6, ease: "power2.out" }
-        );
+        if (!mounted) return;
+        ctx = gsap.context(() => {
+          gsap.fromTo(
+            contentRef.current,
+            { autoAlpha: 0, y: 26, filter: "blur(8px)", scale: 0.97 },
+            { autoAlpha: 1, y: 0, filter: "blur(0px)", scale: 1, duration: 0.45, ease: "power3.out" }
+          );
+        }, contentRef);
       });
     }
+    return () => {
+      mounted = false;
+      if (ctx) ctx.revert();
+    };
   }, []);
 
   return (
-    <div className="page-shell" style={{ overflowY: 'auto', minHeight: '100vh' }}>
-      <ShadcnNavbar onLogout={() => {
-        localStorage.removeItem("user");
-        localStorage.removeItem("google_access_token");
-        localStorage.removeItem("access_token");
-        sessionStorage.clear();
-        window.location.replace("/");
-      }} />
-      <div className="absolute left-8 top-[70px] z-[10000] pointer-events-auto">
-        <GlobalBackButton />
-      </div>
-      <div style={{ paddingTop: 90, paddingBottom: 48, width: '100%', minHeight: 'calc(100vh - 138px)' }}>
-        <div className="page-center" style={{ minHeight: 'auto', padding: '20px 0' }}>
-          <div className="auth-card" ref={contentRef} style={{ maxWidth: 600, width: '100%', position: 'relative', zIndex: 2, pointerEvents: 'auto' }}>
-            <div className="auth-title">Upload from SQL Workbench</div>
-            <form className="auth-form" onSubmit={e => e.preventDefault()}>
-              <input
-                className="auth-input"
-                id="host"
-                placeholder="Host (e.g. localhost)"
-                value={host}
-                onChange={handleHostChange}
-                autoComplete="off"
-              />
-              <input
-                className="auth-input"
-                id="port"
-                placeholder="Port (default: 3306)"
-                value={port}
-                onChange={handlePortChange}
-                autoComplete="off"
-              />
-              <input
-                className="auth-input"
-                id="user"
-                placeholder="Username"
-                value={user}
-                onChange={handleUserChange}
-                autoComplete="off"
-              />
-              <input
-                className="auth-input"
-                id="password"
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={handlePasswordChange}
-                autoComplete="off"
-              />
-              {!connected && (
+    <div className={styles.page}>
+      <main className={styles.main}>
+        <div className={styles.layout}>
+          <GlobalBackButton />
+          <section className={styles.card} ref={contentRef}>
+            <header className={styles.header}>
+              <span className={styles.kicker}>Database intake</span>
+              <h1 className={styles.title}>Query your SQL workbench</h1>
+              <p className={styles.subtitle}>
+                Connect to MySQL-compatible databases, preview your query output, and land the results as an optimized
+                Parquet file for downstream steps.
+              </p>
+            </header>
+
+            <form onSubmit={e => e.preventDefault()} className={styles.formStack}>
+              <div className={styles.fieldRow}>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel} htmlFor="host">Host</label>
+                  <input
+                    className={styles.inputControl}
+                    id="host"
+                    placeholder="e.g. localhost"
+                    value={host}
+                    onChange={handleHostChange}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel} htmlFor="port">Port</label>
+                  <input
+                    className={styles.inputControl}
+                    id="port"
+                    placeholder="3306"
+                    value={port}
+                    onChange={handlePortChange}
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              <div className={styles.fieldRow}>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel} htmlFor="user">Username</label>
+                  <input
+                    className={styles.inputControl}
+                    id="user"
+                    placeholder="Database user"
+                    value={user}
+                    onChange={handleUserChange}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel} htmlFor="password">Password</label>
+                  <input
+                    className={styles.inputControl}
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={handlePasswordChange}
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              <div className={styles.buttonRow}>
                 <button
-                  className="auth-btn"
+                  className={styles.primaryButton}
                   type="button"
                   onClick={handleConnect}
                   disabled={uploading}
-                  style={{ marginTop: 10 }}
                 >
-                  {uploading ? 'Connecting...' : 'Connect to Database'}
+                  {uploading ? "Connecting…" : connected ? "Reconnect" : "Connect to database"}
                 </button>
-              )}
+                {connected && <span className={styles.inlineBadge}>Connected</span>}
+              </div>
+              <p className={styles.supportingNote}>
+                Connection details stay in your browser and auto-fill next time you return to this workbench.
+              </p>
+
               {connected && (
                 <>
-                  <select
-                    className="auth-input"
-                    id="database"
-                    value={database}
-                    onChange={handleDatabaseChange}
-                  >
-                    <option value="">Select Database</option>
-                    {databases.map(db => <option key={db} value={db}>{db}</option>)}
-                  </select>
-                  <textarea
-                    className="auth-input"
-                    id="query"
-                    rows={4}
-                    placeholder="SQL Query (e.g. SELECT * FROM table_name)"
-                    value={query}
-                    onChange={handleQueryChange}
-                  />
+                  <div className={styles.field}>
+                    <label className={styles.fieldLabel} htmlFor="database">Database</label>
+                    <select
+                      className={styles.inputControl}
+                      id="database"
+                      value={database}
+                      onChange={handleDatabaseChange}
+                    >
+                      <option value="">Select database…</option>
+                      {databases.map(db => (
+                        <option key={db} value={db}>
+                          {db}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className={styles.field}>
+                    <label className={styles.fieldLabel} htmlFor="query">SQL query</label>
+                    <textarea
+                      className={`${styles.inputControl} ${styles.textareaControl}`}
+                      id="query"
+                      rows={6}
+                      placeholder="SELECT * FROM table_name LIMIT 100"
+                      value={query}
+                      onChange={handleQueryChange}
+                    />
+                    <p className={styles.supportingNote}>
+                      Limit large result sets for faster previews. Full results will be exported during upload.
+                    </p>
+                  </div>
+
                   {preview && (
-                    <div className="mt-4 w-full">
-                      <label htmlFor="rename-file" className="block text-sm font-medium text-gray-700 mb-1">Rename File (will be saved as .parquet):</label>
+                    <div className={styles.field}>
+                      <label className={styles.fieldLabel} htmlFor="rename-file">
+                        Save as
+                        <span>.parquet with query timestamp</span>
+                      </label>
                       <input
                         type="text"
                         id="rename-file"
                         value={renamedFilename}
                         onChange={handleRenamedFilenameChange}
-                        className="auth-input"
-                        placeholder="Enter new file name"
+                        className={styles.inputControl}
+                        placeholder="e.g. customer_orders"
                       />
                     </div>
                   )}
-                  <div style={{ display: 'flex', gap: 12 }}>
+
+                  <div className={styles.buttonRow}>
                     <button
-                      className="auth-btn"
+                      className={styles.secondaryButton}
                       type="button"
                       onClick={handlePreview}
                       disabled={uploading || !database || !query}
                     >
-                      Preview Query
+                      Preview query
                     </button>
                     <button
-                      className="auth-btn"
+                      className={styles.primaryButton}
                       type="button"
                       onClick={handleUpload}
                       disabled={uploading || !database || !query}
                     >
-                      Upload to MinIO
+                      Upload result
                     </button>
                   </div>
                 </>
               )}
-              {status && (
-                <div style={{ marginTop: 12, color: status.startsWith('Error') || status.startsWith('Upload failed') ? '#dc2626' : '#059669', fontWeight: 500, textAlign: 'center', fontSize: 15 }}>
-                  {status}
-                </div>
-              )}
             </form>
+
+            {status && (
+              <div
+                className={`${styles.status} ${status.startsWith("Error") || status.startsWith("Upload failed") ? styles.statusError : styles.statusSuccess}`}
+              >
+                {status}
+              </div>
+            )}
+
             {preview && (
-              <div style={{ width: '100%', marginTop: 24 }}>
-                <div style={{ fontWeight: 600, color: '#6366f1', marginBottom: 8 }}>Preview Result</div>
-                <div style={{ background: '#f3f4f6', borderRadius: 8, padding: 12, overflow: 'auto', maxHeight: 300 }}>
+              <div className={styles.previewSection}>
+                <div className={styles.previewHeader}>Preview result</div>
+                <div className={styles.previewBody}>
                   <SQLPreviewBox preview={preview} />
                 </div>
               </div>
             )}
-          </div>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

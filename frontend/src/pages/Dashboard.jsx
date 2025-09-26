@@ -1,65 +1,65 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import ShadcnNavbar from "../components/ShadcnNavbar";
+import styles from "./Dashboard.module.css";
 
 const steps = [
   {
     label: "Data Ingestion",
-    route: "/data-ingestion",
+    description: "Bring data into the workspace from files, SQL, or clouds.",
     icon: "📂",
-    color: "#60a5fa"
+    route: "/data-ingestion",
+    accent: "#60a5fa",
   },
   {
     label: "Preprocessing",
+    description: "Clean, validate, and prepare datasets for modeling.",
+    icon: "�",
     route: "/preprocessing",
-    icon: "🧹",
-    color: "#fbbf24"
+    accent: "#fbbf24",
   },
   {
     label: "Feature Engineering",
-    route: "/feature-engineering",
+    description: "Shape and enrich features to unlock signal.",
     icon: "⚙️",
-    color: "#34d399"
+    route: "/feature-engineering",
+    accent: "#34d399",
   },
   {
     label: "Model Selection",
-    route: "/automl-training",
+    description: "Run AutoML and compare experiments to pick a champion.",
     icon: "🚀",
-    color: "#f59e0b"
+    route: "/automl-training",
+    accent: "#38bdf8",
   },
-  // Add more steps as needed, e.g.:
-  // { label: "Training", route: "/training", icon: "🤖", color: "#34d399" }
 ];
 
 const Dashboard = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="page-shell">
-      <ShadcnNavbar />
-      <div className="min-h-screen w-full flex flex-col items-center justify-center pt-24 pb-16">
-        <div className="text-[2rem] font-bold tracking-tight text-text mb-10 text-center">
-          Welcome to Your ML Pipeline!
-        </div>
-        <div className="dashboard-stepper-fun">
-          {steps.map((step, idx) => (
-            <React.Fragment key={step.label}>
-              <div
-                className="dashboard-step-box-fun"
-                style={{ borderColor: step.color, boxShadow: `0 4px 24px ${step.color}55` }}
-                onClick={() => navigate(step.route)}
-                tabIndex={0}
-                role="button"
-              >
-                <span className="dashboard-step-icon" style={{ fontSize: 40 }}>{step.icon}</span>
-                <span className="dashboard-step-label-fun">{step.label}</span>
-              </div>
-              {idx < steps.length - 1 && (
-                <div className="dashboard-step-arrow-fun">→</div>
-              )}
-            </React.Fragment>
-          ))}
-        </div>
+    <div className={`app-shell-with-chrome ${styles.dashboardShell}`}>
+      <div className={styles.stepsIntro}>
+        <p className={styles.stepsHint}>Jump straight into any stage of your ML pipeline.</p>
+      </div>
+      <div className={styles.stepsGrid}>
+        {steps.map((step) => (
+          <button
+            key={step.label}
+            type="button"
+            className={styles.stepCard}
+            style={{ boxShadow: `0 16px 36px ${step.accent}33` }}
+            onClick={() => navigate(step.route)}
+          >
+            <span className={styles.stepIcon} style={{ background: step.accent }}>
+              {step.icon}
+            </span>
+            <span>
+              <span className={styles.stepTitle}>{step.label}</span>
+              <span className={styles.stepDescription}>{step.description}</span>
+            </span>
+            <span className={styles.stepChevron}>→</span>
+          </button>
+        ))}
       </div>
     </div>
   );

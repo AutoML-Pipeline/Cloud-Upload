@@ -4,20 +4,26 @@
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   overflow-y: auto;
-  padding-top: 80px; /* Account for fixed navbar */
+  padding-bottom: 60px;
 }
 
 .pageSection {
-  width: 100vw;
+  width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 3rem 2rem 2rem 2rem; /* Increased top padding */
-  min-height: calc(100vh - 80px);
+  padding: 3rem 2rem 2rem;
+  min-height: calc(100vh - var(--navbar-height));
 }
 
 .centeredContent {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.backButtonArea {
+  margin-bottom: 2rem;
+  position: relative;
+  z-index: 10;
 }
 
 /* Header */

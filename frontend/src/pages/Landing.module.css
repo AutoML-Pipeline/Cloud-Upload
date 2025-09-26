@@ -1,0 +1,153 @@
+.backgroundScene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  min-height: 100vh;
+  min-width: 100%;
+  overflow: hidden;
+  background: #000;
+  z-index: 0;
+}
+
+.backgroundFrame {
+  width: 100%;
+  height: 100vh;
+  border: none;
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: #000;
+  max-width: 100%;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.heroContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+  padding: 0 1.5rem;
+}
+
+.heroBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  max-width: min(640px, 90vw);
+  pointer-events: auto;
+  padding: 2rem 2.5rem;
+  backdrop-filter: blur(18px);
+  background: rgba(15, 23, 42, 0.48);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 1.5rem;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.45);
+  opacity: 0;
+  transform: translateY(80px);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.heroHeading {
+  font-size: clamp(2.4rem, 4vw, 3.4rem);
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  color: var(--color-text, #e0e7ef);
+  letter-spacing: -0.02em;
+}
+
+.heroSubheading {
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  max-width: 52ch;
+  text-align: center;
+  color: var(--color-text-muted, #a3aed6);
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.getStartedButton {
+  pointer-events: auto;
+  padding: 0.9rem 2.6rem;
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.95) 0%, var(--color-primary, #6366f1) 100%);
+  color: var(--color-text, #e0e7ef);
+  font-weight: 600;
+  border-radius: 0.85rem;
+  font-size: 1.05rem;
+  box-shadow: 0 18px 40px rgba(99, 102, 241, 0.24);
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  letter-spacing: 0.05em;
+  margin-top: 0.75rem;
+}
+
+.getStartedButton:hover,
+.getStartedButton:focus-visible {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 28px 60px rgba(99, 102, 241, 0.32);
+  background: linear-gradient(90deg, var(--color-primary, #6366f1) 0%, rgba(30, 41, 59, 0.95) 100%);
+}
+
+.getStartedButton:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.65);
+  outline-offset: 4px;
+}
+
+.heroSecondaryLink {
+  pointer-events: auto;
+  padding: 0.85rem 2.2rem;
+  font-weight: 600;
+  border-radius: 0.85rem;
+  font-size: 1.02rem;
+  border: 1.5px solid rgba(148, 163, 184, 0.45);
+  color: var(--color-text, #e0e7ef);
+  background: rgba(15, 23, 42, 0.15);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.heroSecondaryLink:hover,
+.heroSecondaryLink:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: 0 24px 44px rgba(15, 23, 42, 0.45);
+  border-color: rgba(148, 163, 184, 0.75);
+}
+
+.heroSecondaryLink:focus-visible {
+  outline: 2px solid rgba(148, 163, 184, 0.65);
+  outline-offset: 4px;
+}
+
+@media (max-width: 768px) {
+  .heroBox {
+    padding: 1.75rem 1.8rem;
+    gap: 1.1rem;
+  }
+
+  .actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .getStartedButton,
+  .heroSecondaryLink {
+    width: 100%;
+    text-align: center;
+  }
+}

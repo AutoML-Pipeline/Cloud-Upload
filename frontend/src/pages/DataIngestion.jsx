@@ -1,6 +1,5 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import ShadcnNavbar from "../components/ShadcnNavbar";
 import GlobalBackButton from "../components/GlobalBackButton";
 
 const ingestionOptions = [
@@ -35,7 +34,6 @@ export default function DataIngestion() {
 
   return (
     <div className="page-shell">
-      <ShadcnNavbar />
       <div className="absolute left-8 top-[70px] z-[10000] pointer-events-auto">
         <GlobalBackButton />
       </div>

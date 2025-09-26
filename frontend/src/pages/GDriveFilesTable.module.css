@@ -1,0 +1,241 @@
+.tableWrap {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.09), rgba(14, 165, 233, 0.08));
+  border-radius: 18px;
+  padding: 1px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.table thead tr {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 64, 175, 0.92));
+  color: #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+}
+
+.headerCell {
+  padding: 16px 20px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.headerCell:first-child {
+  border-top-left-radius: 18px;
+}
+
+.headerCell:last-child {
+  text-align: right;
+  border-top-right-radius: 18px;
+}
+
+.row {
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.row:hover {
+  background: rgba(226, 232, 240, 0.32);
+  transform: translateY(-1px);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.folderRow {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.cell {
+  padding: 16px 20px;
+  color: #1f2937;
+  font-weight: 500;
+  font-size: 0.95rem;
+  vertical-align: middle;
+}
+
+.nameCell {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.clickable:hover {
+  color: #2563eb;
+}
+
+.fileIcon,
+.folderBadge {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.fileIcon {
+  background: rgba(96, 165, 250, 0.16);
+  color: #1d4ed8;
+}
+
+.folderBadge {
+  background: rgba(74, 222, 128, 0.16);
+  color: #15803d;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(107, 114, 128, 0.16);
+  color: #1f2937;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.actionButton {
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.actionButton:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.primaryAction {
+  background: linear-gradient(135deg, #2563eb, #22d3ee);
+  color: #ffffff;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.26);
+}
+
+.secondaryAction {
+  background: rgba(148, 163, 184, 0.25);
+  color: #0f172a;
+}
+
+.iconOnly {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4338ca;
+}
+
+.actionButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(59, 130, 246, 0.24);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.emptyTitle {
+  font-size: 1.15rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.emptySubtitle {
+  margin-top: 8px;
+  color: #475467;
+  font-size: 0.95rem;
+}
+
+.emptyCTA {
+  margin-top: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+@media (max-width: 960px) {
+  .table thead {
+    display: none;
+  }
+
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+
+  .row {
+    margin-bottom: 18px;
+    border: 1px solid rgba(226, 232, 240, 0.75);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  .cell {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  }
+
+  .cell:last-child {
+    border-bottom: none;
+  }
+
+  .cell::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.7rem;
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+}

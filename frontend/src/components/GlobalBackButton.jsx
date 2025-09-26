@@ -1,8 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-const NAVBAR_HEIGHT = 54;
-
 const GlobalBackButton = ({ className }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,7 +16,7 @@ const GlobalBackButton = ({ className }) => {
           navigate("/dashboard", { replace: true });
         }
       }}
-      className={`fixed left-6 z-[9999] p-1 rounded-full bg-[#23272f] hover:bg-[#374151] text-white text-base font-semibold shadow flex items-center border border-[#374151] transition ${className}`}
+  className={`fixed z-[9999] p-1 rounded-full bg-[#23272f] hover:bg-[#374151] text-white text-base font-semibold shadow flex items-center border border-[#374151] transition ${className ?? ""}`}
       style={{
         fontFamily: 'Montserrat',
         boxShadow: '0 2px 12px rgba(30,41,59,0.24)',
@@ -26,7 +24,8 @@ const GlobalBackButton = ({ className }) => {
         minHeight: 32,
         justifyContent: 'center',
         alignItems: 'center',
-        top: `calc(${NAVBAR_HEIGHT}px + 10px)` // Always below navbar, add extra space
+        top: 'calc(var(--navbar-height, 60px) + 12px)',
+        left: 'clamp(1rem, 3vw, 2.75rem)'
       }}
       title="Go Back"
     >
