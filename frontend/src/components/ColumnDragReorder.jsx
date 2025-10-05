@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import styles from "./ColumnDragReorder.module.css";
 
-export default function ColumnDragReorder({ columns, order, onChange }) {
+export default function ColumnDragReorder({ order, onChange }) {
   const dragCol = useRef(null);
 
   const handleDragStart = (col) => {

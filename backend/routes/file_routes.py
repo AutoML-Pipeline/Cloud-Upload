@@ -15,6 +15,11 @@ async def upload_file_route(file: UploadFile = File(...), new_filename: str = Fo
 async def upload_from_url_route(request: UploadFromURLRequest, access_token: str = Form(None)):
     return await file_controller.upload_from_url(request, access_token)
 
+# Back-compat alias so clients hitting /files/upload-from-url still work
+@router.post("/files/upload-from-url")
+async def upload_from_url_compat(request: UploadFromURLRequest, access_token: str = Form(None)):
+    return await file_controller.upload_from_url(request, access_token)
+
 @router.post("/upload-from-google-drive")
 async def upload_from_google_drive_route(request: UploadFromGoogleDriveRequest):
     return await gdrive_service.upload_from_gdrive(request)

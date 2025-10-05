@@ -1,9 +1,8 @@
 import React from "react";
 
 export default function DashboardCarousel({ options, onCardClick }) {
-  // Error boundary for this component
-  const [hasError, setHasError] = React.useState(false);
-  const [errorMsg, setErrorMsg] = React.useState("");
+  const hasError = false;
+  const errorMsg = "";
 
   // Defensive: validate options
   const safeOptions = Array.isArray(options) && options.length > 0

@@ -5,11 +5,11 @@
 /* Design System: component layer */
 @layer components {
   :root {
-    --color-text: #e0e7ef;
-    --color-text-muted: #a3aed6;
-    --color-primary: #6366f1;
-    --panel-bg: rgba(24, 28, 37, 0.68);
-    --panel-border: rgba(99, 102, 241, 0.16);
+    --color-text: #1f2937;
+    --color-text-muted: #64748b;
+    --color-primary: #4f46e5;
+    --panel-bg: #ffffff;
+    --panel-border: rgba(148, 163, 184, 0.45);
   }
   .page-shell {
     min-height: 100vh;
@@ -19,7 +19,7 @@
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
-    background: black;
+    background: #ffffff;
     color: var(--color-text);
   }
   .page-section {
@@ -29,9 +29,9 @@
     margin-left: auto;
     margin-right: auto;
     padding: 2rem;
-    background: rgba(0,0,0,0.7);
+    background: #ffffff;
     border-radius: 1rem;
-    box-shadow: 0 4px 32px rgba(0,0,0,0.8);
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -43,20 +43,20 @@
     margin-left: auto;
     margin-right: auto;
     border-radius: 1rem;
-    background: rgba(30,41,59,0.9);
+    background: #ffffff;
     color: var(--color-text);
     padding: 2.5rem 2rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
   }
   .panel {
     background: var(--panel-bg);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
     border-radius: 1.25rem;
-    box-shadow: 0 8px 32px rgba(30,41,59,0.45);
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
     border: 1.5px solid var(--panel-border);
   }
   .page-center {
@@ -81,8 +81,8 @@
     max-width: 340px;
     padding: 0.75rem 1rem;
     border-radius: 0.75rem;
-    border: 1px solid #334155;
-    background: rgba(30,41,59,0.9);
+    border: 1.5px solid #d1d5db;
+    background: #ffffff;
     color: var(--color-text);
     font-size: 16px;
     outline: none;
@@ -90,6 +90,11 @@
     margin-bottom: 10px;
     box-sizing: border-box;
     font-weight: 500;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .input:focus {
+    border-color: rgba(79, 70, 229, 0.65);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
   }
   .btn-primary {
     width: 100%;
@@ -117,12 +122,12 @@
     border-radius: 0.75rem;
     font-weight: 600;
     color: var(--color-text);
-    background: rgba(30,41,59,0.9);
-    border: 1px solid #334155;
-    box-shadow: 0 2px 12px rgba(30,41,59,0.25);
-    transition: opacity 0.2s ease, filter 0.2s ease, background 0.2s ease;
+    background: #ffffff;
+    border: 1.5px solid #d1d5db;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   }
-  .btn-secondary:hover { filter: brightness(0.98); }
+  .btn-secondary:hover { border-color: rgba(79, 70, 229, 0.5); box-shadow: 0 10px 24px rgba(79, 70, 229, 0.15); }
   .btn-secondary:disabled { opacity: 0.7; cursor: not-allowed; }
 
   .btn-outline {
@@ -152,8 +157,8 @@
 
   /* Form Field */
   .form-field { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 0.875rem; }
-  .form-label { font-size: 0.9rem; font-weight: 600; color: var(--color-text); opacity: 0.9; }
-  .form-required { color: #f87171; margin-left: 0.25rem; }
+  .form-label { font-size: 0.9rem; font-weight: 600; color: var(--color-text); opacity: 0.92; }
+  .form-required { color: #dc2626; margin-left: 0.25rem; }
   .form-hint { font-size: 0.8rem; color: var(--color-text-muted); }
   .form-error { font-size: 0.8rem; color: #f87171; font-weight: 600; }
 }
@@ -189,7 +194,7 @@ body, #root, html {
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -216,17 +221,19 @@ h1 {
 
 button {
   border-radius: 8px;
-  border: 1px solid transparent;
+  border: 1px solid #d1d5db;
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: #ffffff;
+  color: #1f2937;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, box-shadow 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: rgba(79, 70, 229, 0.5);
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.18);
 }
 button:focus,
 button:focus-visible {

@@ -17,20 +17,6 @@ export default function FillNullSelector({
     return count > 0;
   });
   
-  // Handlers for strategy changes
-  const handleStrategyChange = (col, strategy) => {
-    if (onChangeStrategy) {
-      onChangeStrategy(col, strategy);
-    }
-  };
-
-  const handleCustomValueChange = (col, value) => {
-    if (onChangeStrategy) {
-      const current = strategies[col]?.strategy || 'custom';
-      onChangeStrategy(col, current, value);
-    }
-  };
-
   return (
     <div className={styles.wrapper}>
       <ColumnMultiSelect

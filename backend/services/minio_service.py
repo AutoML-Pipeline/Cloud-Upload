@@ -4,6 +4,7 @@ import os
 import logging
 import pandas as pd
 import tempfile
+from typing import Optional, Tuple
 
 def ensure_bucket_exists(bucket_name: str):
     if not minio_client.bucket_exists(bucket_name):
@@ -92,6 +93,29 @@ def save_data_to_minio(data: str, filename: str, folder: str = "cleaned-data"):
         logging.error(f"Error saving data to Minio: {e}")
         return {"error": f"Error saving data to Minio: {e}"}
 
+def save_feature_engineered_temp(temp_path: str, filename: str, bucket: str = "feature-engineered"):
+    try:
+        if not os.path.exists(temp_path):
+            return {"error": "Temporary engineered file not found."}
+        if not minio_client.bucket_exists(bucket):
+            minio_client.make_bucket(bucket)
+        minio_client.fput_object(
+            bucket,
+            filename,
+            temp_path,
+            content_type="application/octet-stream",
+        )
+        os.unlink(temp_path)
+        return {"message": f"{filename} saved to Minio bucket {bucket}."}
+    except Exception as e:
+        logging.error(f"Error saving engineered file to Minio: {e}")
+        if os.path.exists(temp_path):
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                logging.warning("Failed to clean up temp file %s", temp_path)
+        return {"error": f"Error saving engineered file to Minio: {e}"}
+
 def download_cleaned_file(filename: str):
     output_bucket = "cleaned-data"
     try:
@@ -103,3 +127,77 @@ def download_cleaned_file(filename: str):
         }}
     except Exception as e:
         return {"error": f"Error downloading cleaned file: {e}"}
+
+
+def _read_dataframe_from_path(path: str) -> pd.DataFrame:
+    lower = path.lower()
+    if lower.endswith(".parquet"):
+        return pd.read_parquet(path, engine="pyarrow")
+    if lower.endswith(".csv"):
+        return pd.read_csv(path)
+    if lower.endswith(".xlsx"):
+        return pd.read_excel(path)
+    if lower.endswith(".json"):
+        return pd.read_json(path)
+    raise ValueError("Unsupported file format for download")
+
+
+def _read_dataframe_from_bytes(data: bytes, filename: str) -> pd.DataFrame:
+    lower = filename.lower()
+    buffer = io.BytesIO(data)
+    if lower.endswith(".parquet"):
+        return pd.read_parquet(buffer, engine="pyarrow")
+    if lower.endswith(".csv"):
+        return pd.read_csv(buffer)
+    if lower.endswith(".xlsx"):
+        return pd.read_excel(buffer)
+    if lower.endswith(".json"):
+        buffer.seek(0)
+        return pd.read_json(buffer)
+    raise ValueError("Unsupported file format for download")
+
+
+def _load_dataframe_from_source(
+    temp_path: Optional[str],
+    bucket: str,
+    filename: Optional[str],
+) -> pd.DataFrame:
+    if temp_path and os.path.exists(temp_path):
+        return _read_dataframe_from_path(temp_path)
+
+    if filename:
+        if not minio_client.bucket_exists(bucket):
+            raise FileNotFoundError(f"Bucket '{bucket}' not found")
+        response = minio_client.get_object(bucket, filename)
+        try:
+            data = response.read()
+        finally:
+            response.close()
+            response.release_conn()
+        return _read_dataframe_from_bytes(data, filename)
+
+    raise FileNotFoundError("Dataset source not available")
+
+
+def _derive_csv_filename(source_name: Optional[str], default_name: str) -> str:
+    if source_name:
+        base = os.path.splitext(os.path.basename(source_name))[0]
+        return f"{base}.csv"
+    return default_name
+
+
+def prepare_dataset_csv_bytes(
+    temp_path: Optional[str],
+    filename: Optional[str],
+    bucket: str,
+    default_filename: str,
+    drop_internal_columns: bool = True,
+) -> Tuple[bytes, str]:
+    df = _load_dataframe_from_source(temp_path, bucket, filename)
+    if drop_internal_columns and "_orig_idx" in df.columns:
+        df = df.drop(columns=["_orig_idx"])
+    csv_buffer = io.StringIO()
+    df.to_csv(csv_buffer, index=False)
+    csv_bytes = csv_buffer.getvalue().encode("utf-8")
+    download_name = _derive_csv_filename(filename, default_filename)
+    return csv_bytes, download_name

@@ -1,5 +1,5 @@
 import React from "react";
-import styles from "../pages/GDriveFilesTable.module.css";
+import styles from "../pages/gdrive-files/GDriveFilesTable.module.css";
 
 const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 

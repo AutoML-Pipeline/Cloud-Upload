@@ -19,38 +19,44 @@
   gap: 1rem;
 }
 .csvBtn {
-  background: linear-gradient(90deg, #7c3aed 0%, #6366f1 100%);
-  color: #fff;
+  background: linear-gradient(135deg, #1e3a8a, #0f172a);
+  color: #f8fafc;
   font-weight: 700;
   font-size: 1.08rem;
-  border: none;
-  border-radius: 0.8rem;
+  border: 1px solid rgba(15, 23, 42, 0.55);
+  border-radius: 0.9rem;
   padding: 0.7rem 2.2rem;
   cursor: pointer;
-  box-shadow: 0 2px 8px #6366f122;
-  transition: background 0.18s, transform 0.15s;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.34);
+  transition: transform 0.18s, box-shadow 0.18s, filter 0.18s;
   margin-right: 1rem;
 }
-.csvBtn:hover {
-  background: #6366f1;
+.csvBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.42);
+  filter: brightness(1.05);
 }
 
+
+
 .minioBtn {
-  background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
-  color: #fff;
+  background: linear-gradient(135deg, #7f1d1d, #450a0a);
+  color: #fef2f2;
   font-weight: 700;
   font-size: 1.08rem;
-  border: none;
-  border-radius: 0.8rem;
+  border: 1px solid rgba(69, 10, 10, 0.6);
+  border-radius: 0.9rem;
   padding: 0.7rem 2.2rem;
   cursor: pointer;
-  box-shadow: 0 2px 8px #f093fb22;
-  transition: background 0.18s, transform 0.15s;
+  box-shadow: 0 12px 28px rgba(68, 10, 10, 0.36);
+  transition: transform 0.18s, box-shadow 0.18s, filter 0.18s;
   margin-right: 1rem;
 }
 
 .minioBtn:hover:not(:disabled) {
-  background: #f5576c;
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(68, 10, 10, 0.42);
+  filter: brightness(1.05);
 }
 
 .minioBtn:disabled {
@@ -85,7 +91,7 @@
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  background: #f3f6fb;
+  background: #ffffff;
   border-radius: 0.5rem;
   padding: 0.2rem 0.7rem;
   border: 1px solid #e5e7eb;
@@ -109,7 +115,7 @@
   white-space: nowrap;
 }
 .dataTable th {
-  background: #f3f6fb;
+  background: #ffffff;
   font-weight: 800;
   font-size: 1.13rem;
   color: #374151;
@@ -118,25 +124,29 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  box-shadow: 0 2px 8px #6366f111;
+  box-shadow: 0 8px 22px rgba(99, 102, 241, 0.08);
 }
 .thClickable {
   cursor: pointer;
   user-select: none;
 }
 .dataTable tr {
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #e5e7eb;
   transition: background 0.18s;
+  background: #ffffff;
 }
 .rowDeleted {
   text-decoration: line-through;
   opacity: 0.6;
 }
 .dataTable tr:nth-child(even) {
-  background: #f9fafb;
+  background: #ffffff;
 }
 .dataTable tr:last-child {
   border-bottom: none;
+}
+.dataTable tr:hover {
+  background: #f8fafc;
 }
 .dataTable td {
   color: #222;
@@ -150,10 +160,11 @@
   margin-bottom: 1rem;
   font-size: 1.01rem;
   color: #6366f1;
-  background: #f3f6fb;
+  background: #ffffff;
   border-radius: 0.6rem;
   padding: 0.5rem 1rem;
   display: inline-block;
+  border: 1px solid rgba(99, 102, 241, 0.25);
 }
 .compareWas {
   color: #b91c1c;
@@ -169,18 +180,18 @@
   font-size: 0.98em;
 }
 .cellChanged {
-  background: linear-gradient(90deg, #fef08a 60%, #fde68a 100%);
+  background: #fef3c7;
   color: #b45309;
   font-weight: 700;
   border-radius: 0.5rem;
-  box-shadow: 0 1px 4px #fde68a55;
+  box-shadow: 0 6px 14px rgba(253, 230, 138, 0.38);
   transition: background 0.18s, color 0.18s;
   animation: cellHighlight 0.7s cubic-bezier(.68,-0.55,.27,1.55);
 }
 @keyframes cellHighlight {
-  0% { background: #fffbe6; }
-  60% { background: #fef08a; }
-  100% { background: linear-gradient(90deg, #fef08a 60%, #fde68a 100%); }
+  0% { background: #fffaf2; }
+  60% { background: #fef3c7; }
+  100% { background: #fef3c7; }
 }
 .filterInput {
   width: 90px;
@@ -189,7 +200,7 @@
   border-radius: 0.4rem;
   border: 1px solid #e5e7eb;
   padding: 0.18rem 0.5rem;
-  background: #f9fafb;
+  background: #ffffff;
   color: #222;
 }
 .filterInput:focus {
@@ -205,7 +216,7 @@
   flex-wrap: wrap;
 }
 .paginationBar button {
-  background: #f3f6fb;
+  background: #ffffff;
   color: #1f2937;
   border: 1px solid #d1d5db;
   border-radius: 0.5rem;
@@ -213,16 +224,16 @@
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 .paginationBar button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 .paginationBar button:not(:disabled):hover {
-  background: #6366f1;
-  color: #fff;
-  font-weight: 700;
+  background: #f3f4ff;
+  color: #4338ca;
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.18);
 }
 @media (max-width: 900px) {
   .dataTableShell {

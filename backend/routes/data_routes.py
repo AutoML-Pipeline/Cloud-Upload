@@ -1,5 +1,6 @@
 # FastAPI route definitions for data-related endpoints
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+import logging
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from backend.controllers import data_controller
 from backend.services import minio_service, sql_service, progress_tracker
 from backend.models.pydantic_models import UploadFromURLRequest, SQLConnectRequest, SQLWorkbenchRequest
@@ -55,6 +56,32 @@ async def save_cleaned_to_minio_route(request: Request):
         temp_cleaned_path = body.get("temp_cleaned_path")
         cleaned_filename = body.get("cleaned_filename")
         return minio_service.save_cleaned_to_minio(temp_cleaned_path, cleaned_filename)
+
+
+@router.post("/download_cleaned_csv")
+async def download_cleaned_csv_route(request: Request):
+    body = await request.json()
+    temp_cleaned_path = body.get("temp_cleaned_path")
+    cleaned_filename = body.get("cleaned_filename")
+
+    try:
+        csv_bytes, download_name = minio_service.prepare_dataset_csv_bytes(
+            temp_path=temp_cleaned_path,
+            filename=cleaned_filename,
+            bucket="cleaned-data",
+            default_filename="cleaned_dataset.csv",
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Cleaned dataset is no longer available for download")
+    except Exception as exc:  # noqa: BLE001
+        logging.exception("Failed to prepare cleaned dataset CSV", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to prepare cleaned dataset download: {exc}") from exc
+
+    return Response(
+        content=csv_bytes,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
+    )
 
 @router.get("/download_cleaned_file/{filename}")
 async def download_cleaned_file_route(filename: str):

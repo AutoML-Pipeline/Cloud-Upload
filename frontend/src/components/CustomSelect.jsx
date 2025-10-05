@@ -30,7 +30,7 @@ const CustomSelect = ({
     };
   }, []);
 
-  const handleSelect = (optionValue, optionLabel) => {
+  const handleSelect = (optionValue) => {
     setSelectedValue(optionValue);
     onChange(optionValue);
     setIsOpen(false);
@@ -57,7 +57,7 @@ const CustomSelect = ({
             <div
               key={option.value}
               className={`${styles.selectOption} ${selectedValue === option.value ? styles.selected : ''}`}
-              onClick={() => handleSelect(option.value, option.label)}
+              onClick={() => handleSelect(option.value)}
             >
               {option.label}
             </div>

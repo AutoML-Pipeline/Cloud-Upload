@@ -19,48 +19,7 @@ function downloadCSV(tableData, filename = "data.csv") {
   window.URL.revokeObjectURL(url);
 }
 
-async function saveToMinIO(tableData, originalFilename) {
-  try {
-    // Create filename with feature_engineered_ prefix
-    let baseName = 'data'; // default fallback
-    if (originalFilename) {
-      // Extract just the filename without path
-      const filenameOnly = originalFilename.split('/').pop();
-      baseName = filenameOnly.replace(/\.(parquet|csv|xlsx|json)$/i, '');
-    }
-    const featureEngineeredFilename = `feature_engineered_${baseName}.parquet`;
-    
-    // Convert data to CSV first, then let backend convert to parquet
-    const csvRows = [];
-    const headers = Object.keys(tableData[0] || {}); // Ensure headers are taken from the first row of transformed data
-    csvRows.push(headers.join(","));
-    for (const row of tableData) {
-      csvRows.push(headers.map(h => JSON.stringify(row[h] ?? "")).join(","));
-    }
-    const csvContent = csvRows.join("\n");
-    
-    // Send to backend to save as parquet in feature-engineered folder
-    const response = await fetch('http://localhost:8000/api/feature-engineering/save-to-minio', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        data: csvContent,
-        filename: featureEngineeredFilename
-      })
-    });
-    
-    const result = await response.json();
-    if (response.ok) {
-      return { success: true, message: `Data saved to MinIO as ${featureEngineeredFilename}` };
-    } else {
-      throw new Error(result.error || 'Failed to save to MinIO');
-    }
-  } catch (error) {
-    return { success: false, message: error.message };
-  }
-}
-
-export default function DataTable({ data, columns, highlightChanges = false, originalData = null, compareOriginal = false, diffMarks = null, originalFilename = null, filledNullColumns = [], pageSize = 10, saveTarget = "engineered", saveFilename = null }) {
+export default function DataTable({ data, columns, highlightChanges = false, originalData = null, compareOriginal = false, diffMarks = null, originalFilename = null, filledNullColumns = [], pageSize = 10, saveTarget = "engineered", saveFilename = null, onSave = null, onDownload = null }) {
     const [page, setPage] = useState(0);
     const [sortCol, setSortCol] = useState(null);
     const [sortDir, setSortDir] = useState("asc");
@@ -69,11 +28,12 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
     const [allColumns, setAllColumns] = useState([]);
     const [visibleCols, setVisibleCols] = useState([]);
     const [savingToMinIO, setSavingToMinIO] = useState(false);
+  const [downloadingCsv, setDownloadingCsv] = useState(false);
 
     // Ensure all columns are visible when dataset/columns change (e.g., on Show All)
     useEffect(() => {
       if (Object.keys(data).length > 0) {
-        const newColumns = Object.keys(data);
+        const newColumns = Array.isArray(columns) && columns.length > 0 ? columns : Object.keys(data);
         setAllColumns(newColumns);
         setVisibleCols(newColumns);
 
@@ -93,59 +53,61 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
         setTableData([]);
       }
       setPage(0);
-    }, [data]); // Depend on data prop
+  }, [data, columns]); // Depend on data and columns prop
 
     const handleResetCols = () => setVisibleCols(allColumns);
 
     const handleSaveToMinIO = async () => {
+      const useCustomHandler = typeof onSave === "function";
       setSavingToMinIO(true);
       try {
-        // Construct filename and endpoint based on save target
+        if (useCustomHandler) {
+          await onSave();
+          return;
+        }
+
         const isCleaned = saveTarget === "cleaned";
 
         let targetFilename = null;
         if (isCleaned) {
-          if (saveFilename && typeof saveFilename === 'string') {
+          if (saveFilename && typeof saveFilename === "string") {
             targetFilename = saveFilename;
           } else {
-            // Fallback if not provided
-            let baseName = 'data';
+            let baseName = "data";
             if (originalFilename) {
-              const filenameOnly = originalFilename.split('/').pop();
-              baseName = filenameOnly.replace(/\.(parquet|csv|xlsx|json)$/i, '');
+              const filenameOnly = originalFilename.split("/").pop();
+              baseName = filenameOnly.replace(/\.(parquet|csv|xlsx|json)$/i, "");
             }
             targetFilename = `cleaned_${baseName}.parquet`;
           }
         }
 
-        // Build CSV payload from current tableData
         const csvRows = [];
         const headers = Object.keys(tableData[0] || {});
         csvRows.push(headers.join(","));
         for (const row of tableData) {
-          csvRows.push(headers.map(h => JSON.stringify(row[h] ?? "")).join(","));
+          csvRows.push(headers.map((h) => JSON.stringify(row[h] ?? "")).join(","));
         }
         const csvContent = csvRows.join("\n");
 
         let response;
         if (isCleaned) {
-          response = await fetch('http://localhost:8000/api/data/save_cleaned_to_minio', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: csvContent, filename: targetFilename })
+          response = await fetch("http://localhost:8000/api/data/save_cleaned_to_minio", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ data: csvContent, filename: targetFilename }),
           });
         } else {
-          // Feature engineered save
-          let baseName = 'data';
+          let baseName = "data";
           if (originalFilename) {
-            const filenameOnly = originalFilename.split('/').pop();
-            baseName = filenameOnly.replace(/\.(parquet|csv|xlsx|json)$/i, '');
+            const filenameOnly = originalFilename.split("/").pop();
+            baseName = filenameOnly.replace(/\.(parquet|csv|xlsx|json)$/i, "");
           }
           const featureEngineeredFilename = `feature_engineered_${baseName}.parquet`;
-          response = await fetch('http://localhost:8000/api/feature-engineering/save-to-minio', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: csvContent, filename: featureEngineeredFilename })
+          response = await fetch("http://localhost:8000/api/feature-engineering/save-to-minio", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ data: csvContent, filename: featureEngineeredFilename }),
           });
         }
 
@@ -153,12 +115,46 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
         if (result.message && !result.error) {
           alert(`✅ ${result.message}`);
         } else {
-          alert(`❌ ${result.error || result.message || 'Failed to save to MinIO'}`);
+          alert(`❌ ${result.error || result.message || "Failed to save to MinIO"}`);
         }
       } catch (error) {
-        alert(`❌ Error: ${error.message}`);
+        if (!useCustomHandler) {
+          alert(`❌ Error: ${error.message}`);
+        } else {
+          console.error("Custom save handler failed", error);
+        }
       } finally {
         setSavingToMinIO(false);
+      }
+    };
+
+    const handleDownloadCsv = async () => {
+      const useCustomHandler = typeof onDownload === "function";
+      if (useCustomHandler) {
+        setDownloadingCsv(true);
+      }
+      try {
+        if (useCustomHandler) {
+          await onDownload();
+          return;
+        }
+
+        const downloadName = (saveFilename || originalFilename || "data")
+          .split("/")
+          .pop()
+          .replace(/\.(parquet|csv|xlsx|json)$/i, "")
+          .concat(".csv");
+        downloadCSV(sortedData, downloadName);
+      } catch (error) {
+        if (!useCustomHandler) {
+          alert(`❌ Error: ${error.message}`);
+        } else {
+          console.error("Custom download handler failed", error);
+        }
+      } finally {
+        if (useCustomHandler) {
+          setDownloadingCsv(false);
+        }
       }
     };
 
@@ -193,14 +189,6 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
     const updatedCells = useMemo(() => diffMarks?.updated_cells || {}, [diffMarks]);
 
     // Build a lookup of original rows by _orig_idx
-    const originalByIdx = useMemo(() => {
-      const map = new Map();
-      (tableData || []).forEach(r => {
-        if (r && r._orig_idx != null) map.set(r._orig_idx, r);
-      });
-      return map;
-    }, [tableData]); // Depend on tableData
-
     // Column toggling
     const toggleCol = col => {
       setVisibleCols(cols =>
@@ -259,7 +247,15 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
     return (
       <div className={styles.dataTableShell}>
         <div className={styles.dataTableToolbar}>
-          <button className={styles.csvBtn} onClick={() => downloadCSV(sortedData)} aria-label="Download CSV" title="Download table as CSV">Download CSV</button>
+          <button
+            className={styles.csvBtn}
+            onClick={handleDownloadCsv}
+            disabled={downloadingCsv}
+            aria-label="Download CSV"
+            title="Download full dataset as CSV"
+          >
+            {downloadingCsv ? "Downloading..." : "Download CSV"}
+          </button>
           <button 
             className={styles.minioBtn} 
             onClick={handleSaveToMinIO} 

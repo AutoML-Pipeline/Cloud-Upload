@@ -26,6 +26,7 @@ from .preprocessing.io_utils import (
     read_parquet_from_minio,
     to_preview_records,
     sanitize_dataframe_for_parquet,
+    standardize_missing_indicators,
     _download_to_tempfile,
 )
 from .preprocessing.remove_duplicates import apply as apply_remove_duplicates
@@ -43,6 +44,7 @@ DIFF_ROW_LIMIT = int(os.getenv("DIFF_ROW_LIMIT", "1000"))
 
 def analyze_data_quality(df):
     """Comprehensive data quality analysis"""
+    df = standardize_missing_indicators(df)
     quality_report = {
         'total_rows': len(df),
         'total_columns': len(df.columns),
@@ -256,6 +258,7 @@ def run_preprocessing_pipeline(
             else:
                 raise ValueError("Unsupported file format.")
 
+        df = standardize_missing_indicators(df)
         if "_orig_idx" not in df.columns:
             df = df.reset_index(drop=False).rename(columns={"index": "_orig_idx"})
         _update_progress(job_id, 12, f"Dataset loaded ({len(df)} rows)")
@@ -483,17 +486,38 @@ def get_data_preview(filename: str):
             return JSONResponse(content={"error": "Unsupported file format for preview. Only CSV, Excel, JSON, Parquet supported."}, status_code=400)
 
         if df is not None:
+            df = standardize_missing_indicators(df)
             columns = list(df.columns)
             dtypes = {col: str(df[col].dtype) for col in df.columns}
             null_counts = {col: int(df[col].isnull().sum()) for col in df.columns}
 
             def to_py(val):
-                if pd.isna(val):
-                    return None
+                """Convert pandas/numpy scalars or array-like objects to JSON-serialisable Python values."""
+                if isinstance(val, (np.ndarray, list, tuple, pd.Series)):
+                    converted = [to_py(item) for item in list(val)]
+                    # If every element converts to None, surface None to avoid noisy lists of nulls
+                    if all(item is None for item in converted):
+                        return None
+                    return converted
+
+                # Handle pandas extension types (e.g. Timestamp, NA)
+                if hasattr(pd, "Timestamp") and isinstance(val, pd.Timestamp):
+                    return val.isoformat()
+
+                try:
+                    if pd.isna(val):  # type: ignore[arg-type]
+                        return None
+                except Exception:
+                    # Some objects (e.g. custom classes) may not support pd.isna; treat them as non-null
+                    pass
+
                 if isinstance(val, (np.integer, np.int64)):
                     return int(val)
                 if isinstance(val, (np.floating, np.float64)):
                     return float(val)
+                if isinstance(val, (np.bool_, bool)):
+                    return bool(val)
+
                 return val
 
             sample_values = {col: to_py(df[col].dropna().iloc[0]) if df[col].dropna().shape[0] > 0 else None for col in df.columns}

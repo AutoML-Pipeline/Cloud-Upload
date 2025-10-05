@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 const steps = [
@@ -31,33 +31,6 @@ const steps = [
 export default function SideMenu() {
   const stepRefs = useRef([]);
   const navigate = useNavigate();
-
-  // Remove all gsap and animation logic
-
-  const handleHover = (idx) => {
-    const ref = stepRefs.current[idx];
-    if (ref) {
-      // gsap.to(ref, {
-      //   scale: 1.06,
-      //   boxShadow: '0 8px 32px #38bdf855',
-      //   background: 'rgba(56,189,248,0.23)',
-      //   duration: 0.22,
-      //   ease: 'expo.out',
-      // });
-    }
-  };
-  const handleLeave = (idx, active) => {
-    const ref = stepRefs.current[idx];
-    if (ref) {
-      // gsap.to(ref, {
-      //   scale: 1,
-      //   boxShadow: active ? '0 2px 12px rgba(56,189,248,0.12)' : 'none',
-      //   background: active ? 'rgba(56,189,248,0.18)' : 'transparent',
-      //   duration: 0.22,
-      //   ease: 'expo.in',
-      // });
-    }
-  };
 
   return (
     <aside style={{
@@ -101,8 +74,6 @@ export default function SideMenu() {
               cursor: 'pointer',
               marginRight: 8,
             }}
-            onMouseEnter={() => handleHover(idx)}
-            onMouseLeave={() => handleLeave(idx, s.active)}
             onClick={() => {
               if (s.title === 'Data Ingestion') navigate('/upload-file');
               if (s.title === 'Preprocessing') navigate('/preprocessing');
