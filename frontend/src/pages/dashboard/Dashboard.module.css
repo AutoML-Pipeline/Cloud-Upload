@@ -1,15 +1,14 @@
 .dashboardShell {
-  min-height: 100vh;
+  min-height: 100%;
   width: 100%;
-  padding: 0 clamp(10px, 2.5vw, 24px) clamp(32px, 6vh, 48px);
-  padding-top: calc(var(--navbar-height, 60px) + clamp(8px, 2vh, 16px));
+  padding: clamp(12px, 2vh, 18px) clamp(8px, 1.6vw, 16px) clamp(20px, 4vh, 32px);
   background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.18), transparent 55%),
     radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.18), transparent 48%),
-    linear-gradient(165deg, #050917 0%, #0f172a 50%, #111827 100%);
-  color: #e2e8f0;
+    linear-gradient(165deg, var(--color-gray-950) 0%, var(--color-gray-900) 50%, var(--color-gray-800) 100%);
+  color: var(--color-gray-200);
   display: flex;
   flex-direction: column;
-  gap: clamp(1.5rem, 3.5vw, 2.25rem);
+  gap: clamp(var(--spacing-4), 2.5vw, var(--spacing-6));
 }
 
 .stepsIntro {
@@ -19,8 +18,8 @@
 }
 
 .stepsHint {
-  font-size: clamp(1.05rem, 2.3vw, 1.35rem);
-  color: rgba(226, 232, 240, 0.82);
+  font-size: clamp(var(--text-base-size), 2vw, var(--text-h5-size));
+  color: var(--color-gray-300);
   letter-spacing: 0.02em;
 }
 
@@ -29,7 +28,7 @@
   max-width: min(1200px, 96vw);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: clamp(20px, 3vw, 32px);
+  gap: clamp(14px, 2vw, 22px);
   margin: 0 auto;
   justify-items: stretch;
 }
@@ -39,16 +38,16 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 1.4rem;
-  min-height: 240px;
-  padding: clamp(1.9rem, 3vw, 2.6rem);
-  border-radius: 26px;
-  border: 1.5px solid rgba(148, 163, 184, 0.22);
-  background: linear-gradient(160deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.88) 70%);
-  color: #e2e8f0;
+  gap: var(--spacing-4);
+  min-height: 188px;
+  padding: clamp(var(--spacing-5), 2.2vw, var(--spacing-8));
+  border-radius: var(--radius-3xl);
+  border: var(--input-border-width) solid var(--color-gray-700);
+  background: linear-gradient(160deg, var(--color-gray-800), var(--color-gray-900) 70%);
+  color: var(--color-gray-200);
   cursor: pointer;
   text-align: left;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  transition: var(--transition-transform), var(--transition-shadow), border-color 0.25s ease;
 }
 
 .stepCard::before {
@@ -56,7 +55,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(120% 80% at 50% 0%, rgba(99, 102, 241, 0.18), transparent 70%);
+  background: radial-gradient(120% 80% at 50% 0%, var(--color-primary-500), transparent 70%);
   opacity: 0;
   transition: opacity 0.25s ease;
   pointer-events: none;
@@ -65,50 +64,50 @@
 .stepCard:hover,
 .stepCard:focus-visible {
   transform: translateY(-12px) scale(1.02);
-  border-color: rgba(99, 102, 241, 0.45);
+  border-color: var(--color-primary-500);
 }
 
 .stepCard:hover::before,
 .stepCard:focus-visible::before {
-  opacity: 1;
+  opacity: 0.18;
 }
 
 .stepCard:focus-visible {
   outline: none;
-  box-shadow: 0 32px 56px rgba(79, 70, 229, 0.28), 0 0 0 3px rgba(129, 140, 248, 0.45);
+  box-shadow: var(--shadow-2xl), 0 0 0 3px var(--color-primary-400);
 }
 
 .stepIcon {
   position: relative;
-  width: 64px;
-  height: 64px;
+  width: 50px;
+  height: 50px;
   border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.5rem;
-  background: radial-gradient(circle at 40% 20%, rgba(71, 85, 105, 0.95), rgba(30, 41, 59, 0.7));
-  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.28);
-  color: #e2e8f0;
+  font-size: 2.2rem;
+  background: radial-gradient(circle at 40% 20%, var(--color-gray-600), var(--color-gray-800));
+  box-shadow: var(--shadow-xl);
+  color: var(--color-gray-200);
 }
 
 .stepBody {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
 }
 
 .stepTitle {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: var(--text-h5-size);
+  font-weight: var(--text-h3-weight);
   letter-spacing: 0.01em;
-  color: #f1f5f9;
+  color: var(--color-gray-100);
 }
 
 .stepDescription {
-  font-size: 0.98rem;
-  color: #94a3b8;
-  line-height: 1.45;
+  font-size: var(--text-sm-size);
+  color: var(--color-gray-400);
+  line-height: 1.4;
   max-width: 26ch;
 }
 
@@ -117,22 +116,22 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: var(--text-sm-size);
+  font-weight: var(--font-weight-semibold);
   letter-spacing: 0.02em;
-  color: #818cf8;
+  color: var(--color-primary-400);
 }
 
 .stepCta {
   text-transform: uppercase;
-  font-size: 0.78rem;
+  font-size: var(--text-xs-size);
   letter-spacing: 0.18em;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
 }
 
 .stepArrow {
-  font-size: 1.4rem;
-  transition: transform 0.25s ease;
+  font-size: var(--text-h4-size);
+  transition: var(--transition-transform);
 }
 
 .stepCard:hover .stepArrow,
@@ -140,18 +139,19 @@
   transform: translateX(6px);
 }
 
+/* Accent Color Variants */
 .stepCardAccentIngestion {
   box-shadow: 0 18px 32px rgba(96, 165, 250, 0.18);
 }
 
 .stepCardAccentIngestion:hover,
 .stepCardAccentIngestion:focus-visible {
-  box-shadow: 0 32px 56px rgba(96, 165, 250, 0.28);
-  border-color: rgba(96, 165, 250, 0.45);
+  box-shadow: var(--shadow-2xl), 0 0 20px rgba(96, 165, 250, 0.3);
+  border-color: var(--color-info-400);
 }
 
 .stepCardAccentIngestion .stepFooter {
-  color: #60a5fa;
+  color: var(--color-info-400);
 }
 
 .stepCardAccentPreprocessing {
@@ -160,12 +160,12 @@
 
 .stepCardAccentPreprocessing:hover,
 .stepCardAccentPreprocessing:focus-visible {
-  box-shadow: 0 32px 56px rgba(251, 191, 36, 0.28);
-  border-color: rgba(251, 191, 36, 0.45);
+  box-shadow: var(--shadow-2xl), 0 0 20px rgba(251, 191, 36, 0.3);
+  border-color: var(--color-warning-400);
 }
 
 .stepCardAccentPreprocessing .stepFooter {
-  color: #fbbf24;
+  color: var(--color-warning-400);
 }
 
 .stepCardAccentFeature {
@@ -174,12 +174,12 @@
 
 .stepCardAccentFeature:hover,
 .stepCardAccentFeature:focus-visible {
-  box-shadow: 0 32px 56px rgba(52, 211, 153, 0.28);
-  border-color: rgba(52, 211, 153, 0.45);
+  box-shadow: var(--shadow-2xl), 0 0 20px rgba(52, 211, 153, 0.3);
+  border-color: var(--color-success-400);
 }
 
 .stepCardAccentFeature .stepFooter {
-  color: #34d399;
+  color: var(--color-success-400);
 }
 
 .stepCardAccentModel {
@@ -188,41 +188,47 @@
 
 .stepCardAccentModel:hover,
 .stepCardAccentModel:focus-visible {
-  box-shadow: 0 32px 56px rgba(56, 189, 248, 0.28);
-  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: var(--shadow-2xl), 0 0 20px rgba(56, 189, 248, 0.3);
+  border-color: var(--color-secondary-400);
 }
 
 .stepCardAccentModel .stepFooter {
-  color: #38bdf8;
+  color: var(--color-secondary-400);
 }
 
 .stepIconAccentIngestion {
-  background: radial-gradient(circle at 40% 20%, rgba(96, 165, 250, 0.35), rgba(30, 41, 59, 0.7));
+  background: radial-gradient(circle at 40% 20%, var(--color-info-400), var(--color-gray-800));
+  opacity: 0.9;
 }
 
 .stepIconAccentPreprocessing {
-  background: radial-gradient(circle at 40% 20%, rgba(251, 191, 36, 0.35), rgba(30, 41, 59, 0.7));
+  background: radial-gradient(circle at 40% 20%, var(--color-warning-400), var(--color-gray-800));
+  opacity: 0.9;
 }
 
 .stepIconAccentFeature {
-  background: radial-gradient(circle at 40% 20%, rgba(52, 211, 153, 0.35), rgba(30, 41, 59, 0.7));
+  background: radial-gradient(circle at 40% 20%, var(--color-success-400), var(--color-gray-800));
+  opacity: 0.9;
 }
 
 .stepIconAccentModel {
-  background: radial-gradient(circle at 40% 20%, rgba(56, 189, 248, 0.35), rgba(30, 41, 59, 0.7));
+  background: radial-gradient(circle at 40% 20%, var(--color-secondary-400), var(--color-gray-800));
+  opacity: 0.9;
 }
 
 .stepCard:hover .stepChevron {
   transform: translateX(4px);
 }
 
+/* Responsive Design */
 @media (max-width: 640px) {
   .stepsGrid {
     grid-template-columns: 1fr;
   }
   
   .stepCard {
-    min-height: 220px;
-    padding: 1.8rem;
+    min-height: 200px;
+    padding: var(--spacing-6);
   }
 }
+

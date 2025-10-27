@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import ColumnMultiSelect from "../../../components/ColumnMultiSelect";
+import { ValidatedColumnSelect } from "./ValidatedColumnSelect";
 import styles from "../../preprocessing/Preprocessing.module.css";
 import { FeatureEngineeringStepCard } from "./FeatureEngineeringStepCard";
 
@@ -17,8 +18,10 @@ export const StepBuilder = ({
   result,
   collapseEnabled,
   onCollapse,
+  dataPreview,
 }) => {
   const showCollapse = Boolean(collapseEnabled);
+  const useFullWidth = true; // Always use full width for vertical layout
 
   const handleSelectColumns = (section, value) => {
     onUpdateSteps((prev) => ({
@@ -44,7 +47,7 @@ export const StepBuilder = ({
   };
 
   return (
-    <form onSubmit={onSubmit} className={styles.builderColumn}>
+    <form onSubmit={onSubmit} className={`${styles.builderColumn} ${useFullWidth ? styles.stepBuilder : ''}`}>
       {showCollapse && (
         <div className={styles.builderCollapseRow}>
           <button type="button" className={styles.builderCollapseButton} onClick={onCollapse}>
@@ -71,7 +74,7 @@ export const StepBuilder = ({
         </button>
       </div>
 
-      <div className={styles.stepperListModern}>
+      <div className={`${styles.stepperListModern} ${styles.stepBuilderVertical}`}>
         <FeatureEngineeringStepCard
           checked={steps.scaling.enabled}
           onToggle={(event) =>
@@ -84,33 +87,26 @@ export const StepBuilder = ({
           label="Scaling"
           description="Normalize numerical features for more stable models."
         >
-          <div className={styles.inlineControlRow}>
-            <label className={styles.inlineControlLabel} htmlFor="scaling-method">
-              Method
-            </label>
-            <select
-              id="scaling-method"
-              className={styles.selectSm}
-              value={steps.scaling.method}
-              onChange={(event) =>
-                onUpdateSteps((prev) => ({
-                  ...prev,
-                  scaling: { ...prev.scaling, method: event.target.value },
-                }))
-              }
-            >
-              <option value="standard">Standard</option>
-              <option value="minmax">Min-max</option>
-              <option value="robust">Robust</option>
-              <option value="log">Log transform</option>
-            </select>
-          </div>
-          <ColumnMultiSelect
-            columns={columns}
+          <ValidatedColumnSelect
+            allColumns={columns}
             selected={steps.scaling.columns}
             onChange={(value) => handleSelectColumns("scaling", value)}
-            label="Columns to scale"
+            stepType="scaling"
+            stepMethod={steps.scaling.method}
+            dataPreview={dataPreview}
+            label="Columns to scale (each can have different method)"
             placeholder={DEFAULT_COLUMNS_LABEL}
+            allowColumnMethods={true}
+            columnMethods={steps.scaling.columnMethods || {}}
+            onColumnMethodChange={(col, method) => {
+              onUpdateSteps((prev) => ({
+                ...prev,
+                scaling: {
+                  ...prev.scaling,
+                  columnMethods: { ...prev.scaling.columnMethods, [col]: method },
+                },
+              }));
+            }}
           />
         </FeatureEngineeringStepCard>
 
@@ -126,32 +122,26 @@ export const StepBuilder = ({
           label="Encoding"
           description="Transform categorical variables into model-friendly values."
         >
-          <div className={styles.inlineControlRow}>
-            <label className={styles.inlineControlLabel} htmlFor="encoding-method">
-              Method
-            </label>
-            <select
-              id="encoding-method"
-              className={styles.selectSm}
-              value={steps.encoding.method}
-              onChange={(event) =>
-                onUpdateSteps((prev) => ({
-                  ...prev,
-                  encoding: { ...prev.encoding, method: event.target.value },
-                }))
-              }
-            >
-              <option value="one-hot">One-hot</option>
-              <option value="label">Label</option>
-              <option value="target">Target</option>
-            </select>
-          </div>
-          <ColumnMultiSelect
-            columns={columns}
+          <ValidatedColumnSelect
+            allColumns={columns}
             selected={steps.encoding.columns}
             onChange={(value) => handleSelectColumns("encoding", value)}
-            label="Columns to encode"
+            stepType="encoding"
+            stepMethod={steps.encoding.method}
+            dataPreview={dataPreview}
+            label="Columns to encode (each can have different method: One-Hot / Label / Target)"
             placeholder={DEFAULT_COLUMNS_LABEL}
+            allowColumnMethods={true}
+            columnMethods={steps.encoding.columnMethods || {}}
+            onColumnMethodChange={(col, method) => {
+              onUpdateSteps((prev) => ({
+                ...prev,
+                encoding: {
+                  ...prev.encoding,
+                  columnMethods: { ...prev.encoding.columnMethods, [col]: method },
+                },
+              }));
+            }}
           />
         </FeatureEngineeringStepCard>
 
@@ -167,25 +157,6 @@ export const StepBuilder = ({
           label="Binning & discretization"
           description="Group continuous values into buckets for simpler patterns."
         >
-          <div className={styles.inlineControlRow}>
-            <label className={styles.inlineControlLabel} htmlFor="binning-method">
-              Method
-            </label>
-            <select
-              id="binning-method"
-              className={styles.selectSm}
-              value={steps.binning.method}
-              onChange={(event) =>
-                onUpdateSteps((prev) => ({
-                  ...prev,
-                  binning: { ...prev.binning, method: event.target.value },
-                }))
-              }
-            >
-              <option value="equal-width">Equal-width</option>
-              <option value="quantile">Quantile</option>
-            </select>
-          </div>
           <div className={styles.inlineControlRow}>
             <label className={styles.inlineControlLabel} htmlFor="binning-bins">
               Number of bins
@@ -204,12 +175,26 @@ export const StepBuilder = ({
               }
             />
           </div>
-          <ColumnMultiSelect
-            columns={columns}
+          <ValidatedColumnSelect
+            allColumns={columns}
             selected={steps.binning.columns}
             onChange={(value) => handleSelectColumns("binning", value)}
-            label="Columns to bin"
+            stepType="binning"
+            stepMethod={steps.binning.method}
+            dataPreview={dataPreview}
+            label="Columns to bin (each can have different method: Equal-Width / Quantile)"
             placeholder={DEFAULT_COLUMNS_LABEL}
+            allowColumnMethods={true}
+            columnMethods={steps.binning.columnMethods || {}}
+            onColumnMethodChange={(col, method) => {
+              onUpdateSteps((prev) => ({
+                ...prev,
+                binning: {
+                  ...prev.binning,
+                  columnMethods: { ...prev.binning.columnMethods, [col]: method },
+                },
+              }));
+            }}
           />
         </FeatureEngineeringStepCard>
 
@@ -275,10 +260,13 @@ export const StepBuilder = ({
                     }
                   />
                 </div>
-                <ColumnMultiSelect
-                  columns={columns}
+                <ValidatedColumnSelect
+                  allColumns={columns}
                   selected={steps.featureCreation.polynomial.columns}
                   onChange={(value) => handleFeatureCreationColumns("polynomial", value)}
+                  stepType="feature_creation"
+                  stepMethod="polynomial"
+                  dataPreview={dataPreview}
                   label="Columns for polynomial expansion"
                   placeholder={DEFAULT_COLUMNS_LABEL}
                 />
@@ -337,10 +325,13 @@ export const StepBuilder = ({
                     <option value="second">Second</option>
                   </select>
                 </div>
-                <ColumnMultiSelect
-                  columns={columns}
+                <ValidatedColumnSelect
+                  allColumns={columns}
                   selected={steps.featureCreation.datetime.columns}
                   onChange={(value) => handleFeatureCreationColumns("datetime", value)}
+                  stepType="feature_creation"
+                  stepMethod="datetime_decomposition"
+                  dataPreview={dataPreview}
                   label="Datetime columns to decompose"
                   placeholder={DEFAULT_COLUMNS_LABEL}
                 />
@@ -420,10 +411,13 @@ export const StepBuilder = ({
               />
             </div>
           )}
-          <ColumnMultiSelect
-            columns={columns}
+          <ValidatedColumnSelect
+            allColumns={columns}
             selected={steps.selection.columns}
             onChange={(value) => handleSelectColumns("selection", value)}
+            stepType="feature_selection"
+            stepMethod={steps.selection.method}
+            dataPreview={dataPreview}
             label="Columns for selection"
             placeholder={DEFAULT_COLUMNS_LABEL}
           />

@@ -9,6 +9,7 @@ export default function FillNullSelector({
   onChangeSelected,
   strategies = {},
   onChangeStrategy,
+  columnInsights = {},
   label = "Columns to fill nulls"
 }) {
   // Filter to show only columns with null values
@@ -28,6 +29,7 @@ export default function FillNullSelector({
         nullCounts={nullCounts}
         strategies={strategies}
         onChangeStrategy={onChangeStrategy}
+        columnInsights={columnInsights}
       />
 
 

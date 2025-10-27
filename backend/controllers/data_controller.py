@@ -38,9 +38,10 @@ from .preprocessing.diff_utils import compute_diff_marks
 from backend.utils.json_utils import _to_json_safe
 from backend.services import progress_tracker
 
-MAX_PREVIEW_ROWS = int(os.getenv("PREVIEW_ROW_LIMIT", "1000"))
-MAX_FULL_ROWS = int(os.getenv("MAX_FULL_ROWS", "5000"))
-DIFF_ROW_LIMIT = int(os.getenv("DIFF_ROW_LIMIT", "1000"))
+# NO LIMITS - Show full dataset everywhere
+MAX_PREVIEW_ROWS = None  # Show all rows in preview
+MAX_FULL_ROWS = None  # No limit on full data
+DIFF_ROW_LIMIT = int(os.getenv("DIFF_ROW_LIMIT", "10000"))  # Keep diff rows higher
 
 def analyze_data_quality(df):
     """Comprehensive data quality analysis"""
@@ -337,25 +338,24 @@ def run_preprocessing_pipeline(
     _update_progress(job_id, 85, "Packaging cleaned dataset")
     try:
         df_to_save = sanitize_dataframe_for_parquet(df_cleaned)
+        logging.info(f"Packaging cleaned dataset: {len(df_to_save)} rows, {len(df_to_save.columns)} columns")
         with tempfile.NamedTemporaryFile(delete=False, suffix='.parquet') as tmp_file:
             df_to_save.to_parquet(tmp_file.name, engine='pyarrow', index=False)
             temp_cleaned_path = tmp_file.name
+            # Verify file was written correctly
+            verify_df = pd.read_parquet(temp_cleaned_path)
+            logging.info(f"Verified temp file has {len(verify_df)} rows after write")
             cleaned_filename = f"cleaned_{os.path.splitext(filename)[0]}.parquet"
     except Exception as exc:
         raise RuntimeError(f"Error saving cleaned Parquet: {exc}") from exc
 
     _update_progress(job_id, 92, "Building preview tables")
-    original_preview_limit = min(MAX_PREVIEW_ROWS, len(df))
-    cleaned_preview_limit = min(MAX_PREVIEW_ROWS, len(df_cleaned))
+    # Show full dataset in preview (no row limits)
+    original_preview = to_preview_records(df, None)
+    preview = to_preview_records(df_cleaned, None)
 
-    original_preview = to_preview_records(df, original_preview_limit)
-    preview = to_preview_records(df_cleaned, cleaned_preview_limit)
-
-    full_data = None
-    if full and len(df_cleaned) <= MAX_FULL_ROWS:
-        full_data = to_preview_records(df_cleaned, None)
-        preview = full_data
-
+    full_data = None  # Full data now returned in preview
+    
     _update_progress(job_id, 97, "Summarizing data quality insights")
     try:
         quality_report = analyze_data_quality(df_cleaned)
@@ -373,24 +373,18 @@ def run_preprocessing_pipeline(
         "temp_cleaned_path": temp_cleaned_path,
         "original_row_count": int(original_row_count),
         "cleaned_row_count": int(len(df_cleaned)),
-        "preview_row_limit": MAX_PREVIEW_ROWS,
+        "preview_row_limit": None,  # No limit - showing full dataset
         "diff_truncated": diff_truncated,
         "diff_row_limit": DIFF_ROW_LIMIT,
     }
 
     logging.info(
-        "Response payload sizes: original_preview=%s, preview=%s, full_data=%s",
+        "Response payload sizes: original_preview=%s, preview=%s",
         len(original_preview),
         len(preview),
-        len(full_data) if full_data else 'None',
     )
+    logging.info(f"Showing FULL dataset: {len(preview)} rows in preview")
     logging.info(f"Deleted row indices: {deleted}")
-    if original_preview:
-        orig_indices = [row.get('_orig_idx') for row in original_preview[:5]]
-        logging.info(f"Sample original_preview _orig_idx values: {orig_indices}")
-    if preview:
-        clean_indices = [row.get('_orig_idx') for row in preview[:5]]
-        logging.info(f"Sample preview _orig_idx values: {clean_indices}")
 
     return _to_json_safe(response_payload)
 
@@ -444,8 +438,8 @@ async def data_preprocessing(
 def get_data_preview(filename: str):
     try:
         # First, ensure the MinIO bucket exists before trying to access objects
-        from backend.config import ensure_minio_bucket_exists
-        ensure_minio_bucket_exists()
+        from backend.config import ensure_minio_buckets_exist
+        ensure_minio_buckets_exist()
         
         response = minio_client.get_object(MINIO_BUCKET, filename)
         file_bytes_buffer = io.BytesIO(response.read())
@@ -459,6 +453,7 @@ def get_data_preview(filename: str):
     dtypes = {}
     null_counts = {}
     sample_values = {}
+    cardinality = {}
 
     try:
         if filename.endswith('.parquet'):
@@ -469,19 +464,21 @@ def get_data_preview(filename: str):
             columns = schema.names
             dtypes = {field.name: str(field.physical_type) for field in schema}
             
-            # To get null counts and sample values for Parquet, we might still need to read a small sample
-            # Or rely on Parquet metadata if available (row group statistics), but it's not always complete for nulls.
-            # For simplicity and to ensure accuracy, let's read the first few rows.
+            # Read FULL dataset to accurately detect all nulls (important for data validation)
+            # Nulls may appear anywhere in the dataset, not just in the first 100 rows
             df = pd.read_parquet(file_bytes_buffer, engine='pyarrow')
-            df = df.head(100)  # Limit to first 100 rows for preview
+            logging.info(f"Loaded full dataset from parquet for null detection: {len(df)} rows")
             file_bytes_buffer.seek(0) # Reset buffer for potential other uses
 
         elif filename.endswith('.csv'):
-            df = pd.read_csv(file_bytes_buffer, nrows=100) # Read only first 100 rows
+            df = pd.read_csv(file_bytes_buffer)  # Read full dataset
+            logging.info(f"Loaded full dataset from CSV for null detection: {len(df)} rows")
         elif filename.endswith('.xlsx'):
-            df = pd.read_excel(file_bytes_buffer, nrows=100) # Read only first 100 rows
+            df = pd.read_excel(file_bytes_buffer)  # Read full dataset
+            logging.info(f"Loaded full dataset from Excel for null detection: {len(df)} rows")
         elif filename.endswith('.json'):
-            df = pd.read_json(file_bytes_buffer, nrows=100) # Read only first 100 rows
+            df = pd.read_json(file_bytes_buffer)  # Read full dataset
+            logging.info(f"Loaded full dataset from JSON for null detection: {len(df)} rows")
         else:
             return JSONResponse(content={"error": "Unsupported file format for preview. Only CSV, Excel, JSON, Parquet supported."}, status_code=400)
 
@@ -521,6 +518,9 @@ def get_data_preview(filename: str):
                 return val
 
             sample_values = {col: to_py(df[col].dropna().iloc[0]) if df[col].dropna().shape[0] > 0 else None for col in df.columns}
+            
+            # Calculate cardinality (unique values) for each column for smart encoding recommendations
+            cardinality = {col: int(df[col].nunique()) for col in df.columns}
 
     except Exception as e:
         logging.error(f"Error loading '{filename}' into DataFrame for preview: {e}", exc_info=True)
@@ -530,5 +530,6 @@ def get_data_preview(filename: str):
         "columns": columns,
         "dtypes": dtypes,
         "null_counts": {col: int(count) for col, count in null_counts.items()},
-        "sample_values": sample_values
+        "sample_values": sample_values,
+        "cardinality": cardinality
     }

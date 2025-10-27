@@ -1,0 +1,137 @@
+/* Model Visualizations Styles */
+
+.visualizationsContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.chartCard {
+  background: var(--background-primary, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease;
+}
+
+.chartCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.chartHeader {
+  margin-bottom: 20px;
+}
+
+.chartTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  margin: 0 0 8px 0;
+}
+
+.chartDescription {
+  font-size: 14px;
+  color: var(--text-secondary, #6b7280);
+  margin: 0;
+}
+
+.chartBody {
+  position: relative;
+  height: 350px;
+}
+
+.noData {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted, #9ca3af);
+  font-style: italic;
+}
+
+/* Confusion Matrix Styles */
+.confusionMatrixContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.confusionMatrix {
+  display: grid;
+  gap: 2px;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.matrixCorner {
+  background: transparent;
+}
+
+.matrixLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  padding: 8px;
+  background: var(--background-secondary, #f9fafb);
+  border-radius: 4px;
+}
+
+.matrixCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  min-height: 60px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.matrixCell:hover {
+  transform: scale(1.05);
+  border-color: var(--accent-primary, #3b82f6);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.matrixCellCorrect {
+  font-weight: 700;
+}
+
+.matrixLegend {
+  display: flex;
+  gap: 24px;
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.matrixLegend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .visualizationsContainer {
+    grid-template-columns: 1fr;
+  }
+
+  .chartBody {
+    height: 300px;
+  }
+
+  .matrixCell {
+    min-width: 50px;
+    min-height: 50px;
+    font-size: 14px;
+  }
+}

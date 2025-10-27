@@ -1,0 +1,59 @@
+.viewDataButton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+  border: none;
+  cursor: pointer;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  min-width: 220px;
+}
+
+.viewDataButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.2);
+}
+
+.viewDataButton:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.buttonIcon {
+  font-size: 1.2rem;
+}
+
+/* Button variants */
+.variantPrimary {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+}
+
+.variantPrimary:hover {
+  background: linear-gradient(135deg, #4338ca, #4f46e5);
+}
+
+.variantSuccess {
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: white;
+}
+
+.variantSuccess:hover {
+  background: linear-gradient(135deg, #047857, #059669);
+}
+
+.variantWarning {
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  color: white;
+}
+
+.variantWarning:hover {
+  background: linear-gradient(135deg, #b45309, #d97706);
+}

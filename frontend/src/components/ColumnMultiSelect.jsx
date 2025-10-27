@@ -1,20 +1,29 @@
 import React from "react";
 import styles from "./ColumnMultiSelect.module.css";
+import { getRecommendedFillStrategy, getStrategyLabel } from "../utils/fillStrategies";
 
 export default function ColumnMultiSelect({
-  columns, selected, onChange, label, placeholder, nullCounts = {}, strategies = {}, onChangeStrategy }) {
-  
+  columns,
+  selected,
+  onChange,
+  label,
+  placeholder,
+  nullCounts = {},
+  strategies = {},
+  onChangeStrategy,
+  columnInsights = {}
+}) {
   const allSelected = columns.length > 0 && selected.length === columns.length;
 
-  const handleToggle = col => {
+  const handleToggle = (col) => {
     if (selected.includes(col)) {
-      onChange(selected.filter(c => c !== col));
+      onChange(selected.filter((c) => c !== col));
     } else {
       onChange([...selected, col]);
     }
   };
 
-  const handleSelectAll = e => {
+  const handleSelectAll = (e) => {
     if (e.target.checked) {
       onChange([...columns]);
     } else {
@@ -26,8 +35,12 @@ export default function ColumnMultiSelect({
     <div className={styles.wrapper}>
       {label && <div className={styles.label}>{label}</div>}
       <div className={styles.dropdown}>
-        {selected.length === 0 && <div className={styles.placeholder}>{placeholder || "Select columns..."}</div>}
-        
+        {selected.length === 0 && (
+          <div className={styles.placeholder}>
+            {placeholder || "Select columns..."}
+          </div>
+        )}
+
         <label className={styles.selectAllOption}>
           <input
             type="checkbox"
@@ -38,46 +51,79 @@ export default function ColumnMultiSelect({
         </label>
 
         <div className={styles.options}>
-          {columns.map(col => {
+          {columns.map((col) => {
             const isSelected = selected.includes(col);
+            const hasNulls = nullCounts[col] > 0;
+            const recommendation = getRecommendedFillStrategy({
+              columnName: col,
+              dtype: columnInsights[col]?.dtype,
+              sampleValue: columnInsights[col]?.sampleValue,
+              nullCount: nullCounts[col],
+            });
+            const recommendedStrategy = recommendation.strategy;
+            const currentStrategy = strategies[col]?.strategy || recommendedStrategy;
+            const isFollowingRecommendation = currentStrategy === recommendedStrategy;
 
             return (
-              <label key={col} className={styles.option}>
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => handleToggle(col)}
-                />
-                <span className={styles.columnNameText}>
-                  {col}
-                  {nullCounts[col] > 0 && (
-                    <span className={styles.nullCount}> ({nullCounts[col]} nulls)</span>
+              <div key={col} className={styles.option}>
+                <div className={styles.optionMain}>
+                  <div className={styles.columnSection}>
+                    <input
+                      type="checkbox"
+                      id={`col-${col}`}
+                      checked={isSelected}
+                      onChange={() => handleToggle(col)}
+                    />
+                    <label htmlFor={`col-${col}`} className={styles.columnNameText}>
+                      {col}
+                      {hasNulls && (
+                        <span className={styles.nullCount}> ({nullCounts[col]} nulls)</span>
+                      )}
+                    </label>
+                  </div>
+
+                  {hasNulls && onChangeStrategy && (
+                    <div className={styles.inlineStrategy}>
+                      <select
+                        value={currentStrategy}
+                        onChange={(e) => onChangeStrategy(col, e.target.value)}
+                        className={`${styles.strategySelect} ${
+                          isFollowingRecommendation ? "" : styles.strategySelectOverride
+                        }`}
+                        title="Select strategy for filling nulls"
+                      >
+                        <option value="mean">Mean</option>
+                        <option value="median">Median</option>
+                        <option value="mode">Mode</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                      {currentStrategy === "custom" && (
+                        <input
+                          type="text"
+                          className={styles.customInput}
+                          placeholder="Value"
+                          value={strategies[col]?.value || ""}
+                          onChange={(e) => onChangeStrategy(col, "custom", e.target.value)}
+                        />
+                      )}
+                    </div>
                   )}
-                </span>
-                {nullCounts[col] > 0 && onChangeStrategy && (
-                  <div className={styles.inlineStrategy}>
-                    <select
-                      value={strategies[col]?.strategy || 'mean'}
-                      onChange={e => onChangeStrategy(col, e.target.value)}
-                      className={styles.strategySelect}
-                    >
-                      <option value="mean">Mean</option>
-                      <option value="median">Median</option>
-                      <option value="mode">Mode</option>
-                      <option value="custom">Custom</option>
-                    </select>
-                    {strategies[col]?.strategy === 'custom' && (
-                      <input
-                        type="text"
-                        className={styles.customInput}
-                        placeholder="Value"
-                        value={strategies[col]?.value || ''}
-                        onChange={e => onChangeStrategy(col, 'custom', e.target.value)}
-                      />
+                </div>
+
+                {hasNulls && (
+                  <div className={styles.recommendationRow}>
+                    <span className={styles.recommendationTag}>
+                      Suggested: {getStrategyLabel(recommendedStrategy)}
+                    </span>
+                    <span className={styles.recommendationDetail}>{recommendation.reason}</span>
+                    {!isFollowingRecommendation && (
+                      <span className={styles.recommendationOverride}>
+                        Currently using {getStrategyLabel(currentStrategy)}
+                      </span>
                     )}
                   </div>
                 )}
-              </label>
+              </div>
             );
           })}
         </div>

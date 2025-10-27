@@ -1,0 +1,276 @@
+/**
+ * Button Component Primitives
+ * Reusable button styles with variants and sizes
+ */
+
+/* ============================================
+   BASE BUTTON STYLES
+   ============================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  font-family: var(--font-family-sans);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-all);
+  user-select: none;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ============================================
+   BUTTON VARIANTS
+   ============================================ */
+
+/* Primary Button - Main CTAs */
+.btnPrimary {
+  composes: btn;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-primary);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btnPrimary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-md);
+}
+
+/* Secondary Button - Alternative actions */
+.btnSecondary {
+  composes: btn;
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  border: var(--input-border-width) solid var(--color-border-dark);
+  box-shadow: var(--shadow-sm);
+}
+
+.btnSecondary:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.btnSecondary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Ghost Button - Transparent, minimal */
+.btnGhost {
+  composes: btn;
+  background: transparent;
+  color: var(--color-text-primary);
+  border: none;
+  box-shadow: none;
+}
+
+.btnGhost:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+}
+
+.btnGhost:active:not(:disabled) {
+  background: var(--color-bg-active);
+}
+
+/* Outline Button - Bordered, transparent */
+.btnOutline {
+  composes: btn;
+  background: transparent;
+  color: var(--color-primary);
+  border: var(--input-border-width) solid var(--color-primary);
+  box-shadow: none;
+}
+
+.btnOutline:hover:not(:disabled) {
+  background: var(--color-primary-light);
+  transform: translateY(-1px);
+}
+
+.btnOutline:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Danger Button - Destructive actions */
+.btnDanger {
+  composes: btn;
+  background: var(--color-error);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-error);
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: var(--color-error-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btnDanger:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-md);
+}
+
+/* Success Button - Positive actions */
+.btnSuccess {
+  composes: btn;
+  background: var(--color-success);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-success);
+}
+
+.btnSuccess:hover:not(:disabled) {
+  background: var(--color-success-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btnSuccess:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-md);
+}
+
+/* ============================================
+   BUTTON SIZES
+   ============================================ */
+
+/* Small Button */
+.btnSm {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--text-sm-size);
+  border-radius: var(--radius-md);
+  height: var(--button-height-sm);
+}
+
+/* Medium Button (Default) */
+.btnMd {
+  padding: var(--spacing-3) var(--spacing-6);
+  font-size: var(--text-base-size);
+  border-radius: var(--radius-button);
+  height: var(--button-height-md);
+}
+
+/* Large Button */
+.btnLg {
+  padding: var(--spacing-4) var(--spacing-8);
+  font-size: var(--text-lg-size);
+  border-radius: var(--radius-lg);
+  height: var(--button-height-lg);
+}
+
+/* ============================================
+   BUTTON STATES
+   ============================================ */
+
+/* Loading State */
+.btnLoading {
+  position: relative;
+  pointer-events: none;
+}
+
+.btnLoading::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: btnSpinner 0.6s linear infinite;
+}
+
+@keyframes btnSpinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================
+   BUTTON GROUPS
+   ============================================ */
+
+.btnGroup {
+  display: inline-flex;
+  gap: var(--spacing-3);
+}
+
+.btnGroup .btn {
+  flex: 0 0 auto;
+}
+
+/* Tight button group (no gap) */
+.btnGroupTight {
+  display: inline-flex;
+  gap: 0;
+}
+
+.btnGroupTight .btn {
+  border-radius: 0;
+}
+
+.btnGroupTight .btn:first-child {
+  border-top-left-radius: var(--radius-button);
+  border-bottom-left-radius: var(--radius-button);
+}
+
+.btnGroupTight .btn:last-child {
+  border-top-right-radius: var(--radius-button);
+  border-bottom-right-radius: var(--radius-button);
+}
+
+/* ============================================
+   FULL WIDTH BUTTON
+   ============================================ */
+
+.btnFull {
+  width: 100%;
+}
+
+/* ============================================
+   ICON BUTTONS
+   ============================================ */
+
+.btnIcon {
+  composes: btn;
+  padding: 0;
+  aspect-ratio: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btnIconSm {
+  width: var(--button-height-sm);
+  height: var(--button-height-sm);
+}
+
+.btnIconMd {
+  width: var(--button-height-md);
+  height: var(--button-height-md);
+}
+
+.btnIconLg {
+  width: var(--button-height-lg);
+  height: var(--button-height-lg);
+}

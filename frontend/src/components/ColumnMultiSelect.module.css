@@ -1,27 +1,32 @@
 .wrapper {
   margin-bottom: 1.1rem;
 }
+
 .label {
   font-size: 1.05rem;
   font-weight: 600;
   color: #6366f1;
   margin-bottom: 0.4rem;
 }
+
 .dropdown {
   background: #f9fafb;
   border-radius: 0.7rem;
   border: 1.5px solid #e5e7eb;
   padding: 0.7rem 1.1rem;
-  min-width: 220px;
+  min-width: 380px; /* Increased width to accommodate columns and dropdowns */
+  max-width: 100%;
   box-shadow: 0 1px 4px #6366f122;
 }
+
 .placeholder {
   color: #1f2937;
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
 }
-/* .options styles */
+
+/* Options container */
 .options {
   display: flex;
   flex-direction: column;
@@ -30,56 +35,73 @@
   padding: 0.5rem;
   background-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  gap: 0;
-}
-.option {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem; /* Space between elements */
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1f2937;
-  white-space: nowrap;
-  padding: 0.3rem 0;
-  width: 100%; /* Ensure option takes full width for flex-wrap */
-  justify-content: flex-start;
-  flex-wrap: nowrap;
-  border-bottom: 1px solid #f3f4f6;
-  min-height: 40px; /* reserve height to avoid jump when inline controls render */
-}
-.option:hover {
-  /* background-color: var(--gray-50); /* Subtle hover effect */
+  gap: 0.5rem; /* Add gap between options */
+  width: 100%;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
-.option input[type="checkbox"] {
+/* Each option row */
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  font-size: 1rem;
+  color: #1f2937;
+  padding: 0.6rem 0.3rem;
+  width: 100%;
+  border-bottom: 1px solid #f3f4f6;
+  gap: 0.45rem;
+  background-color: #ffffff;
+}
+
+.option:hover {
+  background-color: #f9fafb;
+}
+
+.optionMain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+/* Column section (checkbox + name) */
+.columnSection {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 240px; /* Fixed width for column section */
+  overflow: hidden;
+}
+
+.columnSection input[type="checkbox"] {
   margin-right: 0.5rem;
   flex-shrink: 0; /* Prevent checkbox from shrinking */
 }
 
+/* Column name styling */
 .columnNameText {
-  flex-shrink: 1;
-  min-width: 80px; /* Ensure column name has enough space */
+  flex-shrink: 0; /* Don't shrink column name */
+  width: calc(100% - 30px); /* Take all available space minus checkbox width */
   color: #1f2937; /* Dark prominent color for column name */
   font-weight: 600;
-  flex-grow: 1;
+  padding-left: 5px; /* Add padding to the left of the column name */
+  padding-right: 10px; /* Add padding to the right of the column name */
+  overflow: hidden;
+  text-overflow: ellipsis; /* Add ellipsis for very long column names */
+  white-space: nowrap; /* Prevent wrapping */
+  cursor: pointer; /* Show pointer cursor on the label */
 }
 
-.hasNulls {
-  color: #dc2626; /* Tailwind red-600 equivalent to avoid missing token */
-  font-weight: 600;
+/* Null count indicator */
+.nullCount {
+  color: #dc2626;
+  font-weight: 500;
+  font-size: 0.9rem;
 }
 
-.placeholder {
-  color: #1f2937;
-  font-weight: 600;
-  text-align: center;
-  padding: 1rem;
-  font-style: italic;
-  border: 1px solid var(--gray-200);
-  border-radius: var(--border-radius-md);
-  margin-bottom: 0.5rem;
-}
-
+/* Select All option */
 .selectAllOption {
   display: flex;
   align-items: center;
@@ -94,56 +116,26 @@
   transform: scale(1.1); /* Slightly larger checkbox */
 }
 
-.fillStrategyControls {
-  display: inline-flex; /* inline so it appears next to the count */
-  align-items: center;
-  gap: 0.5rem; /* Space between select and input */
-  margin-left: 0.5rem; /* small gap from the count */
-}
-
-.fillStrategySelect,
-.customFillInput {
-  padding: 0.3rem 0.5rem;
-  border: 1px solid var(--gray-300);
-  border-radius: var(--border-radius-sm);
-  font-size: 0.85rem;
-  background-color: var(--gray-50);
-}
-
-.fillStrategySelect:focus,
-.customFillInput:focus {
-  outline: none;
-  border-color: var(--indigo-500);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-}
-
-.disabledControls {
-  opacity: 0.6;
-}
-
-.nullCount {
-  color: #dc2626;
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
+/* Strategy selector (Mean/Median dropdown) */
 .inlineStrategy {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-left: auto;
   flex-shrink: 0;
+  width: 120px; /* Fixed width for strategy selector */
+  justify-content: flex-end; /* Push strategy selector to the right */
 }
 
 .strategySelect {
-  padding: 0.3rem 0.5rem;
+  padding: 0.4rem 0.7rem;
   border: 1px solid #3b82f6;
   border-radius: 6px;
   background: #ffffff;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 500;
   color: #1e40af;
-  min-width: 80px;
+  width: 100%; /* Make dropdown take full width of container */
+  cursor: pointer;
 }
 
 .strategySelect:focus {
@@ -152,6 +144,17 @@
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
+.strategySelectOverride {
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.strategySelectOverride:focus {
+  border-color: #b45309;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+}
+
+/* Custom input field */
 .customInput {
   padding: 0.3rem 0.5rem;
   border: 1px solid #10b981;
@@ -167,4 +170,28 @@
   outline: none;
   border-color: #059669;
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.recommendationRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+  color: #4b5563;
+  line-height: 1.3;
+}
+
+.recommendationTag {
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.recommendationDetail {
+  font-weight: 400;
+  color: #4b5563;
+}
+
+.recommendationOverride {
+  font-weight: 500;
+  color: #92400e;
 }

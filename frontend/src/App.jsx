@@ -17,8 +17,11 @@ const GDriveFiles = lazy(() => import("./pages/gdrive-files/GDriveFiles"));
 const UploadSQLWorkbench = lazy(() => import("./pages/upload-sql/UploadSQLWorkbench"));
 const Preprocessing = lazy(() => import("./pages/preprocessing/Preprocessing"));
 const FeatureEngineering = lazy(() => import("./pages/feature-engineering/FeatureEngineering"));
-const AutoMLTraining = lazy(() => import("./pages/automl-training/AutoMLTraining"));
+const ModelTraining = lazy(() => import("./pages/model-training/ModelTraining"));
+const ModelsList = lazy(() => import("./pages/model-training/ModelsList"));
+const Prediction = lazy(() => import("./pages/prediction/Prediction"));
 const FilesPage = lazy(() => import("./pages/files/Files"));
+const DataTableView = lazy(() => import("./pages/DataTableView"));
 
 const PageLoader = () => (
   <div className="page-loading">
@@ -48,8 +51,11 @@ function AnimatedRoutes({ user, setUser }) {
         <Route path="/upload-sqlworkbench" element={<UploadSQLWorkbench />} />
         <Route path="/preprocessing" element={<Preprocessing />} />
         <Route path="/feature-engineering" element={<FeatureEngineering />} />
-        <Route path="/automl-training" element={<AutoMLTraining />} />
+        <Route path="/model-training" element={<ModelTraining />} />
+        <Route path="/models" element={<ModelsList />} />
+        <Route path="/predict" element={<Prediction />} />
         <Route path="/files" element={<FilesPage />} />
+        <Route path="/data-table-view" element={<DataTableView />} />
         <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
       </Routes>
     </Suspense>

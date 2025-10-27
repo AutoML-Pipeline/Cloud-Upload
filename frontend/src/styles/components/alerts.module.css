@@ -1,0 +1,403 @@
+/**
+ * Alert & Notification Component Primitives
+ * Feedback messages, alerts, and toasts
+ */
+
+/* ============================================
+   BASE ALERT STYLES
+   ============================================ */
+
+.alert {
+  display: flex;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid;
+  font-size: var(--text-sm-size);
+  line-height: 1.5;
+}
+
+.alertIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alertContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.alertTitle {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-base-size);
+  margin: 0;
+}
+
+.alertDescription {
+  color: inherit;
+  opacity: 0.9;
+}
+
+.alertClose {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: currentColor;
+  opacity: 0.6;
+  transition: var(--transition-colors);
+  padding: 0;
+}
+
+.alertClose:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================
+   ALERT VARIANTS (COLORS)
+   ============================================ */
+
+.alertSuccess {
+  background: var(--color-success-50);
+  border-color: var(--color-success-200);
+  color: var(--color-success-800);
+}
+
+.alertSuccess .alertIcon {
+  color: var(--color-success);
+}
+
+.alertWarning {
+  background: var(--color-warning-50);
+  border-color: var(--color-warning-200);
+  color: var(--color-warning-800);
+}
+
+.alertWarning .alertIcon {
+  color: var(--color-warning);
+}
+
+.alertError {
+  background: var(--color-error-50);
+  border-color: var(--color-error-200);
+  color: var(--color-error-800);
+}
+
+.alertError .alertIcon {
+  color: var(--color-error);
+}
+
+.alertInfo {
+  background: var(--color-info-50);
+  border-color: var(--color-info-200);
+  color: var(--color-info-800);
+}
+
+.alertInfo .alertIcon {
+  color: var(--color-info);
+}
+
+.alertNeutral {
+  background: var(--color-gray-50);
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-800);
+}
+
+.alertNeutral .alertIcon {
+  color: var(--color-gray-600);
+}
+
+/* ============================================
+   SOLID ALERT VARIANTS
+   ============================================ */
+
+.alertSuccessSolid {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: white;
+}
+
+.alertWarningSolid {
+  background: var(--color-warning);
+  border-color: var(--color-warning);
+  color: var(--color-gray-900);
+}
+
+.alertErrorSolid {
+  background: var(--color-error);
+  border-color: var(--color-error);
+  color: white;
+}
+
+.alertInfoSolid {
+  background: var(--color-info);
+  border-color: var(--color-info);
+  color: white;
+}
+
+/* ============================================
+   ALERT SIZES
+   ============================================ */
+
+.alertCompact {
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: var(--text-xs-size);
+}
+
+.alertCompact .alertTitle {
+  font-size: var(--text-sm-size);
+}
+
+.alertLarge {
+  padding: var(--spacing-6) var(--spacing-8);
+  font-size: var(--text-base-size);
+}
+
+.alertLarge .alertTitle {
+  font-size: var(--text-h5-size);
+}
+
+/* ============================================
+   BANNER ALERTS (FULL WIDTH)
+   ============================================ */
+
+.alertBanner {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  padding: var(--spacing-3) var(--spacing-5);
+}
+
+.alertBannerTop {
+  border-top: none;
+  border-bottom-left-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
+}
+
+.alertBannerBottom {
+  border-bottom: none;
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+}
+
+/* ============================================
+   TOAST NOTIFICATIONS
+   ============================================ */
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  min-width: 320px;
+  max-width: 420px;
+  padding: var(--spacing-4);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  animation: toastSlideIn 0.3s ease-out;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toastIcon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  padding: 4px;
+}
+
+.toastSuccess .toastIcon {
+  background: var(--color-success-100);
+  color: var(--color-success);
+}
+
+.toastWarning .toastIcon {
+  background: var(--color-warning-100);
+  color: var(--color-warning);
+}
+
+.toastError .toastIcon {
+  background: var(--color-error-100);
+  color: var(--color-error);
+}
+
+.toastInfo .toastIcon {
+  background: var(--color-info-100);
+  color: var(--color-info);
+}
+
+.toastContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.toastTitle {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-sm-size);
+  color: var(--color-text-primary);
+}
+
+.toastDescription {
+  font-size: var(--text-xs-size);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.toastAction {
+  margin-top: var(--spacing-2);
+  font-size: var(--text-xs-size);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.toastAction:hover {
+  color: var(--color-primary-hover);
+}
+
+.toastClose {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: var(--transition-colors);
+  padding: 0;
+}
+
+.toastClose:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+/* ============================================
+   PROGRESS BAR (FOR ALERTS)
+   ============================================ */
+
+.alertProgress {
+  margin-top: var(--spacing-3);
+  height: 4px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.alertProgressBar {
+  height: 100%;
+  background: currentColor;
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+
+/* ============================================
+   ALERT WITH ACTIONS
+   ============================================ */
+
+.alertActions {
+  display: flex;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-3);
+}
+
+.alertAction {
+  font-size: var(--text-sm-size);
+  font-weight: var(--font-weight-semibold);
+  color: currentColor;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+
+.alertAction:hover {
+  opacity: 1;
+}
+
+/* ============================================
+   SNACKBAR (BOTTOM TOAST)
+   ============================================ */
+
+.snackbar {
+  position: fixed;
+  bottom: var(--spacing-6);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-6);
+  background: var(--color-gray-900);
+  color: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2xl);
+  font-size: var(--text-sm-size);
+  z-index: var(--z-tooltip);
+  animation: snackbarSlideUp 0.3s ease-out;
+}
+
+@keyframes snackbarSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.snackbarAction {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-300);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.snackbarAction:hover {
+  color: var(--color-primary-200);
+}

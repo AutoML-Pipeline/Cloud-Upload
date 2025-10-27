@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import DataTable from "../../../components/DataTable";
+import { ViewProcessedDataButton } from "../../../components/ViewProcessedDataButton";
 import styles from "../../preprocessing/Preprocessing.module.css";
 import { ChangeSummary } from "./ChangeSummary";
 
@@ -162,31 +162,44 @@ export const PreviewPanel = ({
             Launch feature engineering to generate a live preview of your enriched dataset.
           </div>
         ) : (
-          <>
-            <div className={styles.previewNote}>
-              <span>
-                Showing {(result.preview || []).length.toLocaleString()} rows
-                {result.engineered_row_count && result.engineered_row_count > (result.preview || []).length
-                  ? " (truncated to preview limit)"
-                  : ""}
-              </span>
-              {result.engineered_filename && (
-                <span className={styles.diffInfo}>Output file: {result.engineered_filename}</span>
-              )}
+          <div className={styles.dataProcessingSummary}>
+            <div className={styles.dataProcessingInfo}>
+              <div className={styles.dataProcessingStats}>
+                <div className={styles.dataProcessingStat}>
+                  <span className={styles.dataProcessingStatLabel}>Rows</span>
+                  <span className={styles.dataProcessingStatValue}>{(result.preview || []).length.toLocaleString()}</span>
+                </div>
+                {result.engineered_row_count && result.engineered_row_count > (result.preview || []).length && (
+                  <div className={styles.dataProcessingStat}>
+                    <span className={styles.dataProcessingStatLabel}>Total Rows</span>
+                    <span className={styles.dataProcessingStatValue}>{result.engineered_row_count.toLocaleString()}</span>
+                  </div>
+                )}
+                {result.engineered_filename && (
+                  <div className={styles.dataProcessingStat}>
+                    <span className={styles.dataProcessingStatLabel}>Output File</span>
+                    <span className={styles.dataProcessingStatValue}>{result.engineered_filename}</span>
+                  </div>
+                )}
+              </div>
+              
+              <ViewProcessedDataButton
+                data={tableData}
+                originalData={originalData}
+                compareOriginal={Boolean(result.original_preview?.length)}
+                highlightChanges={false}
+                diffMarks={null}
+                originalFilename={selectedFile}
+                saveTarget="engineered"
+                saveFilename={result.engineered_filename}
+                onSave={handleSave}
+                onDownload={onDownloadCsv}
+                title="Feature Engineered Data"
+                buttonText="View Engineered Data"
+                buttonVariant="primary"
+              />
             </div>
-            <DataTable
-              data={tableData}
-              originalData={originalData}
-              compareOriginal={Boolean(result.original_preview?.length)}
-              highlightChanges={false}
-              diffMarks={null}
-              originalFilename={selectedFile}
-              saveTarget="engineered"
-              saveFilename={result.engineered_filename}
-              onSave={handleSave}
-              onDownload={onDownloadCsv}
-            />
-          </>
+          </div>
         )}
       </div>
 

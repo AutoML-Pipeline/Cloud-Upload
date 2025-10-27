@@ -3,17 +3,20 @@ export const INITIAL_STEPS = {
     enabled: false,
     method: "standard",
     columns: [],
+    columnMethods: {}, // Per-column method overrides
   },
   encoding: {
     enabled: false,
     method: "one-hot",
     columns: [],
+    columnMethods: {}, // Per-column method overrides
   },
   binning: {
     enabled: false,
     method: "equal-width",
     bins: 5,
     columns: [],
+    columnMethods: {}, // Per-column method overrides
   },
   featureCreation: {
     polynomial: {
@@ -55,6 +58,9 @@ export const buildStepsPayload = (steps) => {
       type: "scaling",
       method: steps.scaling.method,
       columns: steps.scaling.columns,
+      ...(Object.keys(steps.scaling.columnMethods || {}).length > 0 && {
+        column_methods: steps.scaling.columnMethods,
+      }),
     });
   }
 
@@ -64,6 +70,9 @@ export const buildStepsPayload = (steps) => {
       type: "encoding",
       method: steps.encoding.method,
       columns: steps.encoding.columns,
+      ...(Object.keys(steps.encoding.columnMethods || {}).length > 0 && {
+        column_methods: steps.encoding.columnMethods,
+      }),
     });
   }
 
@@ -74,6 +83,9 @@ export const buildStepsPayload = (steps) => {
       method: steps.binning.method,
       bins: Number(steps.binning.bins) || 5,
       columns: steps.binning.columns,
+      ...(Object.keys(steps.binning.columnMethods || {}).length > 0 && {
+        column_methods: steps.binning.columnMethods,
+      }),
     });
   }
 

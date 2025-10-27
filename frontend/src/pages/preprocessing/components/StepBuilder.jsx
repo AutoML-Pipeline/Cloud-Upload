@@ -6,6 +6,7 @@ import styles from "../Preprocessing.module.css";
 
 export const StepBuilder = ({
   columns,
+  columnInsights,
   selectedFile,
   preprocessingSteps,
   onUpdateSteps,
@@ -24,8 +25,11 @@ export const StepBuilder = ({
   collapseEnabled,
   onCollapse,
 }) => {
+  // Use a more modern layout when no result is showing (full-width mode)
+  const useFullWidth = true; // Always use full width for vertical layout
+
   return (
-    <form onSubmit={onSubmit} className={styles.builderColumn}>
+    <form onSubmit={onSubmit} className={`${styles.builderColumn} ${useFullWidth ? styles.stepBuilder : ''}`}>
       {collapseEnabled && (
         <div className={styles.builderCollapseRow}>
           <button type="button" className={styles.builderCollapseButton} onClick={onCollapse}>
@@ -33,14 +37,14 @@ export const StepBuilder = ({
           </button>
         </div>
       )}
-      <div className={styles.builderIntro}>
+      <div className={`${styles.builderIntro} ${useFullWidth ? styles.stepBuilderHeader : ''}`}>
         <span className={styles.builderEyebrow}>Step builder</span>
         <h3 className={styles.builderTitle}>Configure your cleaning recipe</h3>
         <p className={styles.builderSubtitle}>
           Toggle the cleanup steps you need. We&apos;ll preview changes instantly before you commit.
         </p>
       </div>
-      <div className={styles.builderFileRow}>
+      <div className={`${styles.builderFileRow} ${useFullWidth ? styles.stepBuilderHeader : ''}`}>
         <div className={styles.builderFileMeta}>
           <span className={styles.builderFileLabel}>Working on</span>
           <span className={styles.builderFileName}>{selectedFile}</span>
@@ -51,7 +55,7 @@ export const StepBuilder = ({
         </button>
       </div>
 
-      <div className={styles.stepperListModern}>
+      <div className={`${styles.stepperListModern} ${styles.stepBuilderVertical}`}>
         <PreprocessingStepCard
           checked={preprocessingSteps.removeDuplicates}
           onToggle={(event) => onUpdateSteps((prev) => ({ ...prev, removeDuplicates: event.target.checked }))}
@@ -100,6 +104,7 @@ export const StepBuilder = ({
               selected={preprocessingSteps.fillNullsColumns}
               onChangeSelected={(cols) => onUpdateSteps((prev) => ({ ...prev, fillNullsColumns: cols }))}
               strategies={preprocessingSteps.fillColumnStrategies}
+              columnInsights={columnInsights}
               onChangeStrategy={(column, strategy, value) =>
                 onUpdateSteps((prev) => ({
                   ...prev,
@@ -199,15 +204,15 @@ export const StepBuilder = ({
         </PreprocessingStepCard>
       </div>
 
-      <div className={styles.sessionSummaryCard}>
+      <div className={`${styles.sessionSummaryCard} ${useFullWidth ? styles.sessionSummaryCardFullWidth : ''}`}>
         <div className={styles.sessionSummaryHeader}>
           <span className={styles.sessionSummaryLabel}>Active steps</span>
           <span className={styles.sessionSummaryCount}>{activeSteps.length} selected</span>
         </div>
         {activeSteps.length ? (
-          <ul className={styles.sessionSummaryList}>
+          <ul className={`${styles.sessionSummaryList} ${useFullWidth ? styles.sessionSummaryListGrid : ''}`}>
             {activeSteps.map((step) => (
-              <li key={step.key} className={styles.sessionSummaryItem}>
+              <li key={step.key} className={`${styles.sessionSummaryItem} ${useFullWidth ? styles.sessionSummaryItemCard : ''}`}>
                 <span className={styles.sessionSummaryIcon}>{step.icon}</span>
                 <div>
                   <p className={styles.sessionSummaryTitle}>{step.title}</p>
@@ -221,8 +226,8 @@ export const StepBuilder = ({
         )}
       </div>
 
-      <div className={styles.actionFooter}>
-        <button type="submit" disabled={loading || !selectedFile} className={styles.primaryCta}>
+      <div className={`${styles.actionFooter} ${useFullWidth ? styles.stepBuilderFooter : ''}`}>
+        <button type="submit" disabled={loading || !selectedFile} className={`${styles.primaryCta} ${useFullWidth ? styles.primaryCtaLarge : ''}`}>
           {loading ? (
             <div className={styles.loadingWrapper}>
               <div className={styles.loadingSpinner}></div>
@@ -245,6 +250,7 @@ export const StepBuilder = ({
 
 StepBuilder.propTypes = {
   columns: PropTypes.arrayOf(PropTypes.string).isRequired,
+  columnInsights: PropTypes.object.isRequired,
   selectedFile: PropTypes.string.isRequired,
   preprocessingSteps: PropTypes.shape({
     removeDuplicates: PropTypes.bool.isRequired,

@@ -1,0 +1,371 @@
+/**
+ * Badge & Label Component Primitives
+ * Small status indicators, tags, and labels
+ */
+
+/* ============================================
+   BASE BADGE STYLES
+   ============================================ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: var(--text-xs-size);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  border-radius: var(--radius-badge);
+  white-space: nowrap;
+  transition: var(--transition-colors);
+}
+
+/* ============================================
+   BADGE VARIANTS (COLORS)
+   ============================================ */
+
+.badgePrimary {
+  background: var(--color-primary-100);
+  color: var(--color-primary-700);
+}
+
+.badgeSecondary {
+  background: var(--color-secondary-100);
+  color: var(--color-secondary-700);
+}
+
+.badgeSuccess {
+  background: var(--color-success-100);
+  color: var(--color-success-700);
+}
+
+.badgeWarning {
+  background: var(--color-warning-100);
+  color: var(--color-warning-700);
+}
+
+.badgeError {
+  background: var(--color-error-100);
+  color: var(--color-error-700);
+}
+
+.badgeInfo {
+  background: var(--color-info-100);
+  color: var(--color-info-700);
+}
+
+.badgeNeutral {
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+}
+
+/* ============================================
+   SOLID BADGE VARIANTS
+   ============================================ */
+
+.badgePrimarySolid {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.badgeSecondarySolid {
+  background: var(--color-secondary);
+  color: var(--color-text-inverse);
+}
+
+.badgeSuccessSolid {
+  background: var(--color-success);
+  color: var(--color-text-inverse);
+}
+
+.badgeWarningSolid {
+  background: var(--color-warning);
+  color: var(--color-gray-900);
+}
+
+.badgeErrorSolid {
+  background: var(--color-error);
+  color: var(--color-text-inverse);
+}
+
+.badgeInfoSolid {
+  background: var(--color-info);
+  color: var(--color-text-inverse);
+}
+
+/* ============================================
+   OUTLINE BADGE VARIANTS
+   ============================================ */
+
+.badgePrimaryOutline {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.badgeSecondaryOutline {
+  background: transparent;
+  color: var(--color-secondary);
+  border: 1px solid var(--color-secondary);
+}
+
+.badgeSuccessOutline {
+  background: transparent;
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
+}
+
+.badgeWarningOutline {
+  background: transparent;
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+.badgeErrorOutline {
+  background: transparent;
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+.badgeInfoOutline {
+  background: transparent;
+  color: var(--color-info);
+  border: 1px solid var(--color-info);
+}
+
+/* ============================================
+   BADGE SIZES
+   ============================================ */
+
+.badgeSm {
+  padding: 2px var(--spacing-2);
+  font-size: 10px;
+}
+
+.badgeMd {
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: var(--text-xs-size);
+}
+
+.badgeLg {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--text-sm-size);
+}
+
+/* ============================================
+   BADGE WITH DOT INDICATOR
+   ============================================ */
+
+.badgeDot::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ============================================
+   REMOVABLE BADGE (WITH X)
+   ============================================ */
+
+.badgeRemovable {
+  padding-right: var(--spacing-1);
+}
+
+.badgeClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: var(--spacing-1);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: currentColor;
+  opacity: 0.6;
+  transition: var(--transition-colors);
+}
+
+.badgeClose:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   BADGE POSITIONING (FOR ICONS/AVATARS)
+   ============================================ */
+
+.badgeContainer {
+  position: relative;
+  display: inline-block;
+}
+
+.badgePositioned {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  padding: 2px 6px;
+  min-width: 18px;
+  height: 18px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-bg-card);
+  border-radius: var(--radius-full);
+}
+
+/* ============================================
+   STATUS INDICATORS
+   ============================================ */
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.statusDotSuccess {
+  background: var(--color-success);
+}
+
+.statusDotWarning {
+  background: var(--color-warning);
+}
+
+.statusDotError {
+  background: var(--color-error);
+}
+
+.statusDotInfo {
+  background: var(--color-info);
+}
+
+.statusDotNeutral {
+  background: var(--color-gray-400);
+}
+
+/* Animated pulsing dot */
+.statusDotPulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ============================================
+   TAG SYSTEM (SIMILAR TO BADGES)
+   ============================================ */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--text-sm-size);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-gray-100);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  cursor: default;
+  transition: var(--transition-colors);
+}
+
+.tagClickable {
+  cursor: pointer;
+}
+
+.tagClickable:hover {
+  background: var(--color-gray-200);
+}
+
+.tagSelected {
+  background: var(--color-primary-100);
+  color: var(--color-primary-700);
+}
+
+/* ============================================
+   LABEL SYSTEM
+   ============================================ */
+
+.label {
+  display: inline-block;
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--text-xs-size);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--color-gray-200);
+  color: var(--color-gray-700);
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================
+   CHIP SYSTEM (ROUNDED BADGES)
+   ============================================ */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--text-sm-size);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-gray-100);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  transition: var(--transition-colors);
+}
+
+.chipAvatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-gray-300);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  margin-left: calc(-1 * var(--spacing-2));
+}
+
+.chipIcon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chipDelete {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: var(--transition-colors);
+  padding: 0;
+  margin-right: calc(-1 * var(--spacing-2));
+}
+
+.chipDelete:hover {
+  background: var(--color-gray-200);
+  color: var(--color-text-primary);
+}

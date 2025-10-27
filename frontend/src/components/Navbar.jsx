@@ -9,14 +9,14 @@ const PipelineLogo = () => (
 );
 
 const Navbar = ({ onLogout }) => (
-  <nav className="flex items-center justify-between bg-indigo-700 px-6 py-3 shadow-md relative">
+  <nav className="flex items-center justify-between bg-indigo-700 px-5 py-2.5 shadow-md relative">
     <div className="flex items-center gap-3">
       <PipelineLogo />
-      <span className="text-white text-2xl font-bold tracking-tight select-none">ML Pipeline</span>
+      <span className="text-white text-xl font-semibold tracking-tight select-none">ML Pipeline</span>
     </div>
     <button
       onClick={onLogout}
-      className="bg-white text-indigo-700 font-semibold px-4 py-2 rounded hover:bg-indigo-100 transition"
+      className="bg-white text-indigo-700 font-semibold px-3.5 py-1.5 rounded-md hover:bg-indigo-100 transition text-sm"
     >
       Logout
     </button>

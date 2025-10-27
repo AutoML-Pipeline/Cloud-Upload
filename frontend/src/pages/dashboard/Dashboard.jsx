@@ -13,7 +13,7 @@ const steps = [
   {
     label: "Preprocessing",
     description: "Clean, validate, and prepare datasets for modeling.",
-    icon: "�",
+    icon: "🧹",
     route: "/preprocessing",
     accentKey: "Preprocessing",
   },
@@ -25,10 +25,10 @@ const steps = [
     accentKey: "Feature",
   },
   {
-    label: "Model Selection",
-    description: "Run AutoML and compare experiments to pick a champion.",
-    icon: "🚀",
-    route: "/automl-training",
+    label: "Model Training",
+    description: "Train and compare multiple ML models automatically.",
+    icon: "🤖",
+    route: "/model-training",
     accentKey: "Model",
   },
 ];

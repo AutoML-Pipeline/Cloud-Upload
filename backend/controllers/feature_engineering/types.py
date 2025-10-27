@@ -11,17 +11,20 @@ class FeatureEngineeringStep(BaseModel):
 class ScalingConfig(FeatureEngineeringStep):
     type: Literal["scaling"]
     method: Literal["standard", "minmax", "robust", "log"]
+    column_methods: Optional[Dict[str, str]] = None  # Per-column method overrides
 
 
 class EncodingConfig(FeatureEngineeringStep):
     type: Literal["encoding"]
     method: Literal["one-hot", "label", "target"]
+    column_methods: Optional[Dict[str, str]] = None  # Per-column method overrides
 
 
 class BinningConfig(FeatureEngineeringStep):
     type: Literal["binning"]
     method: Literal["equal-width", "quantile"]
     bins: int
+    column_methods: Optional[Dict[str, str]] = None  # Per-column method overrides
 
 
 class FeatureCreationConfig(FeatureEngineeringStep):
@@ -88,3 +91,46 @@ class MinioFile(BaseModel):
     name: str
     last_modified: Optional[str]
     size: Optional[int]
+
+
+class ColumnInsight(BaseModel):
+    name: str
+    dtype: str
+    cardinality: int
+    missing_count: int
+    missing_percentage: float
+    is_numeric: bool
+    is_categorical: bool
+    is_datetime: bool
+    is_text: bool
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+    mean_value: Optional[float] = None
+    std_value: Optional[float] = None
+    unique_values: Optional[List[str]] = None
+
+
+class StepRecommendation(BaseModel):
+    step_type: Literal["scaling", "encoding", "binning", "feature_creation", "feature_selection"]
+    step_name: str
+    recommended_columns: List[str]
+    reason: str
+    compatibility_score: float  # 0-1, higher is better
+    why_these_columns: Dict[str, str]  # column -> reason mapping
+
+
+class ColumnRecommendation(BaseModel):
+    column_name: str
+    column_type: str
+    recommended_steps: List[str]  # list of step types this column is good for
+    recommendations: List[str]  # detailed recommendations
+
+
+class DatasetAnalysis(BaseModel):
+    filename: str
+    total_rows: int
+    total_columns: int
+    column_insights: List[ColumnInsight]
+    step_recommendations: List[StepRecommendation]
+    suggested_pipeline: List[str]  # suggested order of steps
+    data_quality_notes: List[str]

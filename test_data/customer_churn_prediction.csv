@@ -1,0 +1,9 @@
+customer_id,age,tenure_months,monthly_charges,total_charges,contract_type,payment_method,internet_service,phone_service
+C101,39,27,72.30,1952.10,month-to-month,electronic,fiber,yes
+C102,46,51,95.60,4875.60,one-year,bank,dsl,yes
+C103,32,8,42.80,342.40,month-to-month,credit-card,dsl,no
+C104,58,63,115.90,7301.70,two-year,bank,fiber,yes
+C105,26,4,38.25,153.00,month-to-month,electronic,none,yes
+C106,43,39,82.45,3215.55,one-year,credit-card,fiber,yes
+C107,34,14,54.60,764.40,month-to-month,electronic,fiber,yes
+C108,61,70,128.40,8988.00,two-year,bank,fiber,yes

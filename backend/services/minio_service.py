@@ -1,4 +1,4 @@
-from backend.config import minio_client, MINIO_BUCKET, ensure_minio_bucket_exists
+from backend.config import minio_client, MINIO_BUCKET
 import io
 import os
 import logging
@@ -32,7 +32,7 @@ def list_files(folder: str = None):
                 return {"files": []}
             objects = minio_client.list_objects(bucket_name, recursive=True)
         else:
-            ensure_minio_bucket_exists()
+            # Bucket is already ensured to exist in config.py on import
             objects = minio_client.list_objects(MINIO_BUCKET, recursive=True)
             
         files = []
@@ -58,6 +58,12 @@ def save_cleaned_to_minio(temp_cleaned_path: str, cleaned_filename: str):
     try:
         if not os.path.exists(temp_cleaned_path):
             return {"error": "Temporary cleaned file not found."}
+        
+        # Verify file contents before uploading
+        import pandas as pd
+        verify_df = pd.read_parquet(temp_cleaned_path)
+        logging.info(f"Uploading cleaned file with {len(verify_df)} rows to MinIO as {cleaned_filename}")
+        
         if not minio_client.bucket_exists(output_bucket):
             minio_client.make_bucket(output_bucket)
         minio_client.fput_object(
@@ -66,6 +72,16 @@ def save_cleaned_to_minio(temp_cleaned_path: str, cleaned_filename: str):
             temp_cleaned_path,
             content_type="application/octet-stream"
         )
+        
+        # Verify after upload
+        import io
+        resp = minio_client.get_object(output_bucket, cleaned_filename)
+        data = io.BytesIO(resp.read())
+        uploaded_df = pd.read_parquet(data)
+        logging.info(f"Verified uploaded file has {len(uploaded_df)} rows")
+        resp.close()
+        resp.release_conn()
+        
         return {"message": f"{cleaned_filename} saved to Minio bucket {output_bucket}."}
     except Exception as e:
         logging.error(f"Error saving cleaned file to Minio: {e}")
@@ -97,6 +113,12 @@ def save_feature_engineered_temp(temp_path: str, filename: str, bucket: str = "f
     try:
         if not os.path.exists(temp_path):
             return {"error": "Temporary engineered file not found."}
+        
+        # Verify file contents before uploading
+        import pandas as pd
+        verify_df = pd.read_parquet(temp_path)
+        logging.info(f"Uploading feature engineered file with {len(verify_df)} rows to MinIO as {filename}")
+        
         if not minio_client.bucket_exists(bucket):
             minio_client.make_bucket(bucket)
         minio_client.fput_object(
@@ -105,6 +127,16 @@ def save_feature_engineered_temp(temp_path: str, filename: str, bucket: str = "f
             temp_path,
             content_type="application/octet-stream",
         )
+        
+        # Verify after upload
+        import io
+        resp = minio_client.get_object(bucket, filename)
+        data = io.BytesIO(resp.read())
+        uploaded_df = pd.read_parquet(data)
+        logging.info(f"Verified uploaded engineered file has {len(uploaded_df)} rows")
+        resp.close()
+        resp.release_conn()
+        
         os.unlink(temp_path)
         return {"message": f"{filename} saved to Minio bucket {bucket}."}
     except Exception as e:

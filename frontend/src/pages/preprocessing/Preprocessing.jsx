@@ -130,12 +130,6 @@ export default function Preprocessing() {
     onError: handlePreviewError,
     onResetSteps: resetPrimarySteps,
   });
-
-  useFillStrategySync({
-    selectedColumns: preprocessingSteps.fillNullsColumns,
-    setPreprocessingSteps,
-  });
-
   const notify = useMemo(
     () => ({
       success: (message) => toast.success(message),
@@ -149,7 +143,7 @@ export default function Preprocessing() {
     notify,
   });
 
-  const collapseEnabled = Boolean(result);
+  const collapseEnabled = Boolean(result) || loading || progressInfo.status !== "idle";
 
   useEffect(() => {
     if (!collapseEnabled && isBuilderCollapsed) {
@@ -158,18 +152,45 @@ export default function Preprocessing() {
   }, [collapseEnabled, isBuilderCollapsed]);
 
   useEffect(() => {
-    if ((loading || progressInfo.status === "queued" || progressInfo.status === "pending") && isBuilderCollapsed) {
+    if (progressInfo.status === "failed" && isBuilderCollapsed) {
       setBuilderCollapsed(false);
     }
-  }, [loading, progressInfo.status, isBuilderCollapsed]);
+  }, [progressInfo.status, isBuilderCollapsed]);
+
+  useEffect(() => {
+    if (progressInfo.status === "completed") {
+      setBuilderCollapsed(true);
+    }
+  }, [progressInfo.status]);
 
   const isPreviewLoading =
     step === "configure_preprocessing" && selectedFile && !dataPreview && !isFetchingFiles;
-  const columns = dataPreview?.columns || [];
+  const columns = useMemo(() => dataPreview?.columns || [], [dataPreview]);
+  const columnTypes = useMemo(() => dataPreview?.dtypes || {}, [dataPreview]);
+  const sampleValues = useMemo(() => dataPreview?.sample_values || {}, [dataPreview]);
   const nullCounts = useMemo(
     () => dataPreview?.null_counts ?? {},
     [dataPreview]
   );
+  const columnInsights = useMemo(() => {
+    if (!columns.length) {
+      return {};
+    }
+    return columns.reduce((accumulator, column) => {
+      accumulator[column] = {
+        dtype: columnTypes[column],
+        sampleValue: sampleValues[column],
+        nullCount: nullCounts[column] ?? 0,
+      };
+      return accumulator;
+    }, {});
+  }, [columns, columnTypes, sampleValues, nullCounts]);
+
+  useFillStrategySync({
+    selectedColumns: preprocessingSteps.fillNullsColumns,
+    setPreprocessingSteps,
+    columnInsights,
+  });
   const previewReady = Boolean(dataPreview && !dataPreview.error);
 
   const totalNulls = useMemo(() => {
@@ -278,6 +299,7 @@ export default function Preprocessing() {
       runPreprocessing({
         stepsPayload,
         onBeforeStart: () => {
+          setBuilderCollapsed(true);
           setActivePreviewTab("preview");
           if (progressAnchorRef.current) {
             requestAnimationFrame(() => {
@@ -287,7 +309,7 @@ export default function Preprocessing() {
         },
       });
     },
-    [preprocessingSteps, runPreprocessing, setActivePreviewTab]
+    [preprocessingSteps, runPreprocessing, setActivePreviewTab, setBuilderCollapsed]
   );
 
   const handleSaveToMinio = useCallback(async () => {
@@ -400,10 +422,11 @@ export default function Preprocessing() {
                     </div>
                   )}
 
-                  <div className={`${styles.layoutGrid} ${isBuilderCollapsed ? styles.layoutGridCollapsed : ""}`}>
+                  <div className={`${styles.layoutGrid} ${isBuilderCollapsed ? styles.layoutGridCollapsed : ""} ${!result ? styles.layoutGridFullWidth : ""}`}>
                     {!isBuilderCollapsed && (
                       <StepBuilder
                         columns={columns}
+                        columnInsights={columnInsights}
                         selectedFile={selectedFile}
                         preprocessingSteps={preprocessingSteps}
                         onUpdateSteps={setStepsStable}
@@ -424,22 +447,24 @@ export default function Preprocessing() {
                       />
                     )}
 
-                    <PreviewPanel
-                      result={result}
-                      progressInfo={progressInfo}
-                      activePreviewTab={activePreviewTab}
-                      onTabChange={setActivePreviewTab}
-                      statsCards={statsCards}
-                      selectedFile={selectedFile}
-                      preprocessingSteps={preprocessingSteps}
-                      onSaveToMinio={handleSaveToMinio}
-                      onDownloadFullCsv={handleDownloadCsv}
-                      elapsedMs={elapsedMs}
-                      progressAnchorRef={progressAnchorRef}
-                      collapseEnabled={collapseEnabled}
-                      isStepsCollapsed={isBuilderCollapsed}
-                      onExpandSteps={() => setBuilderCollapsed(false)}
-                    />
+                    {(result || loading || progressInfo.status !== "idle") && (
+                      <PreviewPanel
+                        result={result}
+                        progressInfo={progressInfo}
+                        activePreviewTab={activePreviewTab}
+                        onTabChange={setActivePreviewTab}
+                        statsCards={statsCards}
+                        selectedFile={selectedFile}
+                        preprocessingSteps={preprocessingSteps}
+                        onSaveToMinio={handleSaveToMinio}
+                        onDownloadFullCsv={handleDownloadCsv}
+                        elapsedMs={elapsedMs}
+                        progressAnchorRef={progressAnchorRef}
+                        collapseEnabled={collapseEnabled}
+                        isStepsCollapsed={isBuilderCollapsed}
+                        onExpandSteps={() => setBuilderCollapsed(false)}
+                      />
+                    )}
                   </div>
                 </>
               )

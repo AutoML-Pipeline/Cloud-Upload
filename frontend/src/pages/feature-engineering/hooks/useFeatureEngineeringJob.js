@@ -50,6 +50,7 @@ export const useFeatureEngineeringJob = ({ selectedFile, notify }) => {
   const resetProgress = useCallback(() => {
     setProgressInfo(INITIAL_PROGRESS);
     setElapsedMs(0);
+    startTimeRef.current = null;
   }, []);
 
   const runFeatureEngineering = useCallback(
@@ -74,10 +75,11 @@ export const useFeatureEngineeringJob = ({ selectedFile, notify }) => {
       beginTimer();
 
       try {
-        const response = await fetch("http://localhost:8000/api/feature-engineering/run", {
+        const baseFilename = selectedFile.split("/").pop();
+        const response = await fetch(`http://localhost:8000/api/feature-engineering/apply-feature-engineering/${baseFilename}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filename: selectedFile, steps: stepsPayload || [] }),
+          body: JSON.stringify({ steps: stepsPayload }),
         });
 
         const data = await response.json().catch(() => ({}));
@@ -94,9 +96,8 @@ export const useFeatureEngineeringJob = ({ selectedFile, notify }) => {
           progress: 0,
           message: "Initializing feature engineering pipeline...",
           error: null,
-          startedAt: startTimeRef.current,
         });
-        notify?.success?.("Feature engineering started. We'll keep you posted on progress.");
+        notify?.success?.("Feature engineering started. Hang tight while we work through your steps.");
       } catch (error) {
         setProgressInfo({
           status: "failed",

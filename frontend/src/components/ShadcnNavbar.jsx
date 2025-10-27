@@ -6,13 +6,14 @@ import ConfirmDialog from './ConfirmDialog';
 
 const primaryLinks = [
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Models", href: "/models" },
 ];
 
 const workflowLinks = [
   { label: "Data Ingestion", href: "/data-ingestion" },
   { label: "Preprocessing", href: "/preprocessing" },
   { label: "Feature Engineering", href: "/feature-engineering" },
-  { label: "Model Selection", href: "/automl-training" },
+  { label: "Model Training", href: "/model-training" },
 ];
 
 const getInitial = (value) => {

@@ -8,31 +8,31 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 96px 16px 40px; /* top padding matches navbar height to prevent overlap */
+  padding: 80px 16px 36px; /* top padding matches compact navbar height */
 }
 
 .wrapper {
   width: min(980px, 100%);
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
-  gap: 24px;
+  gap: 18px;
   margin-top: 12px; /* subtle separation from navbar */
 }
 
 .card {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 24px;
-  box-shadow: 0 28px 44px rgba(2, 6, 23, 0.45);
+  border-radius: 20px;
+  box-shadow: 0 24px 40px rgba(2, 6, 23, 0.42);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  padding: clamp(24px, 4vw, 36px);
+  padding: clamp(22px, 3.6vw, 32px);
   color: #e2e8f0;
 }
 
 .title {
-  font-weight: 800;
-  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 700;
+  font-size: clamp(26px, 3.5vw, 32px);
   letter-spacing: -0.02em;
   color: #ffffff;
 }
@@ -50,12 +50,12 @@
 
 .input {
   width: 100%;
-  border-radius: 14px;
-  border: 1.4px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  border: 1.3px solid rgba(148, 163, 184, 0.35);
   background: rgba(2, 6, 23, 0.5);
   color: #e2e8f0;
-  padding: 12px 14px;
-  font-size: 0.98rem;
+  padding: 11px 14px;
+  font-size: 0.94rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -75,8 +75,8 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 12px 16px;
-  border-radius: 14px;
+  padding: 11px 15px;
+  border-radius: 12px;
   border: 1px solid rgba(99, 102, 241, 0.3);
   background: linear-gradient(135deg, #6366f1 0%, #22d3ee 100%);
   color: #fff;
@@ -110,13 +110,13 @@
 .promo {
   background: radial-gradient(800px 420px at 80% 20%, rgba(37,99,235,0.2), transparent 50%), rgba(2,6,23,0.5);
   border: 1px solid rgba(148,163,184,0.2);
-  border-radius: 24px;
-  padding: clamp(24px, 4vw, 36px);
+  border-radius: 20px;
+  padding: clamp(22px, 3.6vw, 32px);
   color: #e2e8f0;
 }
 
 .promoTitle {
-  font-size: clamp(18px, 3vw, 22px);
+  font-size: clamp(17px, 2.6vw, 20px);
   font-weight: 700;
   color: #f8fafc;
 }

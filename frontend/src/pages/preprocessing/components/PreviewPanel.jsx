@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 import { useEffect, useRef, useState } from "react";
-import DataTable from "../../../components/DataTable";
+import { ViewProcessedDataButton } from "../../../components/ViewProcessedDataButton";
 import styles from "../Preprocessing.module.css";
 import { ChangeSummary } from "./ChangeSummary";
 
@@ -191,26 +191,47 @@ const PreviewDataTable = ({ result, selectedFile, filledNullColumns, onSaveToMin
 
   return (
     <>
-      <div className={styles.previewNote}>
-        <span>
-          Showing {previewRowCount.toLocaleString()} rows
-          {previewLimitReached && " (truncated to preview limit)"}
-        </span>
-        {hasDiffHighlights && <span className={styles.diffInfo}>• Updated cells highlighted</span>}
+      <div className={styles.dataProcessingSummary}>
+        <div className={styles.dataProcessingInfo}>
+          <div className={styles.dataProcessingStats}>
+            <div className={styles.dataProcessingStat}>
+              <span className={styles.dataProcessingStatLabel}>Processed</span>
+              <span className={styles.dataProcessingStatValue}>{previewRowCount.toLocaleString()} rows</span>
+            </div>
+            {previewLimitReached && (
+              <div className={styles.dataProcessingStat}>
+                <span className={styles.dataProcessingStatLabel}>Full Dataset</span>
+                <span className={styles.dataProcessingStatValue}>{result.cleaned_row_count.toLocaleString()} rows</span>
+              </div>
+            )}
+            {hasDiffHighlights && (
+              <div className={styles.dataProcessingStat}>
+                <span className={styles.dataProcessingStatLabel}>Changed</span>
+                <span className={styles.dataProcessingStatValue}>
+                  {Object.keys(result.diff_marks?.updated_cells || {}).length} cells
+                </span>
+              </div>
+            )}
+          </div>
+          
+          <ViewProcessedDataButton
+            data={tableData}
+            originalData={originalData}
+            compareOriginal
+            highlightChanges
+            diffMarks={result.diff_marks}
+            originalFilename={selectedFile}
+            filledNullColumns={filledNullColumns}
+            saveTarget="cleaned"
+            saveFilename={result.cleaned_filename}
+            onSave={onSaveToMinio}
+            onDownload={onDownloadFullCsv}
+            title="Preprocessed Data View"
+            buttonText="View Processed Data"
+            buttonVariant="success"
+          />
+        </div>
       </div>
-      <DataTable
-        data={tableData}
-        originalData={originalData}
-        compareOriginal
-        highlightChanges
-        diffMarks={result.diff_marks}
-        originalFilename={selectedFile}
-        filledNullColumns={filledNullColumns}
-        saveTarget="cleaned"
-        saveFilename={result.cleaned_filename}
-        onSave={onSaveToMinio}
-        onDownload={onDownloadFullCsv}
-      />
     </>
   );
 };
@@ -288,6 +309,8 @@ export const PreviewPanel = ({
   const formattedElapsed = formatDuration(elapsedMs);
   const showCollapsedBanner = collapseEnabled && isStepsCollapsed;
 
+  const showStatsCards = progressInfo.status === "completed" || result;
+  
   return (
     <div className={styles.previewColumn} ref={progressAnchorRef}>
       {showCollapsedBanner && (
@@ -330,17 +353,27 @@ export const PreviewPanel = ({
         </div>
       )}
 
-      <div className={styles.statsRow}>
-        {statsCards.map((card, index) => {
-          const toneClass = card.tone ? STAT_TONE_CLASSES[card.tone] : "";
-          return (
-            <div key={`${card.label}-${index}`} className={`${styles.statCard} ${toneClass || ""}`}>
-              <span className={styles.statLabel}>{card.label}</span>
-              <span className={styles.statValue}>{card.value}</span>
-            </div>
-          );
-        })}
-      </div>
+      {showStatsCards && (
+        <div className={styles.statsRow}>
+          {statsCards.map((card, index) => {
+            const toneClass = card.tone ? STAT_TONE_CLASSES[card.tone] : "";
+            return (
+              <div key={`${card.label}-${index}`} className={`${styles.statCard} ${toneClass || ""}`}>
+                <span className={styles.statLabel}>{card.label}</span>
+                <span className={styles.statValue}>{card.value}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!showStatsCards && !isStepsCollapsed && (
+        <div className={styles.stepSelectionGuide}>
+          <h3>Configure Your Preprocessing Steps</h3>
+          <p>Select the steps you want to apply to your dataset from the options on the left.</p>
+          <p>After processing, you'll see the results and statistics here.</p>
+        </div>
+      )}
 
       <div className={styles.previewTabs}>
         <button

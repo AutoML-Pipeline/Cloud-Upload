@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import styles from "./DataTable.module.css";
 
 function downloadCSV(tableData, filename = "data.csv") {
@@ -26,16 +26,67 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
     const [filters, setFilters] = useState({});
     const [tableData, setTableData] = useState([]);
     const [allColumns, setAllColumns] = useState([]);
-    const [visibleCols, setVisibleCols] = useState([]);
     const [savingToMinIO, setSavingToMinIO] = useState(false);
-  const [downloadingCsv, setDownloadingCsv] = useState(false);
+    const [downloadingCsv, setDownloadingCsv] = useState(false);
+    const [activeFilter, setActiveFilter] = useState(null); // Track which column filter is currently active
+  const tableRef = useRef(null);
+    
+    // Enhance sticky headers functionality with a more aggressive approach
+    useEffect(() => {
+      const enhanceStickyHeaders = () => {
+        if (tableRef.current) {
+          const headers = tableRef.current.querySelectorAll('th');
+          if (headers && headers.length) {
+            headers.forEach(header => {
+              // Use !important to override any other styles
+              header.setAttribute('style', `
+                position: sticky !important;
+                top: 0 !important;
+                z-index: 100 !important;
+                background-color: #ffffff !important;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+                border-bottom: 2px solid #e5e7eb !important;
+                padding: 1.2rem 1.3rem !important;
+                font-weight: 800 !important;
+              `);
+            });
+          }
+        }
+      };
+      
+      // Run multiple times to ensure it takes effect
+      enhanceStickyHeaders();
+      
+      // Schedule multiple checks to ensure styles are applied even after DOM updates
+      const timer1 = setTimeout(enhanceStickyHeaders, 100);
+      const timer2 = setTimeout(enhanceStickyHeaders, 300);
+      const timer3 = setTimeout(enhanceStickyHeaders, 1000);
+      
+      // Add a scroll listener to ensure headers stay sticky during scrolling
+      const tableWrapper = tableRef.current?.closest('.dataTableWrapper');
+      const handleScroll = () => {
+        enhanceStickyHeaders();
+      };
+      
+      if (tableWrapper) {
+        tableWrapper.addEventListener('scroll', handleScroll);
+      }
+      
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+        if (tableWrapper) {
+          tableWrapper.removeEventListener('scroll', handleScroll);
+        }
+      };
+  }, [tableData, page, filters]);
 
     // Ensure all columns are visible when dataset/columns change (e.g., on Show All)
     useEffect(() => {
       if (Object.keys(data).length > 0) {
         const newColumns = Array.isArray(columns) && columns.length > 0 ? columns : Object.keys(data);
         setAllColumns(newColumns);
-        setVisibleCols(newColumns);
 
         const numRows = data[newColumns[0]]?.length || 0;
         const transformed = [];
@@ -49,13 +100,10 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
         setTableData(transformed);
       } else {
         setAllColumns([]);
-        setVisibleCols([]);
         setTableData([]);
       }
       setPage(0);
   }, [data, columns]); // Depend on data and columns prop
-
-    const handleResetCols = () => setVisibleCols(allColumns);
 
     const handleSaveToMinIO = async () => {
       const useCustomHandler = typeof onSave === "function";
@@ -98,16 +146,19 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
             body: JSON.stringify({ data: csvContent, filename: targetFilename }),
           });
         } else {
-          let baseName = "data";
-          if (originalFilename) {
-            const filenameOnly = originalFilename.split("/").pop();
-            baseName = filenameOnly.replace(/\.(parquet|csv|xlsx|json)$/i, "");
+          let targetFilename = saveFilename;
+          if (!targetFilename || typeof targetFilename !== "string") {
+            let baseName = "data";
+            if (originalFilename) {
+              const filenameOnly = originalFilename.split("/").pop();
+              baseName = filenameOnly.replace(/\.(parquet|csv|xlsx|json)$/i, "");
+            }
+            targetFilename = `feature_engineered_${baseName}.parquet`;
           }
-          const featureEngineeredFilename = `feature_engineered_${baseName}.parquet`;
           response = await fetch("http://localhost:8000/api/feature-engineering/save-to-minio", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ data: csvContent, filename: featureEngineeredFilename }),
+            body: JSON.stringify({ data: csvContent, filename: targetFilename }),
           });
         }
 
@@ -188,14 +239,6 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
     // Updated cells map from backend diff
     const updatedCells = useMemo(() => diffMarks?.updated_cells || {}, [diffMarks]);
 
-    // Build a lookup of original rows by _orig_idx
-    // Column toggling
-    const toggleCol = col => {
-      setVisibleCols(cols =>
-        cols.includes(col) ? cols.filter(c => c !== col) : [...cols, col]
-      );
-    };
-
     // Sorting handler
     const handleSort = col => {
       if (sortCol === col) {
@@ -211,6 +254,35 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
       setFilters(f => ({ ...f, [col]: value }));
       setPage(0);
     };
+    
+    // Toggle filter dropdown visibility
+    const toggleFilter = (column, e) => {
+      e.stopPropagation(); // Prevent triggering the sort when clicking the filter icon
+      setActiveFilter(prev => prev === column ? null : column);
+    };
+    
+    // Effect to close filter dropdown when clicking outside or pressing escape
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (activeFilter && !event.target.closest(`.${styles.filterDropdown}`) && !event.target.classList.contains(styles.filterIcon)) {
+          setActiveFilter(null);
+        }
+      };
+      
+      const handleEscapeKey = (event) => {
+        if (activeFilter && event.key === 'Escape') {
+          setActiveFilter(null);
+        }
+      };
+
+      document.addEventListener('click', handleClickOutside);
+      document.addEventListener('keydown', handleEscapeKey);
+      
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+        document.removeEventListener('keydown', handleEscapeKey);
+      };
+    }, [activeFilter]);
 
     // Tooltip for long values
     const renderCell = (val, maxLen = 24) => {
@@ -265,43 +337,37 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
           >
             {savingToMinIO ? 'Saving...' : 'Save to MinIO'}
           </button>
-          <button className={styles.resetColsBtn} onClick={handleResetCols} aria-label="Reset Columns" title="Show all columns">Reset Columns</button>
-          <div className={styles.colToggleMenu}>
-            Columns:
-            {allColumns.map(col => (
-              <label key={col} className={styles.colToggleLabel}>
-                <input
-                  type="checkbox"
-                  checked={visibleCols.includes(col)}
-                  onChange={() => toggleCol(col)}
-                  aria-label={`Toggle column ${col}`}
-                />
-                {col}
-              </label>
-            ))}
-          </div>
         </div>
-        {compareOriginal && (
-          <div className={styles.compareLegend}>
-            <span className={styles.cellChanged}>Highlighted cell</span> = value will change after cleaning.
-          </div>
-        )}
         <div className={styles.dataTableWrapper}>
-          <table className={styles.dataTable}>
+          <table ref={tableRef} className={styles.dataTable}>
             <thead>
               <tr>
-                {allColumns.filter(col => visibleCols.includes(col)).map(col => (
-                  <th key={col} onClick={() => handleSort(col)} className={styles.thClickable} tabIndex={0} aria-label={`Sort by ${col}`}>{col}{sortCol === col ? (sortDir === "asc" ? " ▲" : " ▼") : ""}
-                    <div>
-                      <input
-                        className={styles.filterInput}
-                        type="text"
-                        placeholder="Filter"
-                        value={filters[col] || ""}
-                        onChange={e => handleFilter(col, e.target.value)}
-                        onClick={e => e.stopPropagation()}
+                {allColumns.map(col => (
+                  <th key={col} onClick={() => handleSort(col)} className={styles.thClickable} tabIndex={0} aria-label={`Sort by ${col}`}>
+                    <div className={styles.thContent}>
+                      <span className={styles.columnName}>
+                        {col}{sortCol === col ? (sortDir === "asc" ? " ▲" : " ▼") : ""}
+                      </span>
+                      <span 
+                        className={`${styles.filterIcon} ${filters[col] ? styles.filterActive : ''}`}
+                        onClick={(e) => toggleFilter(col, e)}
                         aria-label={`Filter column ${col}`}
-                      />
+                      >
+                        🔍
+                      </span>
+                      {activeFilter === col && (
+                        <div className={styles.filterDropdown} onClick={(e) => e.stopPropagation()}>
+                          <input
+                            className={styles.filterInput}
+                            type="text"
+                            placeholder="Filter"
+                            value={filters[col] || ""}
+                            onChange={e => handleFilter(col, e.target.value)}
+                            autoFocus
+                            aria-label={`Filter column ${col}`}
+                          />
+                        </div>
+                      )}
                     </div>
                   </th>
                 ))}
@@ -310,7 +376,7 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
             <tbody>
               {pagedData.map((row, rowIdx) => (
                 <tr key={rowIdx}>
-                  {allColumns.filter(col => visibleCols.includes(col)).map(col => (
+                  {allColumns.map(col => (
                     <td
                       key={col}
                       className={isChanged(rowIdx, col) ? styles.cellChanged : undefined}

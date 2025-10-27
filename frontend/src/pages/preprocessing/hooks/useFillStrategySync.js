@@ -1,8 +1,10 @@
 import { useEffect } from "react";
+import { getRecommendedFillStrategy } from "../../../utils/fillStrategies";
 
 export const useFillStrategySync = ({
   selectedColumns,
   setPreprocessingSteps,
+  columnInsights = {},
 }) => {
   useEffect(() => {
     setPreprocessingSteps((prev) => {
@@ -11,7 +13,17 @@ export const useFillStrategySync = ({
 
       currentSelected.forEach((col) => {
         if (!nextStrategies[col]) {
-          nextStrategies[col] = { strategy: "mean", value: "" };
+          const recommendation = getRecommendedFillStrategy({
+            columnName: col,
+            dtype: columnInsights[col]?.dtype,
+            sampleValue: columnInsights[col]?.sampleValue,
+            nullCount: columnInsights[col]?.nullCount,
+          });
+
+          nextStrategies[col] = {
+            strategy: recommendation.strategy,
+            value: "",
+          };
         }
       });
 
@@ -23,5 +35,5 @@ export const useFillStrategySync = ({
 
       return { ...prev, fillColumnStrategies: nextStrategies };
     });
-  }, [selectedColumns, setPreprocessingSteps]);
+  }, [selectedColumns, setPreprocessingSteps, columnInsights]);
 };
