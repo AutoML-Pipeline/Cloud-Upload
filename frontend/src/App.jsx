@@ -4,9 +4,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavig
 import { Toaster } from "react-hot-toast";
 import ShadcnNavbar from "./components/ShadcnNavbar";
 
-const Landing = lazy(() => import("./pages/landing/Landing"));
-const Login = lazy(() => import("./pages/auth/Login"));
-const Register = lazy(() => import("./pages/auth/Register"));
+// Import auth pages directly (no lazy loading) for instant rendering
+import Landing from "./pages/landing/Landing";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 const ManageAccount = lazy(() => import("./pages/auth/ManageAccount"));
 const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
 const DataIngestion = lazy(() => import("./pages/data-ingestion/DataIngestion"));
@@ -113,7 +114,7 @@ function AppFrame({ user, setUser }) {
   {showChrome && (
     <ShadcnNavbar user={user} onLogout={handleLogout} />
   )}
-      <div id="page-content" className={showChrome ? "app-shell-with-chrome" : undefined}>
+      <div id="page-content">
         <AnimatedRoutes user={user} setUser={setUser} />
       </div>
     </>

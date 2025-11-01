@@ -96,3 +96,9 @@ async def upload_from_url_route(request: UploadFromURLRequest):
 @router.get("/preview/{filename}")
 async def data_preview(filename: str):
     return data_controller.get_data_preview(filename)
+
+
+@router.get("/recommendations/{filename}")
+async def data_recommendations(filename: str):
+    """Analyze dataset and return preprocessing suggestions (like feature engineering analyze)."""
+    return data_controller.get_preprocessing_recommendations(filename)

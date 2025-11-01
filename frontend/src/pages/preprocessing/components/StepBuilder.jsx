@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import PrimaryButton from "../../../components/PrimaryButton";
 import ColumnMultiSelect from "../../../components/ColumnMultiSelect";
 import FillNullSelector from "../../../components/FillNullSelector";
 import { PreprocessingStepCard } from "./PreprocessingStepCard";
@@ -20,10 +21,10 @@ export const StepBuilder = ({
   onChangeFile,
   onSubmit,
   loading,
-  result,
   activeSteps,
   collapseEnabled,
   onCollapse,
+  topContent,
 }) => {
   // Use a more modern layout when no result is showing (full-width mode)
   const useFullWidth = true; // Always use full width for vertical layout
@@ -37,13 +38,6 @@ export const StepBuilder = ({
           </button>
         </div>
       )}
-      <div className={`${styles.builderIntro} ${useFullWidth ? styles.stepBuilderHeader : ''}`}>
-        <span className={styles.builderEyebrow}>Step builder</span>
-        <h3 className={styles.builderTitle}>Configure your cleaning recipe</h3>
-        <p className={styles.builderSubtitle}>
-          Toggle the cleanup steps you need. We&apos;ll preview changes instantly before you commit.
-        </p>
-      </div>
       <div className={`${styles.builderFileRow} ${useFullWidth ? styles.stepBuilderHeader : ''}`}>
         <div className={styles.builderFileMeta}>
           <span className={styles.builderFileLabel}>Working on</span>
@@ -55,7 +49,9 @@ export const StepBuilder = ({
         </button>
       </div>
 
-      <div className={`${styles.stepperListModern} ${styles.stepBuilderVertical}`}>
+  {topContent ? <div className={styles.builderTopContent}>{topContent}</div> : null}
+
+  <div className={`${styles.stepperListModern} ${styles.stepBuilderVertical}`}>
         <PreprocessingStepCard
           checked={preprocessingSteps.removeDuplicates}
           onToggle={(event) => onUpdateSteps((prev) => ({ ...prev, removeDuplicates: event.target.checked }))}
@@ -227,22 +223,14 @@ export const StepBuilder = ({
       </div>
 
       <div className={`${styles.actionFooter} ${useFullWidth ? styles.stepBuilderFooter : ''}`}>
-        <button type="submit" disabled={loading || !selectedFile} className={`${styles.primaryCta} ${useFullWidth ? styles.primaryCtaLarge : ''}`}>
-          {loading ? (
-            <div className={styles.loadingWrapper}>
-              <div className={styles.loadingSpinner}></div>
-              Processing…
-            </div>
-          ) : (
-            <div className={styles.submitContent}>
-              <span className={styles.submitIcon}>🚀</span>
-              Run preprocessing
-            </div>
-          )}
-        </button>
-        <p className={styles.actionHint}>
-          We preview up to {result?.preview_row_limit ?? 1000} rows for instant feedback. Full saves happen on demand.
-        </p>
+        <PrimaryButton
+          type="submit"
+          disabled={loading || !selectedFile}
+          loading={loading}
+          variant="success"
+        >
+          Run preprocessing
+        </PrimaryButton>
       </div>
     </form>
   );
@@ -291,4 +279,5 @@ StepBuilder.propTypes = {
   ).isRequired,
   collapseEnabled: PropTypes.bool,
   onCollapse: PropTypes.func,
+  topContent: PropTypes.node,
 };

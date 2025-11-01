@@ -37,7 +37,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   return (
-    <div className={`app-shell-with-chrome ${styles.dashboardShell}`}>
+    <div className={styles.dashboardShell}>
       <div className={styles.stepsIntro}>
         <p className={styles.stepsHint}>Jump straight into any stage of your ML pipeline.</p>
       </div>

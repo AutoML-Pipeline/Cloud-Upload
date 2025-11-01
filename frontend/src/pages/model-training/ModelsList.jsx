@@ -24,17 +24,6 @@ const getModelDisplayName = (modelName) => {
   return modelNameMap[modelName] || modelName.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
 };
 
-// Helper to format date safely
-const formatDate = (dateString) => {
-  if (!dateString) return "Unknown";
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "Unknown";
-    return date.toLocaleDateString();
-  } catch {
-    return "Unknown";
-  }
-};
 
 // Helper to get model algorithm family
 const getModelFamily = (modelName) => {

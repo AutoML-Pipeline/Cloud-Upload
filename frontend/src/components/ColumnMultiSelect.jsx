@@ -73,6 +73,7 @@ export default function ColumnMultiSelect({
                       id={`col-${col}`}
                       checked={isSelected}
                       onChange={() => handleToggle(col)}
+                      style={{ scrollMargin: 0 }}
                     />
                     <label htmlFor={`col-${col}`} className={styles.columnNameText}>
                       {col}

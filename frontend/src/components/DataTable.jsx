@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { toast } from "react-hot-toast";
 import styles from "./DataTable.module.css";
 
 function downloadCSV(tableData, filename = "data.csv") {
@@ -164,13 +165,13 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
 
         const result = await response.json();
         if (result.message && !result.error) {
-          alert(`✅ ${result.message}`);
+          toast.success(result.message);
         } else {
-          alert(`❌ ${result.error || result.message || "Failed to save to MinIO"}`);
+          toast.error(result.error || result.message || "Failed to save to MinIO");
         }
       } catch (error) {
         if (!useCustomHandler) {
-          alert(`❌ Error: ${error.message}`);
+          toast.error(error.message);
         } else {
           console.error("Custom save handler failed", error);
         }
@@ -198,7 +199,7 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
         downloadCSV(sortedData, downloadName);
       } catch (error) {
         if (!useCustomHandler) {
-          alert(`❌ Error: ${error.message}`);
+          toast.error(error.message);
         } else {
           console.error("Custom download handler failed", error);
         }

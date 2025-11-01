@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import PrimaryButton from "../../../components/PrimaryButton";
 import styles from "../Preprocessing.module.css";
 import { formatDateTime, formatFileSize } from "../utils";
 
@@ -86,22 +87,15 @@ export const SelectionSection = ({
           </div>
         )}
 
-        <button
-          type="button"
-          disabled={!selectedFile || !hasFiles || isFetchingFiles}
-          className={`${styles.submitBtn} ${styles.selectionButton}`}
-          onClick={onContinue}
-        >
-          <div className={styles.submitContent}>
-            <span role="img" aria-label="next">
-              🚀
-            </span>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.75rem' }}>
+          <PrimaryButton
+            disabled={!selectedFile || !hasFiles || isFetchingFiles}
+            onClick={onContinue}
+            variant="primary"
+          >
             Continue to workflow
-          </div>
-        </button>
-        <p className={styles.selectionHint}>
-          Need something else? Upload new datasets from the Workflow ▸ Data intake hub.
-        </p>
+          </PrimaryButton>
+        </div>
       </div>
     </div>
   );

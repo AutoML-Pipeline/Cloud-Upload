@@ -4,6 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Simple fade-in animation for page loads */
+@keyframes simpleFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @layer base {
   html {
     font-size: 16px;
@@ -346,8 +356,8 @@ body, #root, html {
   padding: 0;
   color: #0f172a;
   font-family: 'Poppins', 'Segoe UI', 'Montserrat', 'Roboto', Arial, sans-serif;
-  overflow-y: auto;
   overflow-x: hidden;
+  overflow-y: visible;
 }
 
 /* Global scrollbar minimization */
@@ -399,9 +409,7 @@ body {
 
 #root {
   min-height: 100vh;
-  overflow: visible;
-  display: flex;
-  flex-direction: column;
+  width: 100%;
 }
 
 button {
@@ -479,12 +487,9 @@ button:focus-visible {
 }
 
 .app-shell-with-chrome {
-  position: fixed;
-  top: var(--navbar-height, 76px);
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow-y: auto;
+  width: 100%;
+  min-height: calc(100vh - var(--navbar-height, 64px));
+  padding-top: 0;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }

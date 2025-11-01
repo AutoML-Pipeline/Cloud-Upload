@@ -11,7 +11,9 @@
   padding: 10px 12px;
   border: 2px solid #e2e8f0;
   border-radius: 8px;
-  background: white;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #1a202c !important;
   cursor: pointer;
   transition: all 0.2s ease;
   min-height: 40px;
@@ -20,6 +22,8 @@
 
 .selectTrigger:hover {
   border-color: #cbd5e0;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
 }
 
 .selectTrigger:focus,
@@ -27,6 +31,8 @@
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background: #ffffff !important;
+  background-color: #ffffff !important;
 }
 
 .selectTrigger.disabled {
@@ -36,7 +42,7 @@
 }
 
 .selectValue {
-  color: #2d3748;
+  color: #1a202c !important;
   font-size: 14px;
   flex: 1;
   text-align: left;
@@ -44,11 +50,11 @@
 
 .selectValue:empty::before {
   content: attr(data-placeholder);
-  color: #a0aec0;
+  color: #64748b !important;
 }
 
 .arrow {
-  color: #718096;
+  color: #475569 !important;
   font-size: 12px;
   transition: transform 0.2s ease;
   margin-left: 8px;
@@ -81,7 +87,8 @@
   padding: 10px 12px;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  color: #2d3748;
+  color: #1a202c !important;
+  background-color: #ffffff !important;
   font-size: 14px;
   border-bottom: 1px solid #f1f5f9;
 }
@@ -91,12 +98,13 @@
 }
 
 .selectOption:hover {
-  background: #f7fafc;
+  background-color: #f7fafc !important;
+  color: #1a202c !important;
 }
 
 .selectOption.selected {
-  background: #e6fffa;
-  color: #234e52;
+  background-color: #e6fffa !important;
+  color: #065f46 !important;
   font-weight: 600;
 }
 

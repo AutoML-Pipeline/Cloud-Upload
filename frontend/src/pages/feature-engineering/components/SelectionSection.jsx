@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import PrimaryButton from "../../../components/PrimaryButton";
 import styles from "../../preprocessing/Preprocessing.module.css";
 import { formatDateTime, formatFileSize } from "../utils";
 
@@ -44,11 +45,17 @@ export const SelectionSection = ({
             <option value="" disabled>
               {selectPlaceholder}
             </option>
-            {files.map((file) => (
-              <option key={file.name} value={file.name}>
-                {file.name}
-              </option>
-            ))}
+            {files.map((file) => {
+              const displayName = (file.name || "")
+                // Strip cleaned/clean prefixes and common pipeline markers for readability
+                .replace(/^(?:feature[_-]?engineered[_-]?|cleaned?[_-]?)+/i, "")
+                .replace(/\.(parquet|csv|json)$/i, "");
+              return (
+                <option key={file.name} value={file.name} title={file.name}>
+                  {displayName || file.name}
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -69,7 +76,11 @@ export const SelectionSection = ({
         {!isFetchingFiles && hasFiles && selectedFileInfo && (
           <div className={styles.fileMetaCard}>
             <div className={styles.fileMetaHeader}>
-              <span className={styles.fileMetaName}>{selectedFileInfo.name}</span>
+              <span className={styles.fileMetaName} title={selectedFileInfo.name}>
+                {(selectedFileInfo.name || "")
+                  .replace(/^(?:feature[_-]?engineered[_-]?|cleaned?[_-]?)+/i, "")
+                  .replace(/\.(parquet|csv|json)$/i, "") || selectedFileInfo.name}
+              </span>
               <span className={styles.fileMetaBadge}>Ready</span>
             </div>
             <div className={styles.fileMetaStats}>
@@ -86,22 +97,15 @@ export const SelectionSection = ({
           </div>
         )}
 
-        <button
-          type="button"
-          disabled={!selectedFile || !hasFiles || isFetchingFiles}
-          className={`${styles.submitBtn} ${styles.selectionButton}`}
-          onClick={onContinue}
-        >
-          <div className={styles.submitContent}>
-            <span role="img" aria-label="next">
-              🚀
-            </span>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.75rem' }}>
+          <PrimaryButton
+            disabled={!selectedFile || !hasFiles || isFetchingFiles}
+            onClick={onContinue}
+            variant="primary"
+          >
             Continue to feature engineering
-          </div>
-        </button>
-        <p className={styles.selectionHint}>
-          Looking for more data? Upload new datasets from the Workflow ▸ Data intake hub.
-        </p>
+          </PrimaryButton>
+        </div>
       </div>
     </div>
   );

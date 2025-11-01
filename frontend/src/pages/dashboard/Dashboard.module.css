@@ -1,7 +1,8 @@
 .dashboardShell {
-  min-height: 100%;
+  min-height: calc(100vh - 64px);
   width: 100%;
-  padding: clamp(12px, 2vh, 18px) clamp(8px, 1.6vw, 16px) clamp(20px, 4vh, 32px);
+  padding: clamp(8px, 1vh, 12px) clamp(8px, 1.6vw, 16px) clamp(16px, 2vh, 24px);
+  padding-top: 64px;
   background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.18), transparent 55%),
     radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.18), transparent 48%),
     linear-gradient(165deg, var(--color-gray-950) 0%, var(--color-gray-900) 50%, var(--color-gray-800) 100%);
@@ -14,7 +15,7 @@
 .stepsIntro {
   max-width: none;
   text-align: center;
-  margin: 0 auto;
+  margin: 0 auto clamp(16px, 2vh, 24px);
 }
 
 .stepsHint {

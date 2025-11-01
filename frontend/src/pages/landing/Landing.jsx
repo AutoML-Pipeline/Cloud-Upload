@@ -1,68 +1,14 @@
-import React, { useRef, useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
-import { gsap } from "gsap";
 
 export default function Landing() {
   const navigate = useNavigate();
-  const boxRef = useRef(null);
 
   const handleRedirect = () => {
-    // Overlap navigation and animation for snappy feel
-    gsap.to(boxRef.current, {
-      scale: 1.15,
-      filter: "blur(2px) brightness(1.1)",
-      boxShadow: "0 0 60px 18px #6366f1, 0 0 0 0 #fff",
-      opacity: 0.7,
-      duration: 0.18,
-      ease: "power2.inOut",
-      onComplete: () => {
-        // Trigger navigation at 60% of the next animation
-        gsap.to(boxRef.current, {
-          scale: 2.1,
-          y: -80,
-          filter: "blur(16px) brightness(1.5)",
-          opacity: 0,
-          boxShadow: "0 0 0 0 #6366f1, 0 0 0 0 #fff",
-          duration: 0.44,
-          ease: "expo.inOut",
-          onUpdate: function() {
-            if (this.progress() > 0.6 && !this.navTriggered) {
-              this.navTriggered = true;
-              navigate("/login");
-            }
-          }
-        });
-      }
-    });
+    navigate("/login");
   };
 
-  useEffect(() => {
-    let ctx;
-    if (boxRef.current) {
-      ctx = gsap.context(() => {
-        gsap.fromTo(
-          boxRef.current,
-          { autoAlpha: 0, y: 48 },
-          { autoAlpha: 1, y: 0, duration: 0.65, ease: "power3.out", delay: 0.35 }
-        );
-      }, boxRef);
-    }
-    return () => ctx?.revert();
-  }, []);
 
-  // Preload Spline asset for login/register
-  useEffect(() => {
-    const preloadSpline = () => {
-      const SPLINE_URL = "https://my.spline.design/cubes-11XksX5PbLLeQrFYk69YghaQ/";
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'fetch';
-      link.href = SPLINE_URL;
-      link.crossOrigin = 'anonymous';
-      document.head.appendChild(link);
-    };
-    preloadSpline();
-  }, []);
 
   return (
     <div className="page-fullscreen">
@@ -112,8 +58,8 @@ export default function Landing() {
             pointerEvents: "none",
           }}
         >
+          
           <div
-            ref={boxRef}
             style={{
               display: "flex",
               flexDirection: "column",
@@ -122,10 +68,8 @@ export default function Landing() {
               minWidth: 0,
               maxWidth: "90vw",
               pointerEvents: "auto",
-              transition: "box-shadow 0.2s, background 0.2s",
               marginTop: 0,
-              opacity: 0,
-              y: 100,
+              animation: "simpleFadeIn 0.4s ease-out",
             }}
           >
             <button
@@ -142,16 +86,13 @@ export default function Landing() {
                 opacity: 0.96,
                 border: "none",
                 cursor: "pointer",
-                transition: "transform 0.2s, box-shadow 0.2s, background 0.2s",
                 letterSpacing: "0.05em",
               }}
               onMouseOver={e => {
-                e.currentTarget.style.transform = "scale(1.07)";
                 e.currentTarget.style.boxShadow = "0 8px 32px rgba(99,102,241,0.35)";
                 e.currentTarget.style.background = "linear-gradient(90deg, #6366f1 0%, #1e293b 100%)";
               }}
               onMouseOut={e => {
-                e.currentTarget.style.transform = "scale(1)";
                 e.currentTarget.style.boxShadow = "0 4px 24px rgba(99,102,241,0.25)";
                 e.currentTarget.style.background = "linear-gradient(90deg, #1e293b 0%, #6366f1 100%)";
               }}

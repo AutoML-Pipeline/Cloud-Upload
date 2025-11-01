@@ -4,6 +4,7 @@ import { toast } from "react-hot-toast";
 import styles from "./ModelTraining.module.css";
 import { useLocation, useNavigate } from "react-router-dom";
 import PageBackLink from "../../components/PageBackLink";
+import PageHero from "../../components/PageHero";
 import ModelVisualizations from "../../components/ModelVisualizations";
 
 const AVAILABLE_MODELS = {
@@ -339,18 +340,33 @@ export default function ModelTraining() {
       : `${remainingSeconds}s`;
   };
 
+  // Format metric numbers for display and avoid overflowing values
+  const formatMetricValue = (value) => {
+    if (value === null || value === undefined || value === "") return null;
+    if (typeof value === "number") {
+      const abs = Math.abs(value);
+      // Use fewer decimals for very large numbers to avoid overflow
+      if (abs >= 1000000) return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      if (abs >= 1000) return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      // Small numbers - show more precision
+      return value.toFixed(4);
+    }
+    // Fallback for strings
+    return String(value);
+  };
+
   return (
     <div className={styles.pageShell}>
       <div className={styles.pageSection}>
         <div className={styles.centeredContent}>
-          {/* Header */}
-          <div className={styles.pageIntro}>
+          <PageHero
+            badge="Workflow · Model Training"
+            title="Smart Model Training & Selection"
+            subtitle="Automatically train and compare multiple ML models to find the best performer for your dataset."
+          />
+          
+          <div style={{ marginTop: '1rem' }}>
             <PageBackLink to="/dashboard" label="Dashboard" />
-            <h1 className={styles.pageTitle}>🤖 Model Training & Selection</h1>
-            <p className={styles.pageDescription}>
-              Automatically train and compare multiple ML models to find the best
-              performer for your dataset.
-            </p>
           </div>
 
           {/* Step 1: File Selection */}
@@ -381,26 +397,34 @@ export default function ModelTraining() {
                   </div>
                 ) : (
                   <div className={styles.fileGrid}>
-                    {files.map((file) => (
-                      <div
-                        key={file.name}
-                        className={`${styles.fileCard} ${
-                          selectedFile === file.name ? styles.fileCardSelected : ""
-                        }`}
-                        onClick={() => setSelectedFile(file.name)}
-                      >
-                        <div className={styles.fileIcon}>📊</div>
-                        <div className={styles.fileInfo}>
-                          <div className={styles.fileName}>{file.name}</div>
-                          <div className={styles.fileSize}>
-                            {file.size ? `${(file.size / 1024).toFixed(1)} KB` : "Unknown size"}
-                          </div>
-                        </div>
-                        {selectedFile === file.name && (
-                          <div className={styles.selectedBadge}>✓</div>
-                        )}
-                      </div>
-                    ))}
+                        {files.map((file) => {
+                          const displayName = (file.name || "")
+                            // Strip common pipeline prefixes at the start: feature-engineered, cleaned, clean
+                            .replace(/^(?:feature[_-]?engineered[_-]?|cleaned?[_-]?)+/i, "")
+                            .replace(/\.(parquet|csv|json)$/i, "");
+                          return (
+                            <div
+                              key={file.name}
+                              className={`${styles.fileCard} ${
+                                selectedFile === file.name ? styles.fileCardSelected : ""
+                              }`}
+                              onClick={() => setSelectedFile(file.name)}
+                            >
+                              <div className={styles.fileIcon}>📊</div>
+                              <div className={styles.fileInfo}>
+                                <div className={styles.fileName} title={file.name}>
+                                  {displayName || file.name}
+                                </div>
+                                <div className={styles.fileSize}>
+                                  {file.size ? `${(file.size / 1024).toFixed(1)} KB` : "Unknown size"}
+                                </div>
+                              </div>
+                              {selectedFile === file.name && (
+                                <div className={styles.selectedBadge}>✓</div>
+                              )}
+                            </div>
+                          );
+                        })}
                   </div>
                 )}
 
@@ -788,18 +812,23 @@ export default function ModelTraining() {
                     </div>
 
                     <div className={styles.metricsGrid}>
-                      {Object.entries(trainingResult.best_model?.metrics || {}).map(
-                        ([key, value]) => (
-                          <div key={key} className={styles.metricCard}>
-                            <div className={styles.metricLabel}>
-                              {key.replace(/_/g, " ").toUpperCase()}
+                      {Object.entries(trainingResult.best_model?.metrics || {})
+                        .filter(([, value]) => value !== null && value !== undefined && value !== "")
+                        .map(([key, value]) => {
+                          const formatted = formatMetricValue(value);
+                          // Skip if formatting decided it's empty
+                          if (formatted === null) return null;
+                          return (
+                            <div key={key} className={styles.metricCard}>
+                              <div className={styles.metricLabel}>
+                                {key.replace(/_/g, " ").toUpperCase()}
+                              </div>
+                              <div className={styles.metricValue} title={String(formatted)}>
+                                {formatted}
+                              </div>
                             </div>
-                            <div className={styles.metricValue}>
-                              {typeof value === "number" ? value.toFixed(4) : value}
-                            </div>
-                          </div>
-                        )
-                      )}
+                          );
+                        })}
                     </div>
 
                     <div className={styles.modelMeta}>

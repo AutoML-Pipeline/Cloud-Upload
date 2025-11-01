@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import PrimaryButton from "../../../components/PrimaryButton";
 import ColumnMultiSelect from "../../../components/ColumnMultiSelect";
 import { ValidatedColumnSelect } from "./ValidatedColumnSelect";
 import styles from "../../preprocessing/Preprocessing.module.css";
@@ -15,10 +16,10 @@ export const StepBuilder = ({
   onSubmit,
   loading,
   activeSteps,
-  result,
   collapseEnabled,
   onCollapse,
   dataPreview,
+  topContent,
 }) => {
   const showCollapse = Boolean(collapseEnabled);
   const useFullWidth = true; // Always use full width for vertical layout
@@ -55,13 +56,6 @@ export const StepBuilder = ({
           </button>
         </div>
       )}
-      <div className={styles.builderIntro}>
-        <span className={styles.builderEyebrow}>Step builder</span>
-        <h3 className={styles.builderTitle}>Configure your feature recipe</h3>
-        <p className={styles.builderSubtitle}>
-          Toggle the transformations you need. We&apos;ll run them end-to-end and preview results before you ship.
-        </p>
-      </div>
 
       <div className={styles.builderFileRow}>
         <div className={styles.builderFileMeta}>
@@ -73,6 +67,8 @@ export const StepBuilder = ({
           Change file
         </button>
       </div>
+
+  {topContent ? <div className={styles.builderTopContent}>{topContent}</div> : null}
 
       <div className={`${styles.stepperListModern} ${styles.stepBuilderVertical}`}>
         <FeatureEngineeringStepCard
@@ -447,22 +443,14 @@ export const StepBuilder = ({
       </div>
 
       <div className={styles.actionFooter}>
-        <button type="submit" disabled={loading || !selectedFile} className={styles.primaryCta}>
-          {loading ? (
-            <div className={styles.loadingWrapper}>
-              <div className={styles.loadingSpinner}></div>
-              Processing…
-            </div>
-          ) : (
-            <div className={styles.submitContent}>
-              <span className={styles.submitIcon}>🚀</span>
-              Run feature engineering
-            </div>
-          )}
-        </button>
-        <p className={styles.actionHint}>
-          We preview up to {result?.preview_row_limit ?? 1000} rows for instant feedback. Full saves happen on demand.
-        </p>
+        <PrimaryButton
+          type="submit"
+          disabled={loading || !selectedFile}
+          loading={loading}
+          variant="success"
+        >
+          Run feature engineering
+        </PrimaryButton>
       </div>
     </form>
   );
@@ -520,7 +508,7 @@ StepBuilder.propTypes = {
       icon: PropTypes.node.isRequired,
     }),
   ).isRequired,
-  result: PropTypes.object,
   collapseEnabled: PropTypes.bool,
   onCollapse: PropTypes.func,
+  topContent: PropTypes.node,
 };

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
+import PageHero from "../../components/PageHero";
 import styles from "../preprocessing/Preprocessing.module.css";
 import { useLocation } from "react-router-dom";
 
@@ -42,36 +43,15 @@ export default function FeatureEngineering() {
   const [dataPreview, setDataPreview] = useState(null);
   const [recommendations, setRecommendations] = useState(null);
   const [dataQualityNotes, setDataQualityNotes] = useState(null);
+  const [recLoading, setRecLoading] = useState(false);
   const [isBuilderCollapsed, setBuilderCollapsed] = useState(false);
   const pageSectionRef = useRef(null);
   const progressAnchorRef = useRef(null);
 
   const setStepsStable = useCallback((updater) => {
-    const container = pageSectionRef.current;
-    const hasWindow = typeof window !== "undefined";
-    const previousScroll = container
-      ? container.scrollTop
-      : hasWindow
-      ? window.scrollY
-      : 0;
-
     setFeatureEngineeringSteps((prev) =>
       typeof updater === "function" ? updater(prev) : updater
     );
-
-    const restoreScroll = () => {
-      if (container) {
-        container.scrollTop = previousScroll;
-      } else if (hasWindow) {
-        window.scrollTo(0, previousScroll);
-      }
-    };
-
-    if (hasWindow && typeof window.requestAnimationFrame === "function") {
-      window.requestAnimationFrame(restoreScroll);
-    } else {
-      restoreScroll();
-    }
   }, []);
 
   const handleResetPreview = useCallback(() => setDataPreview(null), []);
@@ -115,15 +95,20 @@ export default function FeatureEngineering() {
 
     const fetchRecommendations = async () => {
       try {
+        setRecLoading(true);
         const response = await fetch(
           `http://localhost:8000/api/feature-engineering/analyze/${encodeURIComponent(selectedFile)}`
         );
         if (!response.ok) throw new Error("Failed to fetch recommendations");
         const data = await response.json();
-        setRecommendations(data.recommendations || []);
-        setDataQualityNotes(data.quality_notes || []);
+        // Backend returns DatasetAnalysis with keys: step_recommendations, data_quality_notes
+        // Map them to frontend state expected by the panel
+        setRecommendations(data.step_recommendations || data.recommendations || []);
+        setDataQualityNotes(data.data_quality_notes || data.quality_notes || []);
       } catch (error) {
         console.error("Error fetching recommendations:", error);
+      } finally {
+        setRecLoading(false);
       }
     };
 
@@ -191,6 +176,56 @@ export default function FeatureEngineering() {
 
   const activeSteps = useActiveSteps(featureEngineeringSteps);
 
+  // Applied map for recommendations (per-card): true if that recommendation is reflected in current steps
+  const appliedMap = useMemo(() => {
+    if (!Array.isArray(recommendations)) return {};
+
+    const isSubset = (arr, sub) => (sub || []).every((c) => arr.includes(c));
+    const isHighCard = (name) => /high[- ]?cardinality/i.test(name || "");
+
+    return recommendations.reduce((acc, rec, idx) => {
+      let applied = false;
+      const cols = rec.recommended_columns || [];
+      const steps = featureEngineeringSteps;
+
+      switch (rec.step_type) {
+        case "encoding": {
+          applied = steps.encoding.enabled && isSubset(steps.encoding.columns, cols);
+          if (applied && isHighCard(rec.step_name)) {
+            applied = cols.every((c) => (steps.encoding.columnMethods || {})[c] === "label");
+          }
+          break;
+        }
+        case "scaling":
+          applied = steps.scaling.enabled && isSubset(steps.scaling.columns, cols);
+          break;
+        case "binning":
+          applied = steps.binning.enabled && isSubset(steps.binning.columns, cols);
+          break;
+        case "feature_creation": {
+          if (/polynomial/i.test(rec.step_name)) {
+            applied = steps.featureCreation.polynomial.enabled && isSubset(steps.featureCreation.polynomial.columns, cols);
+          } else if (/date|time/i.test(rec.step_name)) {
+            applied = steps.featureCreation.datetime.enabled && isSubset(steps.featureCreation.datetime.columns, cols);
+          }
+          break;
+        }
+        case "feature_selection":
+          applied = steps.selection.enabled; // columns optional
+          break;
+        default:
+          applied = false;
+      }
+      acc[idx] = applied;
+      return acc;
+    }, {});
+  }, [recommendations, featureEngineeringSteps]);
+
+  const allApplied = useMemo(() => {
+    if (!Array.isArray(recommendations) || recommendations.length === 0) return false;
+    return recommendations.every((_, idx) => appliedMap[idx]);
+  }, [recommendations, appliedMap]);
+
   const statsCards = useMemo(() => {
     if (!result && !dataPreview) {
       return [
@@ -250,6 +285,195 @@ export default function FeatureEngineering() {
     },
     [featureEngineeringSteps, runFeatureEngineering, setActivePreviewTab, setBuilderCollapsed]
   );
+
+  // Handlers to apply/undo recommendations without starting the job
+  const handleApplyStep = useCallback((idx, rec) => {
+    setStepsStable((prev) => {
+      const cols = rec.recommended_columns || [];
+      const union = (a, b) => Array.from(new Set([...(a || []), ...b]));
+      const next = { ...prev };
+
+      switch (rec.step_type) {
+        case "encoding": {
+          next.encoding = {
+            ...prev.encoding,
+            enabled: true,
+            columns: union(prev.encoding.columns, cols),
+            columnMethods: { ...(prev.encoding.columnMethods || {}) },
+          };
+          if (/high[- ]?cardinality/i.test(rec.step_name)) {
+            cols.forEach((c) => {
+              next.encoding.columnMethods[c] = "label";
+            });
+          }
+          break;
+        }
+        case "scaling":
+          next.scaling = { ...prev.scaling, enabled: true, columns: union(prev.scaling.columns, cols) };
+          break;
+        case "binning":
+          next.binning = { ...prev.binning, enabled: true, columns: union(prev.binning.columns, cols) };
+          break;
+        case "feature_creation":
+          if (/polynomial/i.test(rec.step_name)) {
+            next.featureCreation = {
+              ...prev.featureCreation,
+              polynomial: {
+                ...prev.featureCreation.polynomial,
+                enabled: true,
+                columns: union(prev.featureCreation.polynomial.columns, cols),
+              },
+            };
+          } else if (/date|time/i.test(rec.step_name)) {
+            next.featureCreation = {
+              ...prev.featureCreation,
+              datetime: {
+                ...prev.featureCreation.datetime,
+                enabled: true,
+                columns: union(prev.featureCreation.datetime.columns, cols),
+              },
+            };
+          }
+          break;
+        case "feature_selection":
+          next.selection = { ...prev.selection, enabled: true };
+          break;
+        default:
+          return prev;
+      }
+      return next;
+    });
+  }, [setStepsStable]);
+
+  const handleUndoStep = useCallback((idx, rec) => {
+    setStepsStable((prev) => {
+      const cols = rec.recommended_columns || [];
+      const minus = (arr, b) => (arr || []).filter((x) => !b.includes(x));
+      const next = { ...prev };
+
+      switch (rec.step_type) {
+        case "encoding": {
+          const nextCols = minus(prev.encoding.columns, cols);
+          const nextMethods = { ...(prev.encoding.columnMethods || {}) };
+          cols.forEach((c) => {
+            if (nextMethods[c] === "label") delete nextMethods[c];
+          });
+          next.encoding = {
+            ...prev.encoding,
+            columns: nextCols,
+            enabled: nextCols.length > 0 ? prev.encoding.enabled : false,
+            columnMethods: nextMethods,
+          };
+          break;
+        }
+        case "scaling": {
+          const nextCols = minus(prev.scaling.columns, cols);
+          next.scaling = { ...prev.scaling, columns: nextCols, enabled: nextCols.length > 0 ? prev.scaling.enabled : false };
+          break;
+        }
+        case "binning": {
+          const nextCols = minus(prev.binning.columns, cols);
+          next.binning = { ...prev.binning, columns: nextCols, enabled: nextCols.length > 0 ? prev.binning.enabled : false };
+          break;
+        }
+        case "feature_creation": {
+          if (/polynomial/i.test(rec.step_name)) {
+            const nextCols = minus(prev.featureCreation.polynomial.columns, cols);
+            next.featureCreation = {
+              ...prev.featureCreation,
+              polynomial: {
+                ...prev.featureCreation.polynomial,
+                columns: nextCols,
+                enabled: nextCols.length > 0 ? prev.featureCreation.polynomial.enabled : false,
+              },
+            };
+          } else if (/date|time/i.test(rec.step_name)) {
+            const nextCols = minus(prev.featureCreation.datetime.columns, cols);
+            next.featureCreation = {
+              ...prev.featureCreation,
+              datetime: {
+                ...prev.featureCreation.datetime,
+                columns: nextCols,
+                enabled: nextCols.length > 0 ? prev.featureCreation.datetime.enabled : false,
+              },
+            };
+          }
+          break;
+        }
+        case "feature_selection":
+          next.selection = { ...prev.selection, enabled: false };
+          break;
+        default:
+          return prev;
+      }
+      return next;
+    });
+  }, [setStepsStable]);
+
+  const handleApplyAll = useCallback(() => {
+    if (!Array.isArray(recommendations) || recommendations.length === 0) return;
+    setStepsStable((prev) => {
+      const union = (a, b) => Array.from(new Set([...(a || []), ...b]));
+      let next = { ...prev };
+      for (const rec of recommendations) {
+        const cols = rec.recommended_columns || [];
+        switch (rec.step_type) {
+          case "encoding": {
+            const updated = {
+              ...next.encoding,
+              enabled: true,
+              columns: union(next.encoding.columns, cols),
+              columnMethods: { ...(next.encoding.columnMethods || {}) },
+            };
+            if (/high[- ]?cardinality/i.test(rec.step_name)) {
+              cols.forEach((c) => { updated.columnMethods[c] = "label"; });
+            }
+            next = { ...next, encoding: updated };
+            break;
+          }
+          case "scaling":
+            next = { ...next, scaling: { ...next.scaling, enabled: true, columns: union(next.scaling.columns, cols) } };
+            break;
+          case "binning":
+            next = { ...next, binning: { ...next.binning, enabled: true, columns: union(next.binning.columns, cols) } };
+            break;
+          case "feature_creation":
+            if (/polynomial/i.test(rec.step_name)) {
+              next = {
+                ...next,
+                featureCreation: {
+                  ...next.featureCreation,
+                  polynomial: {
+                    ...next.featureCreation.polynomial,
+                    enabled: true,
+                    columns: union(next.featureCreation.polynomial.columns, cols),
+                  },
+                },
+              };
+            } else if (/date|time/i.test(rec.step_name)) {
+              next = {
+                ...next,
+                featureCreation: {
+                  ...next.featureCreation,
+                  datetime: {
+                    ...next.featureCreation.datetime,
+                    enabled: true,
+                    columns: union(next.featureCreation.datetime.columns, cols),
+                  },
+                },
+              };
+            }
+            break;
+          case "feature_selection":
+            next = { ...next, selection: { ...next.selection, enabled: true } };
+            break;
+          default:
+            break;
+        }
+      }
+      return next;
+    });
+  }, [recommendations, setStepsStable]);
 
   const handleSaveToMinio = useCallback(async () => {
     if (!result?.temp_engineered_path || !result?.engineered_filename) {
@@ -321,16 +545,14 @@ export default function FeatureEngineering() {
   }, [notify, result]);
 
   return (
-    <div className={`app-shell-with-chrome ${styles.pageShell}`}>
+    <div className={styles.pageShell}>
       <div className={styles.pageSection} ref={pageSectionRef}>
         <div className={styles.centeredContent}>
-          <section className={styles.pageIntro}>
-            <span className={styles.pageIntroBadge}>Workflow · Feature Engineering</span>
-            <h1 className={styles.pageIntroTitle}>Smart Feature Engineering</h1>
-            <p className={styles.pageIntroSubtitle}>
-              Configure advanced feature transformations, preview live diffs, and push engineered datasets straight to MinIO.
-            </p>
-          </section>
+          <PageHero
+            badge="Workflow · Feature Engineering"
+            title="Smart Feature Engineering"
+            subtitle="Configure advanced feature transformations, preview live diffs, and push engineered datasets straight to MinIO."
+          />
           <div className={styles.card}>
 
             {step === "select_file" && (
@@ -364,10 +586,6 @@ export default function FeatureEngineering() {
                   <div className={`${styles.layoutGrid} ${isBuilderCollapsed ? styles.layoutGridCollapsed : ""} ${!result ? styles.layoutGridFullWidth : ""}`}>
                     {!isBuilderCollapsed && (
                       <>
-                        <RecommendationPanel
-                          recommendations={recommendations}
-                          dataQualityNotes={dataQualityNotes}
-                        />
                         <StepBuilder
                         columns={columns}
                         columnInsights={columnInsights}
@@ -378,11 +596,22 @@ export default function FeatureEngineering() {
                         onChangeFile={() => setStep("select_file")}
                         onSubmit={handleSubmit}
                         loading={loading}
-                        result={result}
                         activeSteps={activeSteps}
                         collapseEnabled={collapseEnabled}
                         onCollapse={() => setBuilderCollapsed(true)}
                         dataPreview={dataPreview}
+                        topContent={(
+                          <RecommendationPanel
+                            recommendations={recommendations}
+                            dataQualityNotes={dataQualityNotes}
+                            loading={recLoading}
+                            appliedMap={appliedMap}
+                            allApplied={allApplied}
+                            onApplyAll={handleApplyAll}
+                            onApplyStep={handleApplyStep}
+                            onUndoStep={handleUndoStep}
+                          />
+                        )}
                       />
                       </>
                     )}

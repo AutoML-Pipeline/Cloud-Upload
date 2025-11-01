@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import PageHero from "../../components/PageHero";
 import "./DataIngestion.css";
 
 const ingestionOptions = [
@@ -46,13 +47,11 @@ export default function DataIngestion() {
   return (
     <div className="ingestion-page">
       <div className="ingestion-page-shell">
-        <section className="ingestion-hero-card" data-animate="fade-up">
-          <span className="ingestion-hero-kicker">Workflow · Data Intake</span>
-          <h1 className="ingestion-hero-title">Smart Data Ingestion</h1>
-          <p className="ingestion-hero-subtitle">
-            Orchestrate local uploads, cloud transfers, and SQL pulls without breaking the pipeline flow.
-          </p>
-        </section>
+        <PageHero
+          badge="Workflow · Data Intake"
+          title="Smart Data Ingestion"
+          subtitle="Orchestrate local uploads, cloud transfers, and SQL pulls without breaking the pipeline flow."
+        />
 
         <section className="ingestion-grid-shell" aria-label="Available data ingestion methods">
           <div className="ingestion-grid" data-animate="stagger">

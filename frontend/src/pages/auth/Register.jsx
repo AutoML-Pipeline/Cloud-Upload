@@ -1,7 +1,8 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import api from "../../utils/api";
 import { useNavigate } from "react-router-dom";
 import GoogleAuthPopup from '../../components/GoogleAuthPopup';
+import FeaturePanel from "../../components/FeaturePanel";
 import { toast } from 'react-hot-toast';
 import '../../auth.css';
 import styles from "./AuthPage.module.css";
@@ -13,7 +14,6 @@ const Register = ({ onAuthSuccess }) => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(""); // eslint-disable-line no-unused-vars
   const [remember, setRemember] = useState(true);
-  const contentRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -50,30 +50,11 @@ const Register = ({ onAuthSuccess }) => {
     toast.error("Google login failed: " + error);
   };
 
-  React.useEffect(() => {
-    let ctx;
-    let mounted = true;
-    if (contentRef.current) {
-      import('gsap').then(({ gsap }) => {
-        if (!mounted) return;
-        ctx = gsap.context(() => {
-          gsap.fromTo(
-            contentRef.current,
-            { autoAlpha: 0, y: 26, filter: "blur(8px)", scale: 0.97 },
-            { autoAlpha: 1, y: 0, filter: "blur(0px)", scale: 1, duration: 0.45, ease: "power3.out" }
-          );
-        }, contentRef);
-      });
-    }
-    return () => {
-      mounted = false;
-      if (ctx) ctx.revert();
-    };
-  }, []);
+  // Animations removed for instant load
 
   return (
     <div className={styles.page}>
-      <div className={styles.wrapper} ref={contentRef}>
+      <div className={styles.wrapper}>
         <section className={styles.card}>
           <h1 className={styles.title}>Create your account</h1>
           <p className={styles.subtitle}>Join to manage data and build models with ease</p>
@@ -121,13 +102,7 @@ const Register = ({ onAuthSuccess }) => {
           </div>
         </section>
         <aside className={styles.promo}>
-          <div className={styles.promoTitle}>Why Automated Machine Learning Pipeline?</div>
-          <div className={styles.promoList}>
-            <div>• Centralize your datasets with MinIO & Drive</div>
-            <div>• Visual data cleaning and feature engineering</div>
-            <div>• AutoML presets to get a strong baseline fast</div>
-            <div>• Team-friendly, secure authentication</div>
-          </div>
+          <FeaturePanel />
         </aside>
       </div>
     </div>

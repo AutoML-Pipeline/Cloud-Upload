@@ -37,6 +37,7 @@ from .preprocessing.remove_outliers import apply as apply_remove_outliers
 from .preprocessing.diff_utils import compute_diff_marks
 from backend.utils.json_utils import _to_json_safe
 from backend.services import progress_tracker
+from .preprocessing.recommendations import build_preprocessing_suggestions
 
 # NO LIMITS - Show full dataset everywhere
 MAX_PREVIEW_ROWS = None  # Show all rows in preview
@@ -533,3 +534,37 @@ def get_data_preview(filename: str):
         "sample_values": sample_values,
         "cardinality": cardinality
     }
+
+
+def get_preprocessing_recommendations(filename: str):
+    """Load full dataset and return preprocessing suggestions and quality summary."""
+    try:
+        # Ensure MinIO bucket exists and load bytes
+        from backend.config import ensure_minio_buckets_exist
+        ensure_minio_buckets_exist()
+
+        response = minio_client.get_object(MINIO_BUCKET, filename)
+        file_bytes_buffer = io.BytesIO(response.read())
+        file_bytes_buffer.seek(0)
+    except Exception as e:
+        logging.error(f"Error reading file '{filename}' from MinIO for recommendations: {e}", exc_info=True)
+        return JSONResponse(content={"error": f"Error reading file from MinIO: {e}"}, status_code=500)
+
+    try:
+        if filename.endswith('.parquet'):
+            df = pd.read_parquet(file_bytes_buffer, engine='pyarrow')
+        elif filename.endswith('.csv'):
+            df = pd.read_csv(file_bytes_buffer)
+        elif filename.endswith('.xlsx'):
+            df = pd.read_excel(file_bytes_buffer)
+        elif filename.endswith('.json'):
+            df = pd.read_json(file_bytes_buffer)
+        else:
+            return JSONResponse(content={"error": "Unsupported file format for recommendations."}, status_code=400)
+
+        df = standardize_missing_indicators(df)
+        payload = build_preprocessing_suggestions(df)
+        return _to_json_safe(payload)
+    except Exception as e:
+        logging.error(f"Error generating preprocessing recommendations for '{filename}': {e}", exc_info=True)
+        return JSONResponse(content={"error": f"Error generating recommendations: {e}"}, status_code=500)

@@ -1,8 +1,9 @@
 .page {
-  min-height: 100vh;
+  min-height: calc(100vh - 64px);
   background: #ffffff;
   display: flex;
   flex-direction: column;
+  padding-top: 80px;
 }
 
 .main {

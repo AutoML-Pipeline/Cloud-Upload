@@ -1,27 +1,27 @@
 .wrapper {
-  margin-bottom: 1.1rem;
+  margin-bottom: 0.875rem;
 }
 
 .label {
-  font-size: 1.05rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: #6366f1;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.375rem;
 }
 
 .dropdown {
-  background: #f9fafb;
-  border-radius: 0.7rem;
-  border: 1.5px solid #e5e7eb;
-  padding: 0.7rem 1.1rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fcd34d 100%);
+  border-radius: 10px;
+  border: 2px solid rgba(245, 158, 11, 0.3);
+  padding: 0.625rem 0.875rem;
   min-width: 380px; /* Increased width to accommodate columns and dropdowns */
   max-width: 100%;
-  box-shadow: 0 1px 4px #6366f122;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.2), 0 0 0 1px rgba(245, 158, 11, 0.1);
 }
 
 .placeholder {
   color: #1f2937;
-  font-size: 1rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
 }
@@ -30,15 +30,24 @@
 .options {
   display: flex;
   flex-direction: column;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 2px solid rgba(245, 158, 11, 0.2);
+  border-radius: 10px;
   padding: 0.5rem;
-  background-color: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
   gap: 0.5rem; /* Add gap between options */
   width: 100%;
   max-height: 300px;
   overflow-y: auto;
+  scroll-behavior: auto;
+}
+
+.options input[type="checkbox"] {
+  scroll-margin: 0 !important;
+}
+
+.options input[type="checkbox"]:focus {
+  scroll-margin: 0 !important;
 }
 
 /* Each option row */
@@ -46,24 +55,28 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  font-size: 1rem;
+  font-size: 0.8125rem;
   color: #1f2937;
-  padding: 0.6rem 0.3rem;
+  padding: 0.5rem 0.25rem;
   width: 100%;
-  border-bottom: 1px solid #f3f4f6;
-  gap: 0.45rem;
-  background-color: #ffffff;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.1);
+  gap: 0.375rem;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
 .option:hover {
-  background-color: #f9fafb;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 50%);
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
 }
 
 .optionMain {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.625rem;
 }
 
 /* Column section (checkbox + name) */
@@ -86,6 +99,7 @@
   width: calc(100% - 30px); /* Take all available space minus checkbox width */
   color: #1f2937; /* Dark prominent color for column name */
   font-weight: 600;
+  font-size: 0.8125rem;
   padding-left: 5px; /* Add padding to the left of the column name */
   padding-right: 10px; /* Add padding to the right of the column name */
   overflow: hidden;
@@ -98,7 +112,7 @@
 .nullCount {
   color: #dc2626;
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
 }
 
 /* Select All option */
@@ -106,14 +120,15 @@
   display: flex;
   align-items: center;
   font-weight: 700;
+  font-size: 0.8125rem;
   color: #1f2937;
   margin-bottom: 0.5rem; /* Space between select all and first column */
-  padding: 0.3rem 0;
+  padding: 0.25rem 0;
 }
 
 .selectAllOption input[type="checkbox"] {
   margin-right: 0.5rem;
-  transform: scale(1.1); /* Slightly larger checkbox */
+  transform: scale(1.05); /* Slightly larger checkbox */
 }
 
 /* Strategy selector (Mean/Median dropdown) */
@@ -127,26 +142,43 @@
 }
 
 .strategySelect {
-  padding: 0.4rem 0.7rem;
-  border: 1px solid #3b82f6;
+  padding: 0.375rem 0.625rem;
+  border: 2px solid #3b82f6;
   border-radius: 6px;
-  background: #ffffff;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #1e40af;
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #1e293b !important;
   width: 100%; /* Make dropdown take full width of container */
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+  transition: all 0.2s ease;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.strategySelect:hover {
+  background: #f0f9ff !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transform: translateY(-1px);
 }
 
 .strategySelect:focus {
   outline: none;
   border-color: #1d4ed8;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3), 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.strategySelect option {
+  background: #ffffff;
+  color: #1e293b;
 }
 
 .strategySelectOverride {
   border-color: #f59e0b;
-  color: #92400e;
+  background: #ffffff !important;
+  color: #92400e !important;
 }
 
 .strategySelectOverride:focus {
@@ -160,7 +192,7 @@
   border: 1px solid #10b981;
   border-radius: 6px;
   background: #ffffff;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: #047857;
   min-width: 100px;
@@ -175,8 +207,8 @@
 .recommendationRow {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  font-size: 0.85rem;
+  gap: 0.1875rem;
+  font-size: 0.75rem;
   color: #4b5563;
   line-height: 1.3;
 }

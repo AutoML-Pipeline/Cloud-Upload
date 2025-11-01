@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
+import PageHero from "../../components/PageHero";
 import styles from "./Preprocessing.module.css";
 import { useLocation } from "react-router-dom";
 
@@ -10,9 +11,11 @@ import { PreviewPanel } from "./components/PreviewPanel";
 import { useAutoSelectFile } from "./hooks/useAutoSelectFile";
 import { useDatasetPreview } from "./hooks/useDatasetPreview";
 import { useFillStrategySync } from "./hooks/useFillStrategySync";
+import { usePreprocessingRecommendations } from "./hooks/usePreprocessingRecommendations";
 import { useActiveSteps } from "./hooks/useActiveSteps";
 import { usePreprocessingJob } from "./hooks/usePreprocessingJob";
 import { buildStepsPayload } from "./utils";
+import { PreprocessingRecommendationPanel } from "./components/PreprocessingRecommendationPanel";
 
 const INITIAL_STEPS = {
   removeDuplicates: false,
@@ -62,31 +65,9 @@ export default function Preprocessing() {
   const progressAnchorRef = useRef(null);
 
   const setStepsStable = useCallback((updater) => {
-    const container = pageSectionRef.current;
-    const hasWindow = typeof window !== "undefined";
-    const previousScroll = container
-      ? container.scrollTop
-      : hasWindow
-      ? window.scrollY
-      : 0;
-
     setPreprocessingSteps((prev) =>
       typeof updater === "function" ? updater(prev) : updater
     );
-
-    const restoreScroll = () => {
-      if (container) {
-        container.scrollTop = previousScroll;
-      } else if (hasWindow) {
-        window.scrollTo(0, previousScroll);
-      }
-    };
-
-    if (hasWindow && typeof window.requestAnimationFrame === "function") {
-      window.requestAnimationFrame(restoreScroll);
-    } else {
-      restoreScroll();
-    }
   }, []);
 
   const handleResetPreview = useCallback(() => setDataPreview(null), []);
@@ -205,6 +186,30 @@ export default function Preprocessing() {
   const showFillNullsStep = hasNulls && !preprocessingSteps.removeNulls;
 
   const activeSteps = useActiveSteps(preprocessingSteps);
+
+  // Recommendations (mirrors Feature Engineering pattern)
+  const { data: recData, loading: recLoading } = usePreprocessingRecommendations(
+    step === "configure_preprocessing" ? selectedFile : ""
+  );
+  const preprocessingSuggestions = recData?.suggestions;
+
+  // Determine which suggestions are already applied to give UI feedback
+  const appliedStepsMap = useMemo(() => {
+    if (!preprocessingSuggestions) return {};
+    return {
+      removeDuplicates: !!preprocessingSteps.removeDuplicates,
+      dropColumns: !!preprocessingSteps.dropColumns,
+      fillNulls: !!preprocessingSteps.fillNulls,
+      removeNulls: !!preprocessingSteps.removeNulls,
+      removeOutliers: !!preprocessingSteps.removeOutliers,
+    };
+  }, [preprocessingSteps, preprocessingSuggestions]);
+
+  const allApplied = useMemo(() => {
+    if (!preprocessingSuggestions) return false;
+    const keys = ["removeDuplicates", "dropColumns", "fillNulls", "removeNulls", "removeOutliers"];
+    return keys.every((k) => appliedStepsMap[k] || !preprocessingSuggestions?.[k]?.enabled);
+  }, [appliedStepsMap, preprocessingSuggestions]);
 
   const statsCards = useMemo(() => {
     if (!result) {
@@ -382,16 +387,14 @@ export default function Preprocessing() {
   }, [notify, result]);
 
   return (
-    <div className={`app-shell-with-chrome ${styles.pageShell}`}>
+    <div className={styles.pageShell}>
       <div className={styles.pageSection} ref={pageSectionRef}>
         <div className={styles.centeredContent}>
-          <section className={styles.pageIntro}>
-            <span className={styles.pageIntroBadge}>Workflow · Data Prep</span>
-            <h1 className={styles.pageIntroTitle}>Smart Data Preprocessing</h1>
-            <p className={styles.pageIntroSubtitle}>
-              Configure cleaning recipes, preview live diffs, and push polished datasets straight to MinIO.
-            </p>
-          </section>
+          <PageHero
+            badge="Workflow · Data Prep"
+            title="Smart Data Preprocessing"
+            subtitle="Configure cleaning recipes, preview live diffs, and push polished datasets straight to MinIO."
+          />
           <div className={styles.card}>
 
             {step === "select_file" && (
@@ -424,7 +427,8 @@ export default function Preprocessing() {
 
                   <div className={`${styles.layoutGrid} ${isBuilderCollapsed ? styles.layoutGridCollapsed : ""} ${!result ? styles.layoutGridFullWidth : ""}`}>
                     {!isBuilderCollapsed && (
-                      <StepBuilder
+                      <>
+                        <StepBuilder
                         columns={columns}
                         columnInsights={columnInsights}
                         selectedFile={selectedFile}
@@ -440,11 +444,122 @@ export default function Preprocessing() {
                         onChangeFile={() => setStep("select_file")}
                         onSubmit={handleSubmit}
                         loading={loading}
-                        result={result}
                         activeSteps={activeSteps}
                         collapseEnabled={collapseEnabled}
                         onCollapse={() => setBuilderCollapsed(true)}
+                        topContent={(
+                          <PreprocessingRecommendationPanel
+                            suggestions={preprocessingSuggestions}
+                            loading={recLoading}
+                            appliedSteps={appliedStepsMap}
+                            allApplied={allApplied}
+                            onUndoStep={(stepKey) => {
+                              if (stepKey === "removeDuplicates") {
+                                setStepsStable((prev) => ({
+                                  ...prev,
+                                  removeDuplicates: false,
+                                  removeDuplicatesColumns: [],
+                                }));
+                              } else if (stepKey === "dropColumns") {
+                                setStepsStable((prev) => ({
+                                  ...prev,
+                                  dropColumns: false,
+                                  dropColumnsColumns: [],
+                                }));
+                              } else if (stepKey === "fillNulls") {
+                                setStepsStable((prev) => ({
+                                  ...prev,
+                                  fillNulls: false,
+                                  fillNullsColumns: [],
+                                  fillColumnStrategies: {},
+                                }));
+                              } else if (stepKey === "removeNulls") {
+                                setStepsStable((prev) => ({
+                                  ...prev,
+                                  removeNulls: false,
+                                  removeNullsColumns: [],
+                                }));
+                              } else if (stepKey === "removeOutliers") {
+                                setStepsStable((prev) => ({
+                                  ...prev,
+                                  removeOutliers: false,
+                                  removeOutliersConfig: {
+                                    ...prev.removeOutliersConfig,
+                                    columns: [],
+                                    method: prev.removeOutliersConfig.method || "iqr",
+                                    factor: prev.removeOutliersConfig.factor ?? 1.5,
+                                  },
+                                }));
+                              }
+                            }}
+                            onApplyAll={() => {
+                              const s = preprocessingSuggestions;
+                              setStepsStable((prev) => ({
+                                ...prev,
+                                removeDuplicates: !!s.removeDuplicates?.enabled,
+                                removeDuplicatesColumns: s.removeDuplicates?.subset || [],
+                                dropColumns: !!s.dropColumns?.enabled,
+                                dropColumnsColumns: s.dropColumns?.columns || [],
+                                fillNulls: !!s.fillNulls?.enabled,
+                                fillNullsColumns: s.fillNulls?.columns || [],
+                                fillColumnStrategies: s.fillNulls?.strategies || {},
+                                removeNulls: !s.fillNulls?.enabled && !!s.removeNulls?.enabled,
+                                removeNullsColumns: s.removeNulls?.columns || [],
+                                removeOutliers: !!s.removeOutliers?.enabled,
+                                removeOutliersConfig: {
+                                  ...prev.removeOutliersConfig,
+                                  method: s.removeOutliers?.method || prev.removeOutliersConfig.method,
+                                  factor: s.removeOutliers?.factor ?? prev.removeOutliersConfig.factor,
+                                  columns: s.removeOutliers?.columns || [],
+                                },
+                              }));
+                            }}
+                            onApplyStep={(stepKey) => {
+                              const s = preprocessingSuggestions;
+                              if (stepKey === "removeDuplicates") {
+                                setStepsStable((prev) => ({
+                                  ...prev,
+                                  removeDuplicates: !!s.removeDuplicates?.enabled,
+                                  removeDuplicatesColumns: s.removeDuplicates?.subset || [],
+                                }));
+                              } else if (stepKey === "dropColumns") {
+                                setStepsStable((prev) => ({
+                                  ...prev,
+                                  dropColumns: !!s.dropColumns?.enabled,
+                                  dropColumnsColumns: s.dropColumns?.columns || [],
+                                }));
+                              } else if (stepKey === "fillNulls") {
+                                setStepsStable((prev) => ({
+                                  ...prev,
+                                  fillNulls: !!s.fillNulls?.enabled,
+                                  fillNullsColumns: s.fillNulls?.columns || [],
+                                  fillColumnStrategies: s.fillNulls?.strategies || {},
+                                  removeNulls: false,
+                                }));
+                              } else if (stepKey === "removeNulls") {
+                                setStepsStable((prev) => ({
+                                  ...prev,
+                                  removeNulls: !!s.removeNulls?.enabled,
+                                  removeNullsColumns: s.removeNulls?.columns || [],
+                                  fillNulls: false,
+                                }));
+                              } else if (stepKey === "removeOutliers") {
+                                setStepsStable((prev) => ({
+                                  ...prev,
+                                  removeOutliers: !!s.removeOutliers?.enabled,
+                                  removeOutliersConfig: {
+                                    ...prev.removeOutliersConfig,
+                                    method: s.removeOutliers?.method || prev.removeOutliersConfig.method,
+                                    factor: s.removeOutliers?.factor ?? prev.removeOutliersConfig.factor,
+                                    columns: s.removeOutliers?.columns || [],
+                                  },
+                                }));
+                              }
+                            }}
+                          />
+                        )}
                       />
+                      </>
                     )}
 
                     {(result || loading || progressInfo.status !== "idle") && (

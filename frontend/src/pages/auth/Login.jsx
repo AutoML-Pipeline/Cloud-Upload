@@ -1,8 +1,9 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import api from "../../utils/api";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'react-hot-toast';
 import GoogleAuthPopup from "../../components/GoogleAuthPopup";
+import FeaturePanel from "../../components/FeaturePanel";
 import '../../auth.css';
 import styles from "./AuthPage.module.css";
 
@@ -12,7 +13,6 @@ const Login = ({ onGoogleSuccess }) => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(""); // eslint-disable-line no-unused-vars
   const [remember, setRemember] = useState(true);
-  const contentRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,30 +51,11 @@ const Login = ({ onGoogleSuccess }) => {
     toast.error("Google login failed: " + error);
   };
 
-  React.useEffect(() => {
-    let ctx;
-    let mounted = true;
-    if (contentRef.current) {
-      import('gsap').then(({ gsap }) => {
-        if (!mounted) return;
-        ctx = gsap.context(() => {
-          gsap.fromTo(
-            contentRef.current,
-            { autoAlpha: 0, y: 26, filter: "blur(8px)", scale: 0.97 },
-            { autoAlpha: 1, y: 0, filter: "blur(0px)", scale: 1, duration: 0.45, ease: "power3.out" }
-          );
-        }, contentRef);
-      });
-    }
-    return () => {
-      mounted = false;
-      if (ctx) ctx.revert();
-    };
-  }, []);
+  // Animations removed for instant load
 
   return (
     <div className={styles.page}>
-      <div className={styles.wrapper} ref={contentRef}>
+      <div className={styles.wrapper}>
         <section className={styles.card}>
           <h1 className={styles.title}>Welcome back</h1>
           <p className={styles.subtitle}>Sign in to continue your AutoML workflow</p>
@@ -114,13 +95,7 @@ const Login = ({ onGoogleSuccess }) => {
           </div>
         </section>
         <aside className={styles.promo}>
-          <div className={styles.promoTitle}>Why Automated Machine Learning Pipeline?</div>
-          <div className={styles.promoList}>
-            <div>• Upload from local, URL, or Google Drive</div>
-            <div>• Clean, transform, and feature engineer quickly</div>
-            <div>• Guided model selection and training presets</div>
-            <div>• Beautiful, responsive UI built for speed</div>
-          </div>
+          <FeaturePanel />
         </aside>
       </div>
     </div>
