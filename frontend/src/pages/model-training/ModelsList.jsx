@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { toast } from "react-hot-toast";
+import saasToast from "@/utils/toast";
 import { useNavigate } from "react-router-dom";
 import styles from "./ModelsList.module.css";
 import PageBackLink from "../../components/PageBackLink";
@@ -158,7 +158,7 @@ export default function ModelsList() {
       
       setSelectedModel(mergedDetails);
     } catch (error) {
-      toast.error("Failed to load model details");
+  saasToast.error("Failed to load model details", { idKey: 'models-details-error' });
       console.error(error);
     }
   };
@@ -172,13 +172,13 @@ export default function ModelsList() {
         { method: "DELETE" }
       );
       if (!response.ok) throw new Error("Failed to delete model");
-      toast.success("Model deleted successfully");
+  saasToast.success("Model deleted successfully", { idKey: 'models-delete-success' });
       refetch();
       if (selectedModel?.model_id === modelId) {
         setSelectedModel(null);
       }
     } catch (error) {
-      toast.error("Failed to delete model");
+  saasToast.error("Failed to delete model", { idKey: 'models-delete-error' });
       console.error(error);
     }
   };

@@ -1,34 +1,25 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { toast } from "react-hot-toast";
+import saasToast from "@/utils/toast";
 import styles from "./ModelTraining.module.css";
 import { useLocation, useNavigate } from "react-router-dom";
 import PageBackLink from "../../components/PageBackLink";
 import PageHero from "../../components/PageHero";
-import ModelVisualizations from "../../components/ModelVisualizations";
+import TrainingFileSelect from "./components/TrainingFileSelect";
+import TrainingLoading from "./components/TrainingLoading";
+import TrainingConfigure from "./components/TrainingConfigure";
+import TrainingProgress from "./components/TrainingProgress";
+import TrainingFailed from "./components/TrainingFailed";
+import TrainingResults from "./components/TrainingResults";
+import ErrorBoundary from "./components/ErrorBoundary";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import { useTrainingJob } from "./hooks/useTrainingJob";
 
-const AVAILABLE_MODELS = {
-  classification: [
-    { id: "logistic_regression", name: "Logistic Regression", description: "Fast linear classifier" },
-    { id: "random_forest", name: "Random Forest", description: "Ensemble of decision trees" },
-    { id: "gradient_boosting", name: "Gradient Boosting", description: "Sequential tree boosting" },
-    { id: "xgboost", name: "XGBoost", description: "Optimized gradient boosting" },
-    { id: "lightgbm", name: "LightGBM", description: "Fast gradient boosting" },
-  ],
-  regression: [
-    { id: "linear_regression", name: "Linear Regression", description: "Simple linear model" },
-    { id: "ridge", name: "Ridge Regression", description: "L2 regularized linear model" },
-    { id: "lasso", name: "Lasso Regression", description: "L1 regularized linear model" },
-    { id: "random_forest", name: "Random Forest", description: "Ensemble regressor" },
-    { id: "gradient_boosting", name: "Gradient Boosting", description: "Sequential boosting" },
-    { id: "xgboost", name: "XGBoost", description: "Optimized gradient boosting" },
-    { id: "lightgbm", name: "LightGBM", description: "Fast gradient boosting" },
-  ],
-};
 
-export default function ModelTraining() {
+function ModelTrainingInner() {
   const location = useLocation();
   const navigate = useNavigate();
+  // pipeline run tracking removed
   
   // Fetch feature-engineered files
   const { data: filesData, isFetching: isFetchingFiles } = useQuery({
@@ -56,15 +47,34 @@ export default function ModelTraining() {
   const [recommendations, setRecommendations] = useState(null); // Store recommendations
   const [loadingRecommendations, setLoadingRecommendations] = useState(false); // Loading state for recommendations
   
-  // Training state
-  const [jobId, setJobId] = useState(null);
-  const [trainingStatus, setTrainingStatus] = useState("idle");
-  const [progress, setProgress] = useState(0);
-  const [trainingResult, setTrainingResult] = useState(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  
-  const pollingRef = useRef(null);
-  const startTimeRef = useRef(null);
+  // Training state via hook
+  const {
+    jobId,
+    status: trainingStatus,
+    progress,
+    result: trainingResult,
+    error: trainingError,
+    elapsedTime,
+    savedModelId,
+    startTraining,
+    saveModel,
+    reset: resetTrainingState,
+  } = useTrainingJob();
+  const [quickTrainRequested, setQuickTrainRequested] = useState(false);
+  const hasUnsavedModel = useMemo(
+    () => trainingStatus === "completed" && !!trainingResult && !savedModelId,
+    [trainingStatus, trainingResult, savedModelId]
+  );
+
+  // Unsaved confirm modal state and handlers (centered pop-up like logout)
+  const [unsavedOpen, setUnsavedOpen] = useState(false);
+  const unsavedOnContinueRef = useRef(null);
+  const unsavedOnDiscardRef = useRef(null);
+  const openUnsavedConfirm = useCallback(({ onContinue, onDiscard }) => {
+    unsavedOnContinueRef.current = onContinue;
+    unsavedOnDiscardRef.current = onDiscard;
+    setUnsavedOpen(true);
+  }, []);
 
   // Auto-select file from URL
   useEffect(() => {
@@ -115,10 +125,10 @@ export default function ModelTraining() {
 
       // Success - move to configure step
       setStep("configure");
-      toast.success("Dataset loaded successfully!");
+  saasToast.success("Dataset loaded successfully!", { idKey: 'train-dataset-loaded' });
     } catch (error) {
       console.error("Error loading dataset:", error);
-      toast.error(error.message || "Failed to load dataset");
+  saasToast.error(error.message || "Failed to load dataset", { idKey: 'train-dataset-error' });
       setStep("select_file"); // Go back to file selection
     } finally {
       setLoadingDataset(false);
@@ -146,7 +156,7 @@ export default function ModelTraining() {
         }
       } catch (error) {
         console.error("Error fetching columns:", error);
-        toast.error("Failed to load dataset columns");
+  saasToast.error("Failed to load dataset columns", { idKey: 'train-columns-error' });
       }
     };
 
@@ -205,10 +215,10 @@ export default function ModelTraining() {
           }
         }
         
-        toast.success(`✓ Detected ${data.problem_type} problem for "${targetColumn}"`);
+  saasToast.success(`✓ Detected ${data.problem_type} problem for "${targetColumn}"`, { idKey: 'train-problem-detected' });
       } catch (error) {
         console.error("Error fetching recommendations:", error);
-        toast.error("Failed to analyze target column");
+  saasToast.error("Failed to analyze target column", { idKey: 'train-problem-error' });
       } finally {
         setLoadingRecommendations(false);
       }
@@ -217,143 +227,110 @@ export default function ModelTraining() {
     fetchRecommendations();
   }, [selectedFile, targetColumn, step, setProblemType, setSelectedModels, setSelectAllModels]);
 
-  // Reset selected models when problem type changes ONLY if "Train all" is checked
-  useEffect(() => {
-    // Only auto-select all models if the user has "Train all" checkbox enabled
-    // Do NOT interfere with recommendation-based auto-selection
-    if (problemType && selectAllModels && selectedModels.length === 0) {
-      console.log("🔄 Auto-selecting all models for 'Train all' mode");
-      const availableForType = AVAILABLE_MODELS[problemType] || [];
-      setSelectedModels(availableForType.map(m => m.id));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [problemType, selectAllModels]);
+  // When in 'Train all' mode, backend trains all models; no need to pre-select here.
 
-  // Poll training status
-  useEffect(() => {
-    if (!jobId || trainingStatus === "completed" || trainingStatus === "failed") {
-      return;
-    }
+  // Polling and elapsed time handled by useTrainingJob hook
 
-    const pollStatus = async () => {
-      try {
-        const response = await fetch(
-          `http://localhost:8000/api/model-training/training/status/${jobId}`
-        );
-        if (!response.ok) throw new Error("Failed to fetch status");
-        
-        const job = await response.json();
-        setProgress(job.progress || 0);
-        setTrainingStatus(job.status);
-
-        if (job.status === "completed") {
-          setTrainingResult(job.result);
-          clearInterval(pollingRef.current);
-          toast.success("🎉 Training completed successfully!");
-        } else if (job.status === "failed") {
-          clearInterval(pollingRef.current);
-          toast.error(`Training failed: ${job.error || "Unknown error"}`);
-        }
-      } catch (error) {
-        console.error("Error polling status:", error);
-      }
-    };
-
-    pollingRef.current = setInterval(pollStatus, 2000);
-    return () => clearInterval(pollingRef.current);
-  }, [jobId, trainingStatus]);
-
-  // Update elapsed time
-  useEffect(() => {
-    if (trainingStatus !== "running" && trainingStatus !== "pending") return;
-
-    const timer = setInterval(() => {
-      if (startTimeRef.current) {
-        setElapsedTime(Date.now() - startTimeRef.current);
-      }
-    }, 100);
-
-    return () => clearInterval(timer);
-  }, [trainingStatus]);
-
-  const handleStartTraining = async () => {
+  const handleStartTraining = useCallback(async () => {
     if (!targetColumn) {
-      toast.error("Please select a target column");
+  saasToast.error("Please select a target column", { idKey: 'train-select-target' });
       return;
     }
 
     try {
-      const config = {
-        target_column: targetColumn,
-        problem_type: problemType,
-        test_size: 0.2, // Fixed at 20%
-        random_state: 42,
-        models_to_train: selectAllModels ? null : selectedModels,
-      };
-
-      const response = await fetch(
-        `http://localhost:8000/api/model-training/training/train/${encodeURIComponent(selectedFile)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(config),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || "Failed to start training");
-      }
-
-      const result = await response.json();
-      setJobId(result.job_id);
-      setTrainingStatus("pending");
+      await startTraining({
+        filename: selectedFile,
+        targetColumn,
+        problemType,
+        modelsToTrain: selectedModels,
+        selectAllModels,
+      });
+      // Clear any previous error and move to training step
       setStep("training");
-      startTimeRef.current = Date.now();
-      toast.success("Training job started!");
+  saasToast.success("Training job started!", { idKey: 'train-started' });
     } catch (error) {
       console.error("Error starting training:", error);
-      toast.error(error.message);
+  saasToast.error(error.message, { idKey: 'train-start-error' });
     }
-  };
+  }, [targetColumn, problemType, selectAllModels, selectedModels, selectedFile, startTraining]);
 
-  const handleReset = () => {
+  // If quick-train was requested from selection step, auto-start once recommendations are ready
+  useEffect(() => {
+    if (
+      quickTrainRequested &&
+      step === "configure" &&
+      !loadingRecommendations &&
+      targetColumn &&
+      problemType &&
+      (selectedModels.length > 0 || selectAllModels)
+    ) {
+      const t = setTimeout(() => {
+        handleStartTraining();
+        setQuickTrainRequested(false);
+      }, 200);
+      return () => clearTimeout(t);
+    }
+  }, [quickTrainRequested, step, loadingRecommendations, targetColumn, problemType, selectedModels, selectAllModels, handleStartTraining]);
+
+  const handleSaveModel = useCallback(async () => {
+    try {
+      const id = await saveModel();
+  saasToast.success("Model saved successfully", { idKey: 'train-save-success' });
+      return id;
+    } catch (e) {
+      console.error("Save model failed", e);
+  saasToast.error(e.message || "Save failed", { idKey: 'train-save-error' });
+    }
+  }, [saveModel]);
+
+  // Warn on browser/tab close if there's an unsaved model
+  useEffect(() => {
+    if (!hasUnsavedModel) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = "You have an unsaved trained model. Are you sure you want to leave?";
+      return e.returnValue;
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsavedModel]);
+
+  // Toast-based confirmation helpers for unsaved model
+  // Remove toast-based unsaved prompt; we'll use centered ConfirmDialog for parity with logout
+
+  // Reset function must be declared before any callbacks that depend on it (avoid TDZ ReferenceError)
+  const handleReset = useCallback(() => {
+    resetTrainingState();
     setStep("select_file");
     setSelectedFile("");
     setTargetColumn("");
     setProblemType(null);
     setSelectedModels([]);
     setSelectAllModels(true);
-    setJobId(null);
-    setTrainingStatus("idle");
-    setProgress(0);
-    setTrainingResult(null);
-    setElapsedTime(0);
-  };
+  }, [resetTrainingState]);
 
-  const formatTime = (ms) => {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return minutes > 0
-      ? `${minutes}m ${remainingSeconds}s`
-      : `${remainingSeconds}s`;
-  };
-
-  // Format metric numbers for display and avoid overflowing values
-  const formatMetricValue = (value) => {
-    if (value === null || value === undefined || value === "") return null;
-    if (typeof value === "number") {
-      const abs = Math.abs(value);
-      // Use fewer decimals for very large numbers to avoid overflow
-      if (abs >= 1000000) return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-      if (abs >= 1000) return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-      // Small numbers - show more precision
-      return value.toFixed(4);
+  const handleResetWithConfirm = useCallback(() => {
+    if (!hasUnsavedModel) {
+      handleReset();
+      return;
     }
-    // Fallback for strings
-    return String(value);
-  };
+    openUnsavedConfirm({
+      onContinue: async () => { await handleSaveModel(); handleReset(); },
+      onDiscard: () => { handleReset(); },
+    });
+  }, [hasUnsavedModel, openUnsavedConfirm, handleSaveModel, handleReset]);
+
+  const handleBackClick = useCallback((e) => {
+    if (!hasUnsavedModel) return; // allow default
+    e.preventDefault();
+    e.stopPropagation();
+    openUnsavedConfirm({
+      onContinue: async () => { await handleSaveModel(); navigate('/dashboard'); },
+      onDiscard: () => navigate('/dashboard'),
+    });
+  }, [hasUnsavedModel, navigate, openUnsavedConfirm, handleSaveModel]);
+
+  // (moved earlier)
 
   return (
     <div className={styles.pageShell}>
@@ -365,568 +342,98 @@ export default function ModelTraining() {
             subtitle="Automatically train and compare multiple ML models to find the best performer for your dataset."
           />
           
-          <div style={{ marginTop: '1rem' }}>
-            <PageBackLink to="/dashboard" label="Dashboard" />
+          <div className="mt-4">
+            <span onClick={handleBackClick}>
+              <PageBackLink to="/dashboard" label="Dashboard" />
+            </span>
           </div>
 
           {/* Step 1: File Selection */}
           {step === "select_file" && (
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <h2 className={styles.cardTitle}>📂 Select Feature-Engineered Dataset</h2>
-                <p className={styles.cardDescription}>
-                  Choose a preprocessed and feature-engineered dataset to train models
-                </p>
-              </div>
-
-              <div className={styles.cardContent}>
-                {isFetchingFiles ? (
-                  <div className={styles.loadingState}>
-                    <div className={styles.spinner}></div>
-                    <p>Loading datasets...</p>
-                  </div>
-                ) : files.length === 0 ? (
-                  <div className={styles.emptyState}>
-                    <p>No feature-engineered datasets found.</p>
-                    <button
-                      className={styles.secondaryButton}
-                      onClick={() => navigate("/feature-engineering")}
-                    >
-                      Go to Feature Engineering
-                    </button>
-                  </div>
-                ) : (
-                  <div className={styles.fileGrid}>
-                        {files.map((file) => {
-                          const displayName = (file.name || "")
-                            // Strip common pipeline prefixes at the start: feature-engineered, cleaned, clean
-                            .replace(/^(?:feature[_-]?engineered[_-]?|cleaned?[_-]?)+/i, "")
-                            .replace(/\.(parquet|csv|json)$/i, "");
-                          return (
-                            <div
-                              key={file.name}
-                              className={`${styles.fileCard} ${
-                                selectedFile === file.name ? styles.fileCardSelected : ""
-                              }`}
-                              onClick={() => setSelectedFile(file.name)}
-                            >
-                              <div className={styles.fileIcon}>📊</div>
-                              <div className={styles.fileInfo}>
-                                <div className={styles.fileName} title={file.name}>
-                                  {displayName || file.name}
-                                </div>
-                                <div className={styles.fileSize}>
-                                  {file.size ? `${(file.size / 1024).toFixed(1)} KB` : "Unknown size"}
-                                </div>
-                              </div>
-                              {selectedFile === file.name && (
-                                <div className={styles.selectedBadge}>✓</div>
-                              )}
-                            </div>
-                          );
-                        })}
-                  </div>
-                )}
-
-                {selectedFile && (
-                  <div className={styles.actionBar}>
-                    <button
-                      className={styles.primaryButton}
-                      onClick={handleProceedToConfigure}
-                    >
-                      Continue to Configuration →
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+            <TrainingFileSelect
+              files={files}
+              selectedFile={selectedFile}
+              onSelect={setSelectedFile}
+              onContinue={handleProceedToConfigure}
+              onQuickTrain={() => { setQuickTrainRequested(true); handleProceedToConfigure(); }}
+              isFetching={isFetchingFiles}
+            />
           )}
 
           {/* Loading Step */}
           {step === "loading" && (
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <h2 className={styles.cardTitle}>🔄 Loading Dataset</h2>
-                <p className={styles.cardDescription}>
-                  Validating and preparing your dataset for training
-                </p>
-              </div>
-
-              <div className={styles.cardContent}>
-                <div className={styles.loadingState}>
-                  <div className={styles.spinner}></div>
-                  <h3 className={styles.loadingTitle}>
-                    {loadingDataset ? "Loading dataset..." : "Preparing..."}
-                  </h3>
-                  <p className={styles.loadingDescription}>
-                    Fetching columns, validating data, and checking dataset integrity
-                  </p>
-                  
-                  {datasetInfo && (
-                    <div className={styles.infoBox} style={{ marginTop: "20px" }}>
-                      <p>✓ Found {datasetInfo.totalColumns} columns</p>
-                      <p>✓ Dataset contains {datasetInfo.totalRows} rows</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <TrainingLoading loadingDataset={loadingDataset} datasetInfo={datasetInfo} />
           )}
 
           {/* Step 2: Configuration */}
           {step === "configure" && (
-            <>
-              <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <h2 className={styles.cardTitle}>⚙️ Training Configuration</h2>
-                  <p className={styles.cardDescription}>
-                    Configure training parameters and select models
-                  </p>
-                </div>
-
-                <div className={styles.cardContent}>
-                  {/* Dataset Info */}
-                  <div className={styles.infoBox}>
-                    <strong>Selected Dataset:</strong> {selectedFile}
-                  </div>
-
-                  {/* Recommendations Section */}
-                  {recommendations && targetColumn && (
-                    <div className={styles.recommendationsBox}>
-                      <h3 className={styles.recommendationsTitle}>
-                        💡 AI Recommendations
-                      </h3>
-                      
-                      {/* Problem Type Recommendation */}
-                      <div className={styles.recommendationItem}>
-                        <strong>Detected Problem Type:</strong>
-                        <span className={styles.badge}>
-                          {recommendations.problem_type === "classification" ? "🎯 Classification" : "📈 Regression"}
-                        </span>
-                      </div>
-
-                      {/* Target Column Stats */}
-                      {recommendations.target_analysis && (
-                        <div className={styles.recommendationItem}>
-                          <strong>Target Column Analysis:</strong>
-                          <div className={styles.targetStats}>
-                            <span>• {recommendations.target_analysis.unique_values} unique values</span>
-                            {recommendations.target_analysis.class_distribution && (
-                              <span>• Distribution: {Object.keys(recommendations.target_analysis.class_distribution).length} classes</span>
-                            )}
-                            {recommendations.target_analysis.null_count > 0 && (
-                              <span className={styles.warning}>
-                                • ⚠️ {recommendations.target_analysis.null_count} missing values ({recommendations.target_analysis.null_percentage.toFixed(1)}%)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Model Recommendations */}
-                      {recommendations.model_recommendations && recommendations.model_recommendations.length > 0 && (
-                        <div className={styles.recommendationItem}>
-                          <strong>Recommended Models:</strong>
-                          <div className={styles.modelRecommendations}>
-                            {recommendations.model_recommendations
-                              .filter(m => m.recommended && m.priority === "high")
-                              .map(model => (
-                                <div key={model.model_id} className={styles.recommendedModel}>
-                                  <span className={styles.modelName}>✓ {model.model_name}</span>
-                                  <span className={styles.modelReason}>{model.reason}</span>
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Target Column Selection */}
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>
-                      🎯 Target Column <span className={styles.required}>*</span>
-                    </label>
-                    <p className={styles.formHelp}>
-                      Select the column you want to predict
-                    </p>
-                    <select
-                      className={styles.formSelect}
-                      value={targetColumn}
-                      onChange={(e) => setTargetColumn(e.target.value)}
-                    >
-                      <option value="">-- Select Target Column --</option>
-                      {columns.map((col) => (
-                        <option key={col} value={col}>
-                          {col}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Problem Type */}
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>📊 Problem Type</label>
-                    <p className={styles.formHelp}>
-                      {loadingRecommendations 
-                        ? "Analyzing target column to detect problem type..." 
-                        : "Problem type is automatically detected based on your target column"}
-                    </p>
-                    
-                    {loadingRecommendations ? (
-                      <div className={styles.loadingRecommendation}>
-                        <div className={styles.spinner}></div>
-                        <span>Detecting problem type...</span>
-                      </div>
-                    ) : (
-                      <div className={styles.radioGroup}>
-                        <label className={styles.radioLabel}>
-                          <input
-                            type="radio"
-                            name="problemType"
-                            checked={problemType === "classification"}
-                            onChange={() => {
-                              setProblemType("classification");
-                              setSelectAllModels(true); // Reset model selection
-                            }}
-                          />
-                          <span>
-                            Classification
-                            {recommendations?.problem_type === "classification" && (
-                              <span className={styles.suggestedBadge}>
-                                ✓ Suggested for "{targetColumn}"
-                              </span>
-                            )}
-                          </span>
-                        </label>
-                        <label className={styles.radioLabel}>
-                          <input
-                            type="radio"
-                            name="problemType"
-                            checked={problemType === "regression"}
-                            onChange={() => {
-                              setProblemType("regression");
-                              setSelectAllModels(true); // Reset model selection
-                            }}
-                          />
-                          <span>
-                            Regression
-                            {recommendations?.problem_type === "regression" && (
-                              <span className={styles.suggestedBadge}>
-                                ✓ Suggested for "{targetColumn}"
-                              </span>
-                            )}
-                          </span>
-                        </label>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Model Selection - Simplified */}
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>
-                      🤖 Models to Train
-                    </label>
-                    <p className={styles.formHelp}>
-                      {loadingRecommendations 
-                        ? "Analyzing your data to select optimal models..."
-                        : recommendations && selectedModels.length > 0
-                        ? `${selectedModels.length} recommended ${problemType} models will be trained automatically`
-                        : `All available ${problemType} models will be trained`
-                      }
-                    </p>
-                    
-                    {!loadingRecommendations && recommendations && selectedModels.length > 0 && (
-                      <div className={styles.recommendedModelsList}>
-                        {selectedModels.map((modelId) => {
-                          const modelInfo = AVAILABLE_MODELS[problemType]?.find(m => m.id === modelId);
-                          return modelInfo ? (
-                            <div key={modelId} className={styles.recommendedModelBadge}>
-                              ✓ {modelInfo.name}
-                            </div>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className={styles.actionBar}>
-                    <button
-                      className={styles.secondaryButton}
-                      onClick={() => setStep("select_file")}
-                    >
-                      ← Back
-                    </button>
-                    <button
-                      className={styles.primaryButton}
-                      onClick={handleStartTraining}
-                      disabled={!targetColumn}
-                    >
-                      Start Training 🚀
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </>
+            <TrainingConfigure
+              selectedFile={selectedFile}
+              targetColumn={targetColumn}
+              setTargetColumn={setTargetColumn}
+              problemType={problemType}
+              setProblemType={setProblemType}
+              columns={columns}
+              recommendations={recommendations}
+              loadingRecommendations={loadingRecommendations}
+              onStartTraining={handleStartTraining}
+              onBack={() => setStep("select_file")}
+            />
           )}
 
           {/* Step 3: Training in Progress */}
-          {step === "training" && trainingStatus !== "completed" && (
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <h2 className={styles.cardTitle}>🔄 Training in Progress</h2>
-                <p className={styles.cardDescription}>
-                  Training multiple models and comparing performance...
-                </p>
-              </div>
+          {step === "training" && trainingStatus !== "completed" && trainingStatus !== "failed" && (
+            <TrainingProgress
+              status={trainingStatus}
+              progress={progress}
+              selectedFile={selectedFile}
+              targetColumn={targetColumn}
+              elapsedTime={elapsedTime}
+              jobId={jobId}
+            />
+          )}
 
-              <div className={styles.cardContent}>
-                {/* Progress Bar */}
-                <div className={styles.progressContainer}>
-                  <div className={styles.progressHeader}>
-                    <span className={styles.progressLabel}>
-                      {trainingStatus === "pending" ? "Initializing..." : "Training models..."}
-                    </span>
-                    <span className={styles.progressPercentage}>{progress}%</span>
-                  </div>
-                  <div className={styles.progressBar}>
-                    <div
-                      className={styles.progressFill}
-                      style={{ width: `${progress}%` }}
-                    ></div>
-                  </div>
-                  <div className={styles.progressInfo}>
-                    <span>Elapsed: {formatTime(elapsedTime)}</span>
-                    <span>Job ID: {jobId?.substring(0, 8)}...</span>
-                  </div>
-                </div>
-
-                {/* Training Info */}
-                <div className={styles.trainingInfo}>
-                  <div className={styles.infoRow}>
-                    <span className={styles.infoLabel}>Dataset:</span>
-                    <span className={styles.infoValue}>{selectedFile}</span>
-                  </div>
-                  <div className={styles.infoRow}>
-                    <span className={styles.infoLabel}>Target Column:</span>
-                    <span className={styles.infoValue}>{targetColumn}</span>
-                  </div>
-                  <div className={styles.infoRow}>
-                    <span className={styles.infoLabel}>Test Split:</span>
-                    <span className={styles.infoValue}>20% (default)</span>
-                  </div>
-                </div>
-
-                {/* Animated Status */}
-                <div className={styles.statusAnimation}>
-                  <div className={styles.spinner}></div>
-                  <p>Please wait while models are being trained...</p>
-                </div>
-              </div>
-            </div>
+          {/* Training Failed */}
+          {step === "training" && trainingStatus === "failed" && (
+            <TrainingFailed
+              error={trainingError}
+              onBack={() => setStep("configure")}
+              onRetry={handleStartTraining}
+            />
           )}
 
           {/* Step 4: Results */}
           {step === "training" && trainingStatus === "completed" && trainingResult && (
-            <>
-              {/* Dataset Summary */}
-              <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <h2 className={styles.cardTitle}>✅ Training Completed!</h2>
-                  <p className={styles.cardDescription}>
-                    Successfully trained {trainingResult.models_trained?.length || 0} models
-                  </p>
-                </div>
-
-                <div className={styles.cardContent}>
-                  <div className={styles.summaryGrid}>
-                    <div className={styles.summaryCard}>
-                      <div className={styles.summaryIcon}>📊</div>
-                      <div className={styles.summaryContent}>
-                        <div className={styles.summaryLabel}>Problem Type</div>
-                        <div className={styles.summaryValue}>
-                          {trainingResult.problem_type === "classification" 
-                            ? "Classification" 
-                            : trainingResult.problem_type === "regression"
-                            ? "Regression"
-                            : trainingResult.problem_type}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={styles.summaryCard}>
-                      <div className={styles.summaryIcon}>📏</div>
-                      <div className={styles.summaryContent}>
-                        <div className={styles.summaryLabel}>Dataset Rows</div>
-                        <div className={styles.summaryValue}>
-                          {trainingResult.dataset_info?.total_rows?.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={styles.summaryCard}>
-                      <div className={styles.summaryIcon}>🔢</div>
-                      <div className={styles.summaryContent}>
-                        <div className={styles.summaryLabel}>Features</div>
-                        <div className={styles.summaryValue}>
-                          {trainingResult.dataset_info?.features?.length || 0}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={styles.summaryCard}>
-                      <div className={styles.summaryIcon}>⏱️</div>
-                      <div className={styles.summaryContent}>
-                        <div className={styles.summaryLabel}>Total Time</div>
-                        <div className={styles.summaryValue}>
-                          {trainingResult.total_training_time?.toFixed(2)}s
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Best Model */}
-              <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <h2 className={styles.cardTitle}>🏆 Best Model</h2>
-                  <p className={styles.cardDescription}>
-                    Top performing model selected automatically
-                  </p>
-                </div>
-
-                <div className={styles.cardContent}>
-                  <div className={styles.bestModelCard}>
-                    <div className={styles.bestModelHeader}>
-                      <div>
-                        <h3 className={styles.bestModelName}>
-                          {trainingResult.best_model?.model_name}
-                        </h3>
-                        <p className={styles.bestModelType}>
-                          {trainingResult.best_model?.model_type}
-                        </p>
-                      </div>
-                      <div className={styles.bestModelBadge}>🥇 Best</div>
-                    </div>
-
-                    <div className={styles.metricsGrid}>
-                      {Object.entries(trainingResult.best_model?.metrics || {})
-                        .filter(([, value]) => value !== null && value !== undefined && value !== "")
-                        .map(([key, value]) => {
-                          const formatted = formatMetricValue(value);
-                          // Skip if formatting decided it's empty
-                          if (formatted === null) return null;
-                          return (
-                            <div key={key} className={styles.metricCard}>
-                              <div className={styles.metricLabel}>
-                                {key.replace(/_/g, " ").toUpperCase()}
-                              </div>
-                              <div className={styles.metricValue} title={String(formatted)}>
-                                {formatted}
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-
-                    <div className={styles.modelMeta}>
-                      <span>
-                        Training Time: {trainingResult.best_model?.training_time?.toFixed(2)}s
-                      </span>
-                      <span>Model ID: {trainingResult.best_model_id?.substring(0, 12)}...</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* All Models Comparison */}
-              <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <h2 className={styles.cardTitle}>📊 Model Comparison</h2>
-                  <p className={styles.cardDescription}>
-                    Performance comparison of all trained models
-                  </p>
-                </div>
-
-                <div className={styles.cardContent}>
-                  <div className={styles.comparisonTable}>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Model</th>
-                          {trainingResult.problem_type === "classification" ? (
-                            <>
-                              <th>Accuracy</th>
-                              <th>Precision</th>
-                              <th>Recall</th>
-                              <th>F1 Score</th>
-                            </>
-                          ) : (
-                            <>
-                              <th>R² Score</th>
-                              <th>MAE</th>
-                              <th>RMSE</th>
-                            </>
-                          )}
-                          <th>Time (s)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {trainingResult.models_trained?.map((model) => (
-                          <tr
-                            key={model.model_name}
-                            className={model.is_best ? styles.bestRow : ""}
-                          >
-                            <td>
-                              <div className={styles.modelNameCell}>
-                                {model.is_best && <span className={styles.trophy}>🏆</span>}
-                                <span>{model.model_name}</span>
-                              </div>
-                            </td>
-                            {trainingResult.problem_type === "classification" ? (
-                              <>
-                                <td>{model.metrics?.accuracy?.toFixed(4) || "N/A"}</td>
-                                <td>{model.metrics?.precision?.toFixed(4) || "N/A"}</td>
-                                <td>{model.metrics?.recall?.toFixed(4) || "N/A"}</td>
-                                <td>{model.metrics?.f1_score?.toFixed(4) || "N/A"}</td>
-                              </>
-                            ) : (
-                              <>
-                                <td>{model.metrics?.r2_score?.toFixed(4) || "N/A"}</td>
-                                <td>{model.metrics?.mae?.toFixed(2) || "N/A"}</td>
-                                <td>{model.metrics?.rmse?.toFixed(2) || "N/A"}</td>
-                              </>
-                            )}
-                            <td>{model.training_time?.toFixed(2)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              {/* Visualizations Section */}
-              <ModelVisualizations trainingResult={trainingResult} />
-
-              {/* Action Buttons */}
-              <div className={styles.actionBar}>
-                <button className={styles.secondaryButton} onClick={handleReset}>
-                  Train Another Model
-                </button>
-                <button 
-                  className={styles.primaryButton} 
-                  onClick={() => navigate(`/predict?model_id=${trainingResult.best_model_id}`)}
-                >
-                  Make Predictions with Best Model 🔮
-                </button>
-              </div>
-            </>
+            <TrainingResults
+              trainingResult={trainingResult}
+              savedModelId={savedModelId}
+              onSave={handleSaveModel}
+              onPredict={() => navigate(`/predict?model_id=${savedModelId}`)}
+              onTrainAnother={handleResetWithConfirm}
+            />
           )}
-        </div>
+        {/* Unsaved Model Centered Confirm (same style as logout) */}
+        <ConfirmDialog
+          open={unsavedOpen}
+          title="Unsaved trained model"
+          message="You have an unsaved trained model. What would you like to do?"
+          cancelText="Cancel"
+          secondaryText="Discard"
+          confirmText="Save & Continue"
+          onCancel={() => setUnsavedOpen(false)}
+          onSecondary={() => { setUnsavedOpen(false); unsavedOnDiscardRef.current && unsavedOnDiscardRef.current(); }}
+          onConfirm={() => { setUnsavedOpen(false); unsavedOnContinueRef.current && unsavedOnContinueRef.current(); }}
+        />
       </div>
     </div>
+    </div>
+  );
+}
+
+export default function ModelTraining() {
+  return (
+    <ErrorBoundary>
+      <ModelTrainingInner />
+    </ErrorBoundary>
   );
 }

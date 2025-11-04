@@ -33,57 +33,28 @@ export default function SideMenu() {
   const navigate = useNavigate();
 
   return (
-    <aside style={{
-      width: 260,
-      height: 'calc(100vh - 62px)', // 62px is the marginTop for navbar
-      minHeight: 0,
-      maxHeight: 'calc(100vh - 62px)',
-      overflowY: 'auto',
-      background: 'rgba(30,41,59,0.98)',
-      color: '#e0e7ef',
-      boxShadow: '2px 0 16px rgba(30,41,59,0.12)',
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '2.5rem 1.2rem 2rem 2.2rem',
-      position: 'fixed',
-      left: 0,
-      top: 62, // Start below navbar
-      zIndex: 2000,
-      borderTopRightRadius: 22,
-      borderBottomRightRadius: 22,
-      boxSizing: 'border-box',
-      transition: 'box-shadow 0.28s',
-      borderRight: '1.5px solid #22304a',
-    }}>
-      <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 36, color: '#38bdf8', letterSpacing: '0.04em', textAlign: 'left', fontFamily: 'Montserrat, Poppins, Arial, sans-serif' }}>
+    <aside className="w-[260px] h-[calc(100vh-62px)] min-h-0 max-h-[calc(100vh-62px)] overflow-y-auto bg-slate-800/95 text-slate-200 shadow-[2px_0_16px_rgba(30,41,59,0.12)] flex flex-col pt-10 pr-[1.2rem] pb-8 pl-9 fixed left-0 top-[62px] z-[2000] rounded-tr-[22px] rounded-br-[22px] box-border transition-shadow border-r-[1.5px] border-[#22304a]">
+      <h2 className="text-2xl font-extrabold mb-9 text-sky-400 tracking-wider text-left font-sans">
         ML Pipeline Steps
       </h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 38 }}>
+      <div className="flex flex-col gap-[38px]">
         {steps.map((s, idx) => (
           <div
             key={s.step}
             ref={el => stepRefs.current[idx] = el}
-            style={{
-              padding: '1.25rem 1.2rem 1.25rem 0.7rem',
-              borderRadius: 16,
-              background: s.active ? 'rgba(56,189,248,0.18)' : 'transparent',
-              borderLeft: s.active ? '6px solid #38bdf8' : '6px solid transparent',
-              boxShadow: s.active ? '0 2px 12px rgba(56,189,248,0.12)' : undefined,
-              transition: 'all 0.22s',
-              position: 'relative',
-              cursor: 'pointer',
-              marginRight: 8,
-            }}
+            className={`py-5 pr-[1.2rem] pl-[0.7rem] rounded-2xl transition-all relative cursor-pointer mr-2 border-l-[6px] ${
+              s.active ? 'bg-sky-300/20 border-l-sky-400 shadow-[0_2px_12px_rgba(56,189,248,0.12)]' : 'bg-transparent border-l-transparent'
+            }`}
             onClick={() => {
               if (s.title === 'Data Ingestion') navigate('/upload-file');
               if (s.title === 'Preprocessing') navigate('/preprocessing');
               // Add navigation for other steps as needed
             }}
           >
-            <div style={{ fontSize: 18, fontWeight: 800, color: s.active ? '#38bdf8' : '#a3aed6', marginBottom: 6, fontFamily: 'Montserrat, Poppins, Arial, sans-serif', letterSpacing: '-0.01em' }}>
+            <div className={`text-[18px] font-extrabold ${s.active ? 'text-sky-400' : 'text-[#a3aed6]'} mb-1.5 font-sans tracking-[-0.01em]`}>
               Step {s.step}: {s.title}
             </div>
-            <div style={{ fontSize: 15, color: s.active ? '#e0e7ef' : '#a3aed6', fontWeight: 500, fontFamily: 'Montserrat, Poppins, Arial, sans-serif' }}>
+            <div className={`text-[15px] ${s.active ? 'text-slate-200' : 'text-[#a3aed6]'} font-medium font-sans`}>
               {s.description}
             </div>
           </div>

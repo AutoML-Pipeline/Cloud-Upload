@@ -47,14 +47,17 @@ async def upload_from_sql_route(request_body: SQLWorkbenchRequest):
 @router.post("/save_cleaned_to_minio")
 async def save_cleaned_to_minio_route(request: Request):
     body = await request.json()
+    logging.info(f"save_cleaned_to_minio request body keys: {list(body.keys())}")
     if "data" in body and "filename" in body:
         data = body.get("data")
         filename = body.get("filename")
+        logging.info(f"Using save_data_to_minio path for {filename}")
         # Always save to cleaned-data bucket for cleaned outputs
         return minio_service.save_data_to_minio(data, filename, "cleaned-data")
     else:
         temp_cleaned_path = body.get("temp_cleaned_path")
         cleaned_filename = body.get("cleaned_filename")
+        logging.info(f"Using save_cleaned_to_minio path: {temp_cleaned_path} -> {cleaned_filename}")
         return minio_service.save_cleaned_to_minio(temp_cleaned_path, cleaned_filename)
 
 

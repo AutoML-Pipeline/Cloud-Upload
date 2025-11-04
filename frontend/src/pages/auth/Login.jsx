@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import api from "../../utils/api";
 import { useNavigate } from "react-router-dom";
-import { toast } from 'react-hot-toast';
+import saasToast from '@/utils/toast';
 import GoogleAuthPopup from "../../components/GoogleAuthPopup";
 import FeaturePanel from "../../components/FeaturePanel";
 import '../../auth.css';
@@ -29,11 +29,11 @@ const Login = ({ onGoogleSuccess }) => {
           onGoogleSuccess(userProfile);
         }
       }
-      toast.success("Login successful!");
+  saasToast.welcomeLogin();
       navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.detail || "Login failed");
-      toast.error(err.response?.data?.detail || "Login failed");
+  saasToast.error(err.response?.data?.detail || "Login failed", { idKey: 'login-error' });
     }
   };
 
@@ -43,12 +43,12 @@ const Login = ({ onGoogleSuccess }) => {
       localStorage.setItem("user", JSON.stringify(userProfile));
       onGoogleSuccess && onGoogleSuccess(userProfile);
     }
-    toast.success("Login successful!");
+  saasToast.welcomeLogin();
     navigate("/dashboard");
   };
 
   const handleGoogleError = (error) => {
-    toast.error("Google login failed: " + error);
+  saasToast.error("Google login failed: " + error, { idKey: 'login-google-error' });
   };
 
   // Animations removed for instant load
@@ -76,7 +76,7 @@ const Login = ({ onGoogleSuccess }) => {
               placeholder="Password"
               autoComplete="current-password"
             />
-            <label style={{display:'flex',alignItems:'center',gap:8}}>
+            <label className="flex items-center gap-2">
               <input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)} />
               <span>Remember me</span>
             </label>

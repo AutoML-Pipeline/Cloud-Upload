@@ -106,3 +106,13 @@ class FeatureEngineeringRequest(BaseModel):
     dataset_id: Optional[str] = None
     backend: Literal["pandas", "pyspark"] = "pandas"
     steps: List[FeatureEngineeringStep] = []
+
+# Pipeline Run Models
+class StartPipelineRequest(BaseModel):
+    title: Optional[str] = None
+    source_filename: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+class PatchPipelineRequest(BaseModel):
+    # Arbitrary JSON patch with shallow merge policy on top-level keys
+    patch: Dict[str, Any]

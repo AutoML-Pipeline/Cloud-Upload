@@ -75,18 +75,22 @@ async def save_feature_engineered_to_minio(request: Request):
     """Save feature engineered data to MinIO feature-engineered bucket"""
     try:
         body = await request.json()
-        filename = body.get("filename")
+        filename = body.get("filename") or body.get("engineered_filename")
         temp_path = body.get("temp_engineered_path")
         data = body.get("data")
         
+        logging.info(f"save_feature_engineered_to_minio request body keys: {list(body.keys())}")
+        
         if temp_path and filename:
+            logging.info(f"Using save_feature_engineered_temp path: {temp_path} -> {filename}")
             return minio_service.save_feature_engineered_temp(temp_path, filename)
 
-        if not data or not filename:
-            return {"error": "Missing data or filename"}
-        
-        result = minio_service.save_data_to_minio(data, filename, "feature-engineered")
-        return result
+        if data and filename:
+            logging.info(f"Using save_data_to_minio path for {filename} (CSV data)")
+            result = minio_service.save_data_to_minio(data, filename, "feature-engineered")
+            return result
+            
+        return {"error": "Missing data or filename"}
     except Exception as e:
         logging.error(f"Error saving to MinIO: {str(e)}")
         return {"error": f"Failed to save to MinIO: {str(e)}"}

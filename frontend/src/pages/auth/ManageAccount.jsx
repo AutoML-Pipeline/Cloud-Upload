@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import saasToast from '@/utils/toast';
 import api from '../../utils/api';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
@@ -17,11 +17,11 @@ export default function ManageAccount({ onLogout }) {
       localStorage.removeItem('user');
       localStorage.removeItem('auth_token');
       localStorage.removeItem('access_token');
-      toast.success('Your account has been deleted');
+  saasToast.success('Your account has been deleted', { idKey: 'account-deleted' });
       if (onLogout) onLogout();
       navigate('/', { replace: true });
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Failed to delete account');
+  saasToast.error(e.response?.data?.detail || 'Failed to delete account', { idKey: 'account-delete-error' });
     } finally {
       setBusy(false);
       setConfirmOpen(false);
@@ -29,13 +29,13 @@ export default function ManageAccount({ onLogout }) {
   };
 
   return (
-    <div style={{maxWidth:720,margin:'120px auto 40px',padding:'0 16px'}}>
-      <h1 style={{fontWeight:800,fontSize:28,marginBottom:8}}>Manage Account</h1>
-      <p style={{opacity:0.8,marginBottom:22}}>View and manage your account settings. You can delete your account permanently here.</p>
-      <div style={{border:'1px solid rgba(148,163,184,0.3)',borderRadius:12,padding:16,background:'rgba(2,6,23,0.4)'}}>
-        <h2 style={{fontSize:18,marginBottom:8}}>Danger zone</h2>
-        <p style={{opacity:0.8,marginBottom:12}}>Deleting your account will remove all your user data and log you out.</p>
-        <button disabled={busy} onClick={handleDelete} style={{background:'#ef4444',color:'#fff',border:'none',padding:'10px 14px',borderRadius:10,fontWeight:700,cursor:'pointer'}}>
+    <div className="max-w-[720px] mx-auto mt-[120px] mb-10 px-4">
+      <h1 className="font-extrabold text-[28px] mb-2">Manage Account</h1>
+      <p className="opacity-80 mb-5">View and manage your account settings. You can delete your account permanently here.</p>
+      <div className="border border-slate-400/30 rounded-xl p-4 bg-slate-950/40">
+        <h2 className="text-lg mb-2">Danger zone</h2>
+        <p className="opacity-80 mb-3">Deleting your account will remove all your user data and log you out.</p>
+        <button disabled={busy} onClick={handleDelete} className="bg-red-500 hover:bg-red-600 text-white border-0 px-[14px] py-[10px] rounded-[10px] font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
           {busy ? 'Deleting…' : 'Delete Account'}
         </button>
       </div>

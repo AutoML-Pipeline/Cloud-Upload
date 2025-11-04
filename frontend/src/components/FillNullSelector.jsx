@@ -34,7 +34,7 @@ export default function FillNullSelector({
 
 
       {columnsWithNulls.length === 0 && (
-        <div style={{ padding: '1rem', textAlign: 'center', color: '#6b7280', fontStyle: 'italic' }}>
+        <div className="p-4 text-center text-gray-500 italic">
           No columns with null values found.
         </div>
       )}

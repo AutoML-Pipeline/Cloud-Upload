@@ -1,13 +1,16 @@
 import React, { useState } from "react";
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import saasToast from '@/utils/toast';
 import styles from "./UploadFile.module.css";
+import UploadProgress from "../../components/UploadProgress";
+import { useUploadProgress } from "../../hooks/useUploadProgress";
 
 export default function UploadFile() {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [renamedFilename, setRenamedFilename] = useState(""); // New state for renamed filename
   const navigate = useNavigate(); // Initialize useNavigate
+  const { uploads, startUpload, removeUpload } = useUploadProgress();
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -26,35 +29,38 @@ export default function UploadFile() {
 
   const handleUpload = async () => {
     if (!file) {
-      toast.error("Please select a file.");
+      saasToast.error("Please select a file.", { idKey: 'upload-file-missing' });
       return;
     }
     if (!renamedFilename.trim()) {
-      toast.error("Please enter a valid filename.");
+      saasToast.error("Please enter a valid filename.", { idKey: 'upload-file-filename' });
       return;
     }
     setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("new_filename", renamedFilename); // Append the renamed filename
-      const res = await fetch("http://localhost:8000/files/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Unknown upload error");
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("new_filename", renamedFilename);
+
+    // Use the upload progress hook with axios
+    await startUpload({
+      url: "http://localhost:8000/files/upload",
+      data: formData,
+      filename: renamedFilename,
+      onSuccess: (data) => {
+        saasToast.dataLaunched({ idKey: 'upload-file-success' });
+        if (data.filename) {
+          navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);
+        }
+        setUploading(false);
+      },
+      onError: (error) => {
+        console.error("Upload failed:", error);
+        const message = error.response?.data?.error || error.message || "Upload failed";
+        saasToast.error("Upload failed: " + message, { idKey: 'upload-file-error' });
+        setUploading(false);
       }
-      toast.success(data.message || "Uploaded!");
-      if (data.filename) {
-        navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);
-      }
-    } catch (error) {
-      console.error("Upload failed:", error);
-      toast.error("Upload failed: " + error.message);
-    }
-    setUploading(false);
+    });
   };
 
   const fileInputId = "dataset-upload-input";
@@ -137,6 +143,21 @@ export default function UploadFile() {
           </section>
         </div>
       </main>
+
+      {/* Upload Progress Indicators */}
+      {uploads.map((upload) => (
+        <UploadProgress
+          key={upload.id}
+          filename={upload.filename}
+          progress={upload.progress}
+          loaded={upload.loaded}
+          total={upload.total}
+          rate={upload.rate}
+          elapsed={upload.elapsed}
+          show={upload.show}
+          onClose={() => removeUpload(upload.id)}
+        />
+      ))}
     </div>
   );
 }

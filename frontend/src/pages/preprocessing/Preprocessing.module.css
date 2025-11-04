@@ -16,7 +16,7 @@
   display: flex;
   justify-content: center;
   padding: 0;
-  padding-top: 80px;
+  padding-top: 24px;
 }
 
 .pageShell::-webkit-scrollbar {
@@ -3063,4 +3063,117 @@
   .stepCard {
     padding: 1rem 1.125rem;
   }
+}
+
+/* Action buttons container */
+.actionButtons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+/* Save and Continue button */
+.saveAndContinueButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.saveAndContinueButton:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  transform: translateY(-1px);
+}
+
+.saveAndContinueButton:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
+}
+
+.saveAndContinueButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.saveAndContinueButton:disabled:hover {
+  transform: none;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.saveAndContinueButton .buttonIcon {
+  font-size: 1.125rem;
+}
+
+.saveAndContinueButton .buttonText {
+  flex: 1;
+}
+
+.saveAndContinueButton .buttonArrow {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-left: 0.25rem;
+}
+
+.saveAndContinueButton .buttonSpinner {
+  display: inline-block;
+  animation: buttonSpin 1s linear infinite;
+}
+
+@keyframes buttonSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Download CSV button */
+.downloadCsvButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.downloadCsvButton:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transform: translateY(-1px);
+}
+
+.downloadCsvButton:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+}
+
+.downloadCsvButton .buttonIcon {
+  font-size: 1.125rem;
+}
+
+.downloadCsvButton .buttonText {
+  flex: 1;
 }

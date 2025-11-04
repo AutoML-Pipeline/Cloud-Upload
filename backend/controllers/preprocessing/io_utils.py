@@ -1,6 +1,7 @@
 import os
 import tempfile
 from typing import Any, Tuple
+import json
 import pandas as pd
 import numpy as np
 from pandas.api import types as ptypes
@@ -38,26 +39,58 @@ def read_parquet_from_minio(filename: str) -> pd.DataFrame:
 
 
 def sanitize_dataframe_for_parquet(df: pd.DataFrame) -> pd.DataFrame:
-    """Ensure dataframe can be saved to parquet without Decimal/float conflicts and with stable dtypes.
-    - If a column contains Decimal values or object mixed with numbers, cast to float where possible.
-    - Leave non-numeric objects as-is.
+    """Harden data so pyarrow parquet write never fails.
+    Rules:
+    - Keep numeric dtypes as-is (replace inf with NaN elsewhere in pipeline).
+    - Convert Decimal -> float.
+    - For object-dtype columns:
+      - If value is list/tuple/set/dict -> JSON string via json.dumps (default=str, ensure_ascii=False)
+      - If numpy scalar -> cast to native python scalar
+      - If is NaN -> keep NaN
+      - Else -> keep strings; non-strings coerced to str
+    This avoids mixed object columns with non-scalar types that pyarrow can't serialize reliably.
     """
     df2 = df.copy()
     for col in df2.columns:
         series = df2[col]
-        # If series has Decimal values or object dtype with numeric-like values, convert to float
         if series.dtype == object:
-            has_decimal = series.map(lambda v: isinstance(v, Decimal)).any()
-            if has_decimal:
-                df2[col] = series.astype(object).map(lambda v: float(v) if v is not None else None)
-            else:
-                # try coercing to numeric where possible (won't affect non-numeric text)
+            def _coerce_obj(v: Any) -> Any:
                 try:
-                    coerced = pd.to_numeric(series, errors="ignore")
-                    df2[col] = coerced
+                    # preserve NaN/None
+                    if pd.isna(v):
+                        return v
                 except Exception:
                     pass
-        # If float types, leave as is; ints with NA become pandas nullable which is fine
+
+                # Decimal -> float
+                if isinstance(v, Decimal):
+                    try:
+                        return float(v)
+                    except Exception:
+                        return None
+
+                # numpy scalars
+                if isinstance(v, np.floating):
+                    return float(v) if np.isfinite(v) else np.nan
+                if isinstance(v, np.integer):
+                    return int(v)
+                if isinstance(v, np.bool_):
+                    return bool(v)
+
+                # collections -> JSON string
+                if isinstance(v, (list, tuple, set, dict)):
+                    try:
+                        return json.dumps(v, ensure_ascii=False, default=str)
+                    except Exception:
+                        return str(v)
+
+                # keep strings, coerce others to str for safety
+                if isinstance(v, (str, bytes)):
+                    return v if isinstance(v, str) else v.decode('utf-8', errors='ignore')
+                return str(v) if v is not None else None
+
+            df2[col] = series.map(_coerce_obj)
+        # numeric and other pandas-native types are left as-is
     return df2
 
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import SQLPreviewBox from "../../components/SQLPreviewBox";
-import { toast } from 'react-hot-toast';
+import saasToast from '@/utils/toast';
 import styles from "../upload-file/UploadFile.module.css";
 
 export default function UploadSQLWorkbench() {
@@ -111,16 +111,16 @@ export default function UploadSQLWorkbench() {
       });
       const data = await res.json();
       if (data.error) {
-        toast.error("Error: " + data.error);
+        saasToast.error("Error: " + data.error, { idKey: 'sql-connect-error' });
         setStatus("Error: " + data.error);
       } else {
         setDatabases(data.databases || []);
         setConnected(true);
-        toast.success("Connected! Select a database and enter your query.");
+        saasToast.success("Connected! Select a database and enter your query.", { idKey: 'sql-connected' });
         setStatus("Connected! Select a database and enter your query.");
       }
     } catch (err) {
-      toast.error("Error: " + err.message);
+      saasToast.error("Error: " + err.message, { idKey: 'sql-connect-exception' });
       setStatus("Error: " + err.message);
     }
     setUploading(false);
@@ -138,14 +138,14 @@ export default function UploadSQLWorkbench() {
       });
       const data = await res.json();
       if (data.error) {
-        toast.error("Error: " + data.error);
+        saasToast.error("Error: " + data.error, { idKey: 'sql-preview-error' });
         setStatus("Error: " + data.error);
       } else {
         setPreview(data.preview);
-        toast.success("Preview fetched successfully!");
+        saasToast.success("Preview fetched successfully!", { idKey: 'sql-preview-success' });
       }
     } catch (err) {
-      toast.error("Error: " + err.message);
+      saasToast.error("Error: " + err.message, { idKey: 'sql-preview-exception' });
       setStatus("Error: " + err.message);
     }
     setUploading(false);
@@ -166,17 +166,17 @@ export default function UploadSQLWorkbench() {
       });
       const data = await res.json();
       if (data.error) {
-        toast.error("Upload failed: " + data.error);
+        saasToast.error("Upload failed: " + data.error, { idKey: 'sql-upload-error' });
         setStatus("Upload failed: " + data.error);
       } else {
-        toast.success("Upload successful: " + data.message);
+        saasToast.dataLaunched({ idKey: 'sql-upload-success' });
         setStatus("Upload successful: " + data.message);
         if (data.filename) {
             navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);
         }
       }
     } catch (err) {
-      toast.error("Upload failed: " + err.message);
+      saasToast.error("Upload failed: " + err.message, { idKey: 'sql-upload-exception' });
       setStatus("Upload failed: " + err.message);
     }
     setUploading(false);

@@ -1,8 +1,7 @@
 @import './styles/tokens.css';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind v4 uses a single import instead of layered directives */
+@import "tailwindcss";
 
 /* Simple fade-in animation for page loads */
 @keyframes simpleFadeIn {
@@ -358,6 +357,35 @@ body, #root, html {
   font-family: 'Poppins', 'Segoe UI', 'Montserrat', 'Roboto', Arial, sans-serif;
   overflow-x: hidden;
   overflow-y: visible;
+}
+
+/* Offset for fixed navbar (applied when App adds .with-navbar to body) */
+body.with-navbar {
+  padding-top: 64px; /* matches .navbar height */
+  background: linear-gradient(170deg, #020617 0%, #0b1426 40%, #0f172a 100%);
+  color: #e2e8f0;
+}
+
+/* Constrain routed content to the viewport minus the fixed navbar,
+   avoiding any extra document height that causes bottom whitespace */
+body.with-navbar #page-content {
+  min-height: calc(100vh - var(--navbar-height, 64px));
+  display: flex;
+  flex-direction: column;
+  background: inherit;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* No-scroll pages (dashboard, data-ingestion): lock height and disable scrolling */
+body.no-scroll-page {
+  height: 100vh;
+  overflow: hidden;
+}
+
+body.no-scroll-page #page-content {
+  height: calc(100vh - var(--navbar-height, 64px));
+  overflow: hidden;
 }
 
 /* Global scrollbar minimization */

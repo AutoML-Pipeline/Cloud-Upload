@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from 'react-hot-toast';
+import saasToast from '@/utils/toast';
 import styles from "../upload-file/UploadFile.module.css";
 
 export default function UploadCloud() {
@@ -41,7 +41,7 @@ export default function UploadCloud() {
           if (accessToken) {
             navigate("/gdrive-files");
           } else {
-            toast.error("Google OAuth message received but no access token found. Check console.");
+            saasToast.error("Google OAuth message received but no access token found. Check console.", { idKey: 'gdrive-oauth-missing' });
           }
           popup && popup.close();
           window.removeEventListener("message", handler);

@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
-import { toast } from "react-hot-toast";
+import React, { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import saasToast from "@/utils/toast";
 import styles from "./DataTable.module.css";
 
 function downloadCSV(tableData, filename = "data.csv") {
@@ -20,7 +21,7 @@ function downloadCSV(tableData, filename = "data.csv") {
   window.URL.revokeObjectURL(url);
 }
 
-export default function DataTable({ data, columns, highlightChanges = false, originalData = null, compareOriginal = false, diffMarks = null, originalFilename = null, filledNullColumns = [], pageSize = 10, saveTarget = "engineered", saveFilename = null, onSave = null, onDownload = null }) {
+export default function DataTable({ data, columns, highlightChanges = false, originalData = null, compareOriginal = false, diffMarks = null, originalFilename = null, filledNullColumns = [], pageSize = 10, saveTarget = "engineered", saveFilename = null, onSave = null, onDownload = null, disableSave = false, pipeline = null, tempFilePath = null }) {
     const [page, setPage] = useState(0);
     const [sortCol, setSortCol] = useState(null);
     const [sortDir, setSortDir] = useState("asc");
@@ -30,58 +31,10 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
     const [savingToMinIO, setSavingToMinIO] = useState(false);
     const [downloadingCsv, setDownloadingCsv] = useState(false);
     const [activeFilter, setActiveFilter] = useState(null); // Track which column filter is currently active
-  const tableRef = useRef(null);
+    const [savingAndContinuing, setSavingAndContinuing] = useState(false);
+    const navigate = useNavigate();
     
-    // Enhance sticky headers functionality with a more aggressive approach
-    useEffect(() => {
-      const enhanceStickyHeaders = () => {
-        if (tableRef.current) {
-          const headers = tableRef.current.querySelectorAll('th');
-          if (headers && headers.length) {
-            headers.forEach(header => {
-              // Use !important to override any other styles
-              header.setAttribute('style', `
-                position: sticky !important;
-                top: 0 !important;
-                z-index: 100 !important;
-                background-color: #ffffff !important;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-                border-bottom: 2px solid #e5e7eb !important;
-                padding: 1.2rem 1.3rem !important;
-                font-weight: 800 !important;
-              `);
-            });
-          }
-        }
-      };
-      
-      // Run multiple times to ensure it takes effect
-      enhanceStickyHeaders();
-      
-      // Schedule multiple checks to ensure styles are applied even after DOM updates
-      const timer1 = setTimeout(enhanceStickyHeaders, 100);
-      const timer2 = setTimeout(enhanceStickyHeaders, 300);
-      const timer3 = setTimeout(enhanceStickyHeaders, 1000);
-      
-      // Add a scroll listener to ensure headers stay sticky during scrolling
-      const tableWrapper = tableRef.current?.closest('.dataTableWrapper');
-      const handleScroll = () => {
-        enhanceStickyHeaders();
-      };
-      
-      if (tableWrapper) {
-        tableWrapper.addEventListener('scroll', handleScroll);
-      }
-      
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-        clearTimeout(timer3);
-        if (tableWrapper) {
-          tableWrapper.removeEventListener('scroll', handleScroll);
-        }
-      };
-  }, [tableData, page, filters]);
+    // Sticky headers now handled purely via Tailwind classes on <th>; no JS mutations needed
 
     // Ensure all columns are visible when dataset/columns change (e.g., on Show All)
     useEffect(() => {
@@ -165,13 +118,14 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
 
         const result = await response.json();
         if (result.message && !result.error) {
-          toast.success(result.message);
+          const idKey = isCleaned ? "datatable-save-cleaned" : "datatable-save-engineered";
+          saasToast.success(result.message, { idKey });
         } else {
-          toast.error(result.error || result.message || "Failed to save to MinIO");
+          saasToast.error(result.error || result.message || "Failed to save to MinIO", { idKey: "datatable-save-error" });
         }
       } catch (error) {
         if (!useCustomHandler) {
-          toast.error(error.message);
+          saasToast.error(error.message, { idKey: "datatable-save-exception" });
         } else {
           console.error("Custom save handler failed", error);
         }
@@ -181,32 +135,110 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
     };
 
     const handleDownloadCsv = async () => {
-      const useCustomHandler = typeof onDownload === "function";
-      if (useCustomHandler) {
-        setDownloadingCsv(true);
-      }
+      setDownloadingCsv(true);
       try {
-        if (useCustomHandler) {
-          await onDownload();
-          return;
-        }
-
-        const downloadName = (saveFilename || originalFilename || "data")
-          .split("/")
-          .pop()
-          .replace(/\.(parquet|csv|xlsx|json)$/i, "")
-          .concat(".csv");
-        downloadCSV(sortedData, downloadName);
-      } catch (error) {
-        if (!useCustomHandler) {
-          toast.error(error.message);
+        // Use API endpoint to download full dataset from temp file
+        if (tempFilePath) {
+          const isCleaned = saveTarget === "cleaned";
+          const endpoint = isCleaned
+            ? "http://localhost:8000/api/data/download_cleaned_csv"
+            : "http://localhost:8000/api/feature-engineering/download-csv";
+          
+          const payload = isCleaned
+            ? { temp_cleaned_path: tempFilePath }
+            : { temp_engineered_path: tempFilePath };
+          
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          
+          if (!response.ok) {
+            throw new Error("Failed to download CSV");
+          }
+          
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          const downloadName = (saveFilename || originalFilename || "data")
+            .split("/")
+            .pop()
+            .replace(/\.(parquet|csv|xlsx|json)$/i, "")
+            .concat(".csv");
+          a.download = downloadName;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
         } else {
-          console.error("Custom download handler failed", error);
+          // Fallback: download preview data
+          const downloadName = (saveFilename || originalFilename || "data")
+            .split("/")
+            .pop()
+            .replace(/\.(parquet|csv|xlsx|json)$/i, "")
+            .concat(".csv");
+          downloadCSV(sortedData, downloadName);
         }
+      } catch (error) {
+        console.error("Download failed:", error);
+        saasToast.error("Failed to download: " + error.message, { idKey: "datatable-download-exception" });
       } finally {
-        if (useCustomHandler) {
-          setDownloadingCsv(false);
+        setDownloadingCsv(false);
+      }
+    };
+
+    const handleSaveAndContinue = async () => {
+      console.log('🚀 Save & Continue clicked', { tempFilePath, saveFilename, pipeline, saveTarget });
+      
+      if (!tempFilePath || !saveFilename) {
+        saasToast.error("Missing required data to save. Please try reprocessing the data.");
+        return;
+      }
+      
+      setSavingAndContinuing(true);
+      try {
+        // Save to MinIO using temp file path
+        const isCleaned = saveTarget === "cleaned";
+        const endpoint = isCleaned 
+          ? "http://localhost:8000/api/data/save_cleaned_to_minio"
+          : "http://localhost:8000/api/feature-engineering/save-to-minio";
+        
+        const payload = isCleaned
+          ? { temp_cleaned_path: tempFilePath, cleaned_filename: saveFilename }
+          : { temp_engineered_path: tempFilePath, engineered_filename: saveFilename };
+        
+        console.log('📤 Sending save request:', { endpoint, payload });
+        
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        
+        const result = await response.json();
+        console.log('📥 Save response:', result);
+        
+        if (!response.ok || result.error) {
+          throw new Error(result.error || "Failed to save");
         }
+        
+        // Then navigate to next stage
+        if (pipeline === "preprocessing") {
+          saasToast.success("✅ Saved! Redirecting to Feature Engineering...");
+          setTimeout(() => navigate("/feature-engineering"), 1000);
+        } else if (pipeline === "feature-engineering") {
+          saasToast.success("✅ Saved! Redirecting to Model Training...");
+          setTimeout(() => navigate("/model-training"), 1000);
+        } else {
+          saasToast.success("✅ Saved to MinIO successfully!");
+        }
+      } catch (error) {
+        console.error("❌ Save and continue failed:", error);
+        saasToast.error("Failed to save: " + error.message);
+      } finally {
+        setSavingAndContinuing(false);
       }
     };
 
@@ -329,22 +361,30 @@ export default function DataTable({ data, columns, highlightChanges = false, ori
           >
             {downloadingCsv ? "Downloading..." : "Download CSV"}
           </button>
-          <button 
-            className={styles.minioBtn} 
-            onClick={handleSaveToMinIO} 
-            disabled={savingToMinIO}
-            aria-label="Save to MinIO" 
-            title="Save cleaned data to MinIO as parquet"
-          >
-            {savingToMinIO ? 'Saving...' : 'Save to MinIO'}
-          </button>
+          {pipeline && (
+            <button 
+              className={styles.saveAndContinueBtn} 
+              onClick={handleSaveAndContinue} 
+              disabled={savingAndContinuing || !tempFilePath || !saveFilename}
+              aria-label={pipeline === "preprocessing" ? "Save & Continue to Feature Engineering" : "Save & Continue to Model Training"}
+              title={pipeline === "preprocessing" ? "Save & Continue to Feature Engineering" : "Save & Continue to Model Training"}
+            >
+              {savingAndContinuing ? '⏳ Saving...' : (pipeline === "preprocessing" ? '💾 Save & Continue to FE →' : '💾 Save & Continue to Model Training →')}
+            </button>
+          )}
         </div>
         <div className={styles.dataTableWrapper}>
-          <table ref={tableRef} className={styles.dataTable}>
+          <table className={styles.dataTable}>
             <thead>
               <tr>
                 {allColumns.map(col => (
-                  <th key={col} onClick={() => handleSort(col)} className={styles.thClickable} tabIndex={0} aria-label={`Sort by ${col}`}>
+                  <th
+                    key={col}
+                    onClick={() => handleSort(col)}
+                    className={`${styles.thClickable} sticky top-0 z-30 bg-white border-b-2 border-gray-200 shadow-sm`}
+                    tabIndex={0}
+                    aria-label={`Sort by ${col}`}
+                  >
                     <div className={styles.thContent}>
                       <span className={styles.columnName}>
                         {col}{sortCol === col ? (sortDir === "asc" ? " ▲" : " ▼") : ""}

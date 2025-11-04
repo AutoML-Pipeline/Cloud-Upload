@@ -37,6 +37,37 @@ const ingestionOptions = [
 export default function DataIngestion() {
   const navigate = useNavigate();
 
+  const themeByRoute = (route) => {
+    switch (route) {
+      case "/upload-file":
+        return {
+          card: "border-blue-200 hover:border-blue-400 shadow-[0_4px_12px_rgba(59,130,246,0.15)]",
+          icon: "drop-shadow-[0_18px_32px_rgba(59,130,246,0.18)]",
+          footer: "text-blue-600",
+        };
+      case "/import-hf":
+        return {
+          card: "border-pink-200 hover:border-pink-400 shadow-[0_4px_12px_rgba(236,72,153,0.15)]",
+          icon: "drop-shadow-[0_18px_32px_rgba(236,72,153,0.18)]",
+          footer: "text-pink-600",
+        };
+      case "/upload-cloud":
+        return {
+          card: "border-emerald-200 hover:border-emerald-400 shadow-[0_4px_12px_rgba(16,185,129,0.15)]",
+          icon: "drop-shadow-[0_18px_32px_rgba(16,185,129,0.18)]",
+          footer: "text-emerald-600",
+        };
+      case "/upload-sqlworkbench":
+        return {
+          card: "border-amber-200 hover:border-amber-400 shadow-[0_4px_12px_rgba(245,158,11,0.15)]",
+          icon: "drop-shadow-[0_18px_32px_rgba(245,158,11,0.18)]",
+          footer: "text-amber-600",
+        };
+      default:
+        return { card: "", icon: "", footer: "text-primary-600" };
+    }
+  };
+
   const handleCardKeyDown = (event, route) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -58,26 +89,21 @@ export default function DataIngestion() {
             {ingestionOptions.map((opt) => (
               <div
                 key={opt.label}
-                className="ingestion-option-card"
+                className={`ingestion-option-card ${themeByRoute(opt.route).card}`}
                 role="button"
                 tabIndex={0}
                 aria-label={`${opt.label}. ${opt.description}`}
                 onClick={() => navigate(opt.route)}
                 onKeyDown={(event) => handleCardKeyDown(event, opt.route)}
-                style={{
-                  "--accent-color": opt.color,
-                  borderColor: `${opt.color}35`,
-                  boxShadow: `0 28px 48px ${opt.color}26`
-                }}
               >
-                <div className="ingestion-option-icon" aria-hidden="true" style={{ boxShadow: `0 18px 32px ${opt.color}2d` }}>
+                <div className={`ingestion-option-icon ${themeByRoute(opt.route).icon}`} aria-hidden="true">
                   {opt.icon}
                 </div>
                 <div className="ingestion-option-body">
                   <span className="ingestion-option-label">{opt.label}</span>
                   <span className="ingestion-option-desc">{opt.description}</span>
                 </div>
-                <div className="ingestion-option-footer" aria-hidden="true">
+                <div className={`ingestion-option-footer ${themeByRoute(opt.route).footer}`} aria-hidden="true">
                   <span className="ingestion-option-cta">Explore</span>
                   <span className="ingestion-option-arrow">→</span>
                 </div>

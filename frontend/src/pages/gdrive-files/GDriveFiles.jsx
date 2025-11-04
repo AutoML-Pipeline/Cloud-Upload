@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import GDriveFilesTable from "../../components/GDriveFilesTable";
-import { Toaster, toast } from "react-hot-toast";
+import saasToast from '@/utils/toast';
 import styles from "./GDriveFiles.module.css";
 
 const ROOT_FOLDER_ID = "root";
@@ -101,11 +101,11 @@ export default function GDriveFiles() {
 
   const handleConfirmRenameUpload = async () => {
     if (!newGDriveFilename.trim()) {
-      toast.error("Please enter a valid filename.");
+          saasToast.error("Please enter a valid filename.", { idKey: 'gdrive-filename-invalid' });
       return;
     }
     if (!fileToRename || !token) {
-      toast.error("Error: No file selected or access token missing.");
+          saasToast.error("Error: No file selected or access token missing.", { idKey: 'gdrive-missing-input' });
       return;
     }
 
@@ -125,17 +125,17 @@ export default function GDriveFiles() {
 
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Uploaded '${newGDriveFilename}' successfully!`);
+            saasToast.dataLaunched({ idKey: 'gdrive-upload-success' });
         if (data.filename) {
           navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);
-        } else {
-          toast("File uploaded. Open Preprocessing to continue.");
+            } else {
+              saasToast.info("File uploaded. Open Preprocessing to continue.", { idKey: 'gdrive-upload-generic' });
         }
       } else {
-        toast.error(`Failed to upload '${newGDriveFilename}': ${data.detail || res.status}`);
+            saasToast.error(`Failed to upload '${newGDriveFilename}': ${data.detail || res.status}`, { idKey: 'gdrive-upload-error' });
       }
     } catch (error) {
-      toast.error(`Error uploading '${newGDriveFilename}': ${error.message}`);
+          saasToast.error(`Error uploading '${newGDriveFilename}': ${error.message}`, { idKey: 'gdrive-upload-exception' });
     } finally {
       setFileToRename(null);
       setNewGDriveFilename("");

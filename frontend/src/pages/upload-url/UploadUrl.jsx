@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import saasToast from '@/utils/toast';
 import styles from "../upload-file/UploadFile.module.css";
 
 export default function UploadUrl() {
@@ -48,11 +48,11 @@ export default function UploadUrl() {
 
   const handleUpload = async () => {
     if (!url) {
-      toast.error("Please enter a URL.");
+      saasToast.error("Please enter a URL.", { idKey: 'upload-url-missing' });
       return;
     }
     if (!renamedFilename.trim()) {
-        toast.error("Please enter a valid filename.");
+        saasToast.error("Please enter a valid filename.", { idKey: 'upload-url-filename' });
         return;
     }
     setUploading(true);
@@ -66,12 +66,12 @@ export default function UploadUrl() {
       if (!res.ok) {
         throw new Error(data.error || "Upload failed");
       }
-      toast.success(data.message || "Uploaded!");
+      saasToast.dataLaunched({ idKey: 'upload-url-success' });
       if (data.filename) {
         navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);
       }
     } catch {
-      toast.error("Upload failed");
+      saasToast.error("Upload failed", { idKey: 'upload-url-error' });
     }
     setUploading(false);
   };

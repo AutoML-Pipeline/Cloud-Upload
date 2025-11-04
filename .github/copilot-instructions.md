@@ -77,11 +77,27 @@ def run_preprocessing_job(job_id: str, filename: str, steps: Dict, preprocessing
 - **No query params for status**—use dedicated `/status/{job_id}` endpoint
 
 ### Frontend Styling Rules
-- **CSS Modules ONLY** (no inline styles): `ComponentName.module.css`
-- Reuse design tokens from `src/styles/tokens.css`; don't hardcode colors/sizes
-- Container pattern: max-width + `margin: 0 auto;` for page layouts
-- Sticky headers: See aggressive `useEffect` pattern in `DataTable.jsx` for table headers
-- See `.cursor/rules/styling.mdc` for complete policy
+- Tailwind CSS ONLY for new or updated UI. Do not use inline style props (no `style={{...}}`).
+- Avoid CSS Modules for new work. Legacy CSS Modules can remain until migrated to Tailwind.
+- Reuse design tokens from `src/styles/tokens.css` where applicable; prefer Tailwind utilities and variables over hardcoded values.
+- Page layout containers: centered `max-w-*` with `mx-auto`.
+- Sticky headers: prefer `position: sticky` patterns (see `DataTable.jsx`).
+
+####  Styling Rules (summary)
+- Use Tailwind utility classes for all styling; do not use inline style props.
+- Prefer Tailwind theme tokens and config over hardcoded hex/rgb and magic numbers.
+- Layout containers: centered with `mx-auto` and appropriate `max-w-*`.
+- State/UI variations via conditional class names, not inline styles.
+- Sticky table headers: `sticky top-0 z-*` with backdrop/gradient if needed; avoid JS scroll hacks.
+- Responsive rules: use Tailwind breakpoints; avoid ad-hoc media queries.
+- Motion: subtle Tailwind transition utilities; avoid layout-thrashing animations.
+- Z-index: use a small, consistent scale (base < dropdown < modal < toast).
+
+### Component Structure & File Organization
+- Keep page shells thin: orchestrate state and composition only. Move logic into hooks (`hooks/`) and view pieces into components (`components/`).
+- Do not put everything in one file—split UI, logic, and small utilities into separate modules.
+- Reuse shared UI pieces (e.g., `ConfirmDialog`) rather than re-implementing.
+- CSS belongs with components as CSS Modules. Do not place unrelated styles in page-level CSS.
 
 ---
 
@@ -255,7 +271,7 @@ GOOGLE_CLIENT_SECRET=...
   - `/predict`: Prediction interface for trained models
   - `/files`: File manager for all buckets
 - UI: `@shadcn/ui`, `@radix-ui/*`, `lucide-react` icons
-- Styling: Tailwind CSS 4.1.4, CSS Modules (strict enforcement—no inline styles)
+- Styling: Tailwind CSS 4.1.4 (primary). Legacy CSS Modules may exist; prefer Tailwind for all new/updated UI and avoid inline styles.
 - Tables: `react-virtualized` for large datasets (`DataTable.jsx`)
 - Notifications: `react-hot-toast` (use `toast.error()`, `toast.success()`)
 - Animations: `gsap` (page transitions), `keen-slider` (carousel in `DashboardCarousel.jsx`)
@@ -323,6 +339,6 @@ Component auto-handles CSV download, MinIO save, pagination, filtering, sorting.
 - **Route → Controller → Service**: Routes are **thin layers**—all business logic goes in controllers
 - **Parquet-first**: Always convert to `.parquet` for MinIO storage (efficient binary format)
 - **Job tracking**: In-memory only; not persisted to DB (trade-off for simplicity)
-- **No inline styles**: Enforce CSS Modules; see `.cursor/rules/styling.mdc`
+- **No inline styles**: Use Tailwind classes (no `style={{...}}`). Avoid CSS Modules for new work.
 - **Data quality**: `analyze_data_quality()` in `data_controller.py` provides pre-processing health score
 - **Frontend lazy loading**: All pages lazy-loaded in `App.jsx` with `React.lazy()` + Suspense

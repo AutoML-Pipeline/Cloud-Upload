@@ -45,37 +45,27 @@ export const ValidatedColumnSelect = ({
   };
 
   return (
-    <div style={{ marginTop: "10px" }}>
-      <div style={{ marginBottom: "10px" }}>
-        <label style={{ fontSize: "13px", fontWeight: "600", color: "#333", display: "block", marginBottom: "6px" }}>
+    <div className="mt-2.5">
+      <div className="mb-2.5">
+        <label className="text-[13px] font-semibold text-gray-800 block mb-1.5">
           {label}
         </label>
         
-        <div style={{ marginBottom: "10px" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+        <div className="mb-2.5">
+          <label className="flex items-center gap-1.5 cursor-pointer">
             <input
               type="checkbox"
               checked={selected.length === validColumns.length && validColumns.length > 0}
               onChange={handleSelectAll}
-              style={{ cursor: "pointer" }}
+              className="cursor-pointer"
             />
-            <span style={{ fontWeight: "600", color: "#222", fontSize: "13px" }}>Select All</span>
+            <span className="font-semibold text-gray-900 text-[13px]">Select All</span>
           </label>
         </div>
 
-        <div
-          style={{
-            background: "linear-gradient(135deg, #ffffff 0%, #f0fdf4 50%, #dcfce7 100%)",
-            border: "2px solid rgba(34, 197, 94, 0.2)",
-            borderRadius: "10px",
-            maxHeight: "320px",
-            overflowY: "auto",
-            padding: "0",
-            boxShadow: "0 4px 16px rgba(34, 197, 94, 0.1)",
-          }}
-        >
+        <div className="bg-gradient-to-br from-white via-emerald-50 to-emerald-100 border-2 border-emerald-200 rounded-lg max-h-80 overflow-y-auto p-0 shadow-md">
           {validColumns.length === 0 ? (
-            <div style={{ padding: "12px", textAlign: "center", color: "#64748b", fontSize: "12px", background: "rgba(248, 250, 252, 0.5)", borderRadius: "8px", margin: "8px" }}>
+            <div className="p-3 text-center text-slate-500 text-xs bg-slate-50 rounded-md m-2">
               No compatible columns for this step
             </div>
           ) : (
@@ -88,67 +78,29 @@ export const ValidatedColumnSelect = ({
               return (
                 <div
                   key={col}
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(34, 197, 94, 0.1)",
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: "10px",
-                    background: isSelected 
-                      ? "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)" 
-                      : "rgba(255, 255, 255, 0.6)",
-                    cursor: "pointer",
-                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                    borderLeft: isSelected ? "3px solid #3b82f6" : "3px solid transparent",
-                  }}
+                  className={`group p-2.5 border-b border-emerald-100 flex items-start gap-2.5 cursor-pointer transition-all ${
+                    isSelected ? 'bg-gradient-to-br from-blue-100 to-blue-200 border-l-4 border-l-blue-500' : 'bg-white/60 hover:bg-white/90 hover:border-l-4 hover:border-l-emerald-300'
+                  }`}
                   onClick={() => handleColumnToggle(col)}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.9)";
-                      e.currentTarget.style.borderLeft = "3px solid rgba(34, 197, 94, 0.3)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.6)";
-                      e.currentTarget.style.borderLeft = "3px solid transparent";
-                    }
-                  }}
                 >
                   <input
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => handleColumnToggle(col)}
-                    style={{ marginTop: "2px", cursor: "pointer" }}
+                    className="mt-0.5 cursor-pointer"
                   />
-
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
-                      <span style={{ 
-                        fontWeight: "600", 
-                        fontSize: "13px",
-                        background: "linear-gradient(135deg, #1e293b, #475569)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        backgroundClip: "text"
-                      }}>{col}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="font-semibold text-[13px] bg-gradient-to-br from-slate-800 to-slate-500 bg-clip-text text-transparent">{col}</span>
                       {nullCount > 0 && (
-                        <span style={{ 
-                          color: "#ffffff", 
-                          fontSize: "10px", 
-                          fontWeight: "600",
-                          background: "linear-gradient(135deg, #ef4444, #dc2626)",
-                          padding: "2px 6px",
-                          borderRadius: "12px",
-                          boxShadow: "0 2px 4px rgba(239, 68, 68, 0.3)"
-                        }}>
+                        <span className="text-white text-[10px] font-semibold bg-gradient-to-br from-red-500 to-red-600 px-1.5 py-0.5 rounded-2xl shadow">
                           {nullCount} nulls
                         </span>
                       )}
                     </div>
 
                     {allowColumnMethods && isSelected && availableMethods.length > 0 && (
-                      <div style={{ marginBottom: "6px", marginTop: "6px" }}>
+                      <div className="my-1.5">
                         <select
                           value={selectedMethod || suggestedMethod}
                           onClick={(e) => e.stopPropagation()}
@@ -156,24 +108,10 @@ export const ValidatedColumnSelect = ({
                             e.stopPropagation();
                             onColumnMethodChange?.(col, e.target.value);
                           }}
-                          style={{
-                            padding: "4px 8px",
-                            border: "2px solid transparent",
-                            borderRadius: "6px",
-                            background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-                            color: "#ffffff",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                            fontSize: "11px",
-                            boxShadow: "0 2px 8px rgba(59, 130, 246, 0.3)"
-                          }}
+                          className="px-2 py-1 border-2 border-transparent rounded bg-gradient-to-br from-blue-500 to-violet-500 text-white font-semibold cursor-pointer text-[11px] shadow"
                         >
                           {availableMethods.map((method) => (
-                            <option
-                              key={method}
-                              value={method}
-                              style={{ color: "#111827", background: "#ffffff" }}
-                            >
+                            <option key={method} value={method} className="text-gray-900 bg-white">
                               {method.charAt(0).toUpperCase() + method.slice(1).replace("-", " ")}
                             </option>
                           ))}
@@ -182,55 +120,25 @@ export const ValidatedColumnSelect = ({
                     )}
 
                     {!allowColumnMethods && suggestedMethod && (
-                      <div style={{ marginBottom: "5px" }}>
+                      <div className="mb-1.5">
                         <select
                           value={suggestedMethod}
                           onClick={(e) => e.stopPropagation()}
-                          style={{
-                            padding: "4px 8px",
-                            border: "2px solid transparent",
-                            borderRadius: "6px",
-                            background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-                            color: "#ffffff",
-                            fontWeight: "600",
-                            cursor: "not-allowed",
-                            fontSize: "11px",
-                            opacity: "0.8",
-                            boxShadow: "0 2px 8px rgba(59, 130, 246, 0.2)"
-                          }}
+                          className="px-2 py-1 border-2 border-transparent rounded bg-gradient-to-br from-blue-500 to-violet-500 text-white font-semibold cursor-not-allowed text-[11px] opacity-80 shadow"
                           disabled
                         >
-                          <option
-                            value={suggestedMethod}
-                            style={{ color: "#111827", background: "#ffffff" }}
-                          >
+                          <option value={suggestedMethod} className="text-gray-900 bg-white">
                             {suggestedMethod.charAt(0).toUpperCase() + suggestedMethod.slice(1)}
                           </option>
                         </select>
                       </div>
                     )}
 
-                    <div style={{ 
-                      fontSize: "11px", 
-                      fontWeight: "600", 
-                      marginBottom: "3px",
-                      background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      backgroundClip: "text"
-                    }}>
+                    <div className="text-[11px] font-semibold mb-0.5 bg-gradient-to-br from-blue-500 to-violet-500 bg-clip-text text-transparent">
                       ✨ Suggested: {suggestedMethod ? suggestedMethod.charAt(0).toUpperCase() + suggestedMethod.slice(1) : "N/A"}
                     </div>
 
-                    <div style={{ 
-                      fontSize: "11px", 
-                      color: "#64748b", 
-                      lineHeight: "1.4",
-                      background: "rgba(248, 250, 252, 0.8)",
-                      padding: "4px 6px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(148, 163, 184, 0.2)"
-                    }}>
+                    <div className="text-[11px] text-slate-500 leading-tight bg-slate-50/80 px-1.5 py-1 rounded border border-slate-300/20">
                       {getColumnReason(col, stepType, stepMethod, dataPreview)}
                     </div>
                   </div>
@@ -242,26 +150,13 @@ export const ValidatedColumnSelect = ({
       </div>
 
       {allColumns.length > validColumns.length && (
-        <div style={{ 
-          marginTop: "10px", 
-          padding: "8px 10px", 
-          background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)", 
-          borderRadius: "8px", 
-          fontSize: "11px", 
-          borderLeft: "4px solid #f59e0b",
-          boxShadow: "0 4px 12px rgba(245, 158, 11, 0.2)"
-        }}>
-          <strong style={{ 
-            background: "linear-gradient(135deg, #92400e, #b45309)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text"
-          }}>⚠️ Not compatible:</strong>
-          <div style={{ marginTop: "5px", color: "#92400e" }}>
+        <div className="mt-2.5 px-2.5 py-2 bg-gradient-to-br from-amber-100 to-amber-200 rounded text-[11px] border-l-4 border-amber-500 shadow">
+          <strong className="bg-gradient-to-br from-amber-800 to-amber-600 bg-clip-text text-transparent">⚠️ Not compatible:</strong>
+          <div className="mt-1.5 text-amber-800">
             {allColumns
               .filter((col) => !validColumns.includes(col))
               .map((col) => (
-                <div key={col} style={{ marginBottom: "2px" }}>
+                <div key={col} className="mb-0.5">
                   <strong>{col}:</strong> {getColumnReason(col, stepType, stepMethod, dataPreview)}
                 </div>
               ))}

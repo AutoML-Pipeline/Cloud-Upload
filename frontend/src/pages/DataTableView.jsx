@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import DataTable from "../components/DataTable";
 import styles from "./DataTableView.module.css";
@@ -6,6 +6,11 @@ import styles from "./DataTableView.module.css";
 export default function DataTableView() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  console.log('🔍 DataTableView: Mounted, location.state:', !!location.state);
+  console.log('🔍 DataTableView: Has data:', !!(location.state?.data));
+  
+  // Get data directly from location.state
   const { 
     data,
     originalData,
@@ -16,23 +21,23 @@ export default function DataTableView() {
     filledNullColumns,
     saveTarget,
     saveFilename,
-    title = "Data Preview"
+    tempFilePath,
+    disableSave = false,
+    title = "Data Preview",
+    pipeline = null // "preprocessing" or "feature-engineering"
   } = location.state || {};
-
-  // If no data was passed, redirect back to previous page
-  useEffect(() => {
-    if (!data) {
-      navigate(-1);
-    }
-  }, [data, navigate]);
 
   const handleBack = () => {
     navigate(-1);
   };
 
   if (!data) {
-    return <div className={styles.loading}>Loading data...</div>;
+    console.error('❌ DataTableView: No data, redirecting back');
+    navigate(-1);
+    return <div className={styles.loading}>No data available...</div>;
   }
+  
+  console.log('✅ DataTableView: Rendering with data, rows:', Object.values(data)[0]?.length || 0);
 
   return (
     <div className={styles.dataTableViewPage}>
@@ -54,6 +59,9 @@ export default function DataTableView() {
           filledNullColumns={filledNullColumns}
           saveTarget={saveTarget}
           saveFilename={saveFilename}
+          tempFilePath={tempFilePath}
+          disableSave={disableSave}
+          pipeline={pipeline}
         />
       </div>
     </div>

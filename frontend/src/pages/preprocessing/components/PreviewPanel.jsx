@@ -214,22 +214,24 @@ const PreviewDataTable = ({ result, selectedFile, filledNullColumns, onSaveToMin
             )}
           </div>
           
-          <ViewProcessedDataButton
-            data={tableData}
-            originalData={originalData}
-            compareOriginal
-            highlightChanges
-            diffMarks={result.diff_marks}
-            originalFilename={selectedFile}
-            filledNullColumns={filledNullColumns}
-            saveTarget="cleaned"
-            saveFilename={result.cleaned_filename}
-            onSave={onSaveToMinio}
-            onDownload={onDownloadFullCsv}
-            title="Preprocessed Data View"
-            buttonText="View Processed Data"
-            buttonVariant="success"
-          />
+          <div className={styles.actionButtons}>
+            <ViewProcessedDataButton
+              data={tableData}
+              originalData={originalData}
+              compareOriginal
+              highlightChanges
+              diffMarks={result.diff_marks}
+              originalFilename={selectedFile}
+              filledNullColumns={filledNullColumns}
+              saveTarget="cleaned"
+              saveFilename={result.cleaned_filename}
+              tempFilePath={result.temp_cleaned_path}
+              title="Preprocessed Data View"
+              buttonText="View Processed Data"
+              buttonVariant="success"
+              pipeline="preprocessing"
+            />
+          </div>
         </div>
       </div>
     </>

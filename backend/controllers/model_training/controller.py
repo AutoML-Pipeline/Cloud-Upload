@@ -33,6 +33,7 @@ from backend.controllers.model_training.trainers import (
 )
 from backend.controllers.model_training.types import MinioFile, TrainedModelInfo
 from backend.services import progress_tracker
+from backend.services import model_cache
 from backend.utils.json_utils import _to_json_safe
 
 
@@ -133,8 +134,8 @@ def run_training_job(
     3. Prepare train/test split
     4. Train multiple models for specified problem type
     5. Evaluate and select best model
-    6. Save best model and results to MinIO
-    7. Complete job with results
+    6. Prepare best model and results in memory (do not persist yet)
+    7. Complete job with results; client can save later
     """
     try:
         progress_tracker.update_job(job_id, status="running", progress=10)
@@ -211,46 +212,15 @@ def run_training_job(
         # Extract visualization data from best model
         best_model_viz = best_model_result.get('visualization_data', {})
         
-        # Step 7: Save best model to MinIO
-        model_id = str(uuid.uuid4())
-        logging.info(f"💾 Saving best model with ID: {model_id}")
-        
-        model_filename = f"{model_id}.joblib"
-        _save_model_to_minio(best_model_result['model_object'], model_filename)
-        
-        progress_tracker.update_job(job_id, status="running", progress=95)
-        
-        # Step 8: Save training results (all models comparison)
-        results_filename = f"{model_id}_results.json"
-        _save_training_results_to_minio(
-            results_filename,
-            {
-                "model_id": model_id,
-                "job_id": job_id,
-                "filename": filename,
-                "target_column": target_column,
-                "problem_type": problem_type,
-                "dataset_info": dataset_info,
-                "best_model": {
-                    "model_name": best_model_result['model_name'],
-                    "model_type": best_model_result['model_type'],
-                    "metrics": best_model_result['metrics'],
-                    "training_time": best_model_result['training_time'],
-                },
-                "all_models": [
-                    {
-                        "model_name": m['model_name'],
-                        "model_type": m['model_type'],
-                        "metrics": m['metrics'],
-                        "training_time": m['training_time'],
-                        "success": m['success'],
-                    }
-                    for m in trained_models
-                ],
-            }
-        )
-        
-        # Step 9: Complete job
+        # Step 7: Cache best model and results in memory for optional save
+        model_cache.put(job_id, {
+            "filename": filename,
+            "target_column": target_column,
+            "problem_type": problem_type,
+            "dataset_info": dataset_info,
+            "best_model_result": best_model_result,
+            "trained_models": trained_models,
+        })
         progress_tracker.update_job(job_id, status="running", progress=100)
         
         # Prepare final result
@@ -286,7 +256,9 @@ def run_training_job(
                 "residuals": best_model_viz.get('residuals'),
                 "feature_importance": best_model_viz.get('feature_importance'),
             },
-            "best_model_id": model_id,
+            # Model is not yet saved; client must call save endpoint to persist
+            "best_model_id": None,
+            "unsaved_model": True,
             "total_training_time": sum(m['training_time'] for m in trained_models),
             "dataset_info": dataset_info,
         }
@@ -297,6 +269,62 @@ def run_training_job(
     except Exception as e:
         logging.exception(f"❌ Training job {job_id} failed")
         progress_tracker.fail_job(job_id, str(e))  # Fixed: removed 'error=' keyword
+
+
+def save_trained_model(job_id: str) -> Dict[str, Any]:
+    """Persist a cached trained model and its results to MinIO and return model_id.
+
+    Expects that run_training_job previously cached the best model under this job_id.
+    """
+    payload = model_cache.pop(job_id)
+    if not payload:
+        raise FileNotFoundError(f"No cached model found for job {job_id}")
+
+    filename = payload["filename"]
+    target_column = payload["target_column"]
+    problem_type = payload["problem_type"]
+    dataset_info = payload["dataset_info"]
+    best_model_result = payload["best_model_result"]
+    trained_models = payload["trained_models"]
+
+    # Generate model id and save
+    model_id = str(uuid.uuid4())
+    logging.info(f"\ud83d\udcbe Persisting cached best model with ID: {model_id}")
+
+    model_filename = f"{model_id}.joblib"
+    _save_model_to_minio(best_model_result['model_object'], model_filename)
+
+    # Save training results JSON
+    results_filename = f"{model_id}_results.json"
+    _save_training_results_to_minio(
+        results_filename,
+        {
+            "model_id": model_id,
+            "job_id": job_id,
+            "filename": filename,
+            "target_column": target_column,
+            "problem_type": problem_type,
+            "dataset_info": dataset_info,
+            "best_model": {
+                "model_name": best_model_result['model_name'],
+                "model_type": best_model_result['model_type'],
+                "metrics": best_model_result['metrics'],
+                "training_time": best_model_result['training_time'],
+            },
+            "all_models": [
+                {
+                    "model_name": m['model_name'],
+                    "model_type": m['model_type'],
+                    "metrics": m['metrics'],
+                    "training_time": m['training_time'],
+                    "success": m['success'],
+                }
+                for m in trained_models
+            ],
+        }
+    )
+
+    return {"model_id": model_id}
 
 
 def _load_dataframe_from_minio(filename: str) -> pd.DataFrame:

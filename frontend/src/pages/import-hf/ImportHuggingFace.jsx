@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import saasToast from '@/utils/toast';
 import styles from "../upload-file/UploadFile.module.css";
+import UploadProgress from "../../components/UploadProgress";
+import { useUploadProgress } from "../../hooks/useUploadProgress";
 
 const HF_URL_RE = /^(hf:\/\/datasets\/|https?:\/\/huggingface\.co\/datasets\/)/i;
 
@@ -10,6 +12,7 @@ export default function ImportHuggingFace() {
   const [uploading, setUploading] = useState(false);
   const [filename, setFilename] = useState("");
   const navigate = useNavigate();
+  const { uploads, startUpload, removeUpload } = useUploadProgress();
 
   useEffect(() => {
     if (!url) return;
@@ -29,28 +32,31 @@ export default function ImportHuggingFace() {
 
   const handleSubmit = async () => {
     if (!url || !HF_URL_RE.test(url)) {
-      toast.error("Please enter a valid Hugging Face datasets URL.");
+      saasToast.error("Please enter a valid Hugging Face datasets URL.", { idKey: 'hf-url-invalid' });
       return;
     }
     if (!filename.trim().endsWith('.parquet')) {
-      toast.error("Filename must end with .parquet");
+      saasToast.error("Filename must end with .parquet", { idKey: 'hf-filename-invalid' });
       return;
     }
     setUploading(true);
-    try {
-      const res = await fetch("http://localhost:8000/api/data/files/upload-from-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, filename })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Import failed');
-      toast.success(data.message || 'Imported');
-      if (data.filename) navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);
-    } catch (e) {
-      toast.error(e.message || "Import failed");
-    }
-    setUploading(false);
+
+    // Use the upload progress hook with axios
+    await startUpload({
+      url: "http://localhost:8000/api/data/files/upload-from-url",
+      data: { url, filename },
+      filename: filename,
+      onSuccess: (data) => {
+        saasToast.dataLaunched({ idKey: 'hf-import-success' });
+        if (data.filename) navigate(`/preprocessing?file=${encodeURIComponent(data.filename)}`);
+        setUploading(false);
+      },
+      onError: (error) => {
+        const message = error.response?.data?.error || error.message || "Import failed";
+        saasToast.error(message, { idKey: 'hf-import-error' });
+        setUploading(false);
+      }
+    });
   };
 
   return (
@@ -104,6 +110,21 @@ export default function ImportHuggingFace() {
           </section>
         </div>
       </main>
+
+      {/* Upload Progress Indicators */}
+      {uploads.map((upload) => (
+        <UploadProgress
+          key={upload.id}
+          filename={upload.filename}
+          progress={upload.progress}
+          loaded={upload.loaded}
+          total={upload.total}
+          rate={upload.rate}
+          elapsed={upload.elapsed}
+          show={upload.show}
+          onClose={() => removeUpload(upload.id)}
+        />
+      ))}
     </div>
   );
 }

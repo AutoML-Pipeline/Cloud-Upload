@@ -1,21 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { toast } from "react-hot-toast";
+import saasToast from "@/utils/toast";
 import PageHero from "../../components/PageHero";
 import styles from "./Preprocessing.module.css";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
-import { SelectionSection } from "./components/SelectionSection";
-import { StepBuilder } from "./components/StepBuilder";
-import { PreviewPanel } from "./components/PreviewPanel";
+import PreFileSelect from "./components/PreFileSelect";
+import PreConfigure from "./components/PreConfigure";
+import PreProgress from "./components/PreProgress";
+import PreResults from "./components/PreResults";
 import { useAutoSelectFile } from "./hooks/useAutoSelectFile";
 import { useDatasetPreview } from "./hooks/useDatasetPreview";
 import { useFillStrategySync } from "./hooks/useFillStrategySync";
 import { usePreprocessingRecommendations } from "./hooks/usePreprocessingRecommendations";
 import { useActiveSteps } from "./hooks/useActiveSteps";
-import { usePreprocessingJob } from "./hooks/usePreprocessingJob";
+import usePreprocessJob from "./hooks/usePreprocessJob";
 import { buildStepsPayload } from "./utils";
-import { PreprocessingRecommendationPanel } from "./components/PreprocessingRecommendationPanel";
 
 const INITIAL_STEPS = {
   removeDuplicates: false,
@@ -37,6 +37,7 @@ const INITIAL_STEPS = {
 
 export default function Preprocessing() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { data: filesData, isFetching: isFetchingFiles } = useQuery({
     queryKey: ["files", "list"],
     queryFn: async () => {
@@ -99,7 +100,7 @@ export default function Preprocessing() {
 
   const handlePreviewError = useCallback((error) => {
     console.error("Error fetching data preview:", error);
-    toast.error("Failed to load file preview: " + error.message);
+    saasToast.error("Failed to load file preview: " + error.message, { idKey: 'preprocess-preview-error' });
     setDataPreview(null);
   }, []);
 
@@ -113,18 +114,15 @@ export default function Preprocessing() {
   });
   const notify = useMemo(
     () => ({
-      success: (message) => toast.success(message),
-      error: (message) => toast.error(message),
+      success: (message) => saasToast.success(message, { idKey: 'preprocess-success' }),
+      error: (message) => saasToast.error(message, { idKey: 'preprocess-error' }),
     }),
     []
   );
 
-  const { result, setResult, loading, progressInfo, runPreprocessing, elapsedMs } = usePreprocessingJob({
-    selectedFile,
-    notify,
-  });
+  const { result, setResult, status, progress, message, elapsedTime, startPreprocess } = usePreprocessJob({ notify });
 
-  const collapseEnabled = Boolean(result) || loading || progressInfo.status !== "idle";
+  const collapseEnabled = Boolean(result) || status !== "idle";
 
   useEffect(() => {
     if (!collapseEnabled && isBuilderCollapsed) {
@@ -133,16 +131,16 @@ export default function Preprocessing() {
   }, [collapseEnabled, isBuilderCollapsed]);
 
   useEffect(() => {
-    if (progressInfo.status === "failed" && isBuilderCollapsed) {
+    if (status === "failed" && isBuilderCollapsed) {
       setBuilderCollapsed(false);
     }
-  }, [progressInfo.status, isBuilderCollapsed]);
+  }, [status, isBuilderCollapsed]);
 
   useEffect(() => {
-    if (progressInfo.status === "completed") {
+    if (status === "completed") {
       setBuilderCollapsed(true);
     }
-  }, [progressInfo.status]);
+  }, [status]);
 
   const isPreviewLoading =
     step === "configure_preprocessing" && selectedFile && !dataPreview && !isFetchingFiles;
@@ -174,16 +172,7 @@ export default function Preprocessing() {
   });
   const previewReady = Boolean(dataPreview && !dataPreview.error);
 
-  const totalNulls = useMemo(() => {
-    return Object.values(nullCounts).reduce((accumulator, value) => {
-      const numeric = typeof value === "number" ? value : Number(value);
-      return Number.isFinite(numeric) ? accumulator + numeric : accumulator;
-    }, 0);
-  }, [nullCounts]);
-
-  const hasNulls = totalNulls > 0;
-  const showRemoveNullsStep = hasNulls && !preprocessingSteps.fillNulls;
-  const showFillNullsStep = hasNulls && !preprocessingSteps.removeNulls;
+  // totalNulls handled inside PreConfigure
 
   const activeSteps = useActiveSteps(preprocessingSteps);
 
@@ -194,22 +183,7 @@ export default function Preprocessing() {
   const preprocessingSuggestions = recData?.suggestions;
 
   // Determine which suggestions are already applied to give UI feedback
-  const appliedStepsMap = useMemo(() => {
-    if (!preprocessingSuggestions) return {};
-    return {
-      removeDuplicates: !!preprocessingSteps.removeDuplicates,
-      dropColumns: !!preprocessingSteps.dropColumns,
-      fillNulls: !!preprocessingSteps.fillNulls,
-      removeNulls: !!preprocessingSteps.removeNulls,
-      removeOutliers: !!preprocessingSteps.removeOutliers,
-    };
-  }, [preprocessingSteps, preprocessingSuggestions]);
-
-  const allApplied = useMemo(() => {
-    if (!preprocessingSuggestions) return false;
-    const keys = ["removeDuplicates", "dropColumns", "fillNulls", "removeNulls", "removeOutliers"];
-    return keys.every((k) => appliedStepsMap[k] || !preprocessingSuggestions?.[k]?.enabled);
-  }, [appliedStepsMap, preprocessingSuggestions]);
+  // Applied map + recommendation actions handled within PreConfigure
 
   const statsCards = useMemo(() => {
     if (!result) {
@@ -246,63 +220,14 @@ export default function Preprocessing() {
     ];
   }, [result, activeSteps.length]);
 
-  const handleToggleRemoveNulls = useCallback(
-    (checked) => {
-      setStepsStable((prev) => {
-        if (checked) {
-          if (prev.removeNulls && !prev.fillNulls) {
-            return prev;
-          }
-          return {
-            ...prev,
-            removeNulls: true,
-            fillNulls: false,
-          };
-        }
-        if (!prev.removeNulls) {
-          return prev;
-        }
-        return {
-          ...prev,
-          removeNulls: false,
-        };
-      });
-    },
-    [setStepsStable]
-  );
-
-  const handleToggleFillNulls = useCallback(
-    (checked) => {
-      setStepsStable((prev) => {
-        if (checked) {
-          if (prev.fillNulls && !prev.removeNulls) {
-            return prev;
-          }
-          return {
-            ...prev,
-            fillNulls: true,
-            removeNulls: false,
-          };
-        }
-        if (!prev.fillNulls) {
-          return prev;
-        }
-        return {
-          ...prev,
-          fillNulls: false,
-        };
-      });
-    },
-    [setStepsStable]
-  );
+  // Null toggles handled in PreConfigure
 
   const handleSubmit = useCallback(
     (event) => {
       event.preventDefault();
       const stepsPayload = buildStepsPayload(preprocessingSteps);
 
-      runPreprocessing({
-        stepsPayload,
+      startPreprocess(selectedFile, stepsPayload, {
         onBeforeStart: () => {
           setBuilderCollapsed(true);
           setActivePreviewTab("preview");
@@ -314,7 +239,7 @@ export default function Preprocessing() {
         },
       });
     },
-    [preprocessingSteps, runPreprocessing, setActivePreviewTab, setBuilderCollapsed]
+    [preprocessingSteps, startPreprocess, selectedFile, setActivePreviewTab, setBuilderCollapsed]
   );
 
   const handleSaveToMinio = useCallback(async () => {
@@ -340,11 +265,16 @@ export default function Preprocessing() {
 
       notify.success(payload.message || "Cleaned dataset saved to MinIO");
       setResult((prev) => (prev ? { ...prev, temp_cleaned_path: null } : prev));
+
+      // Seamless flow: jump to Feature Engineering with the new cleaned filename
+      if (result?.cleaned_filename) {
+        navigate(`/feature-engineering?file=${encodeURIComponent(result.cleaned_filename)}`);
+      }
     } catch (error) {
       console.error("Failed to save cleaned dataset", error);
       notify.error(error.message);
     }
-  }, [notify, result, setResult]);
+  }, [notify, result, setResult, navigate]);
 
   const handleDownloadCsv = useCallback(async () => {
     if (!result?.temp_cleaned_path && !result?.cleaned_filename) {
@@ -398,7 +328,7 @@ export default function Preprocessing() {
           <div className={styles.card}>
 
             {step === "select_file" && (
-              <SelectionSection
+              <PreFileSelect
                 files={files}
                 selectedFile={selectedFile}
                 onSelectFile={setSelectedFile}
@@ -427,158 +357,63 @@ export default function Preprocessing() {
 
                   <div className={`${styles.layoutGrid} ${isBuilderCollapsed ? styles.layoutGridCollapsed : ""} ${!result ? styles.layoutGridFullWidth : ""}`}>
                     {!isBuilderCollapsed && (
-                      <>
-                        <StepBuilder
+                      <PreConfigure
                         columns={columns}
                         columnInsights={columnInsights}
                         selectedFile={selectedFile}
-                        preprocessingSteps={preprocessingSteps}
+                        steps={preprocessingSteps}
                         onUpdateSteps={setStepsStable}
-                        showRemoveNullsStep={showRemoveNullsStep}
-                        showFillNullsStep={showFillNullsStep}
                         previewReady={previewReady}
-                        hasNulls={hasNulls}
                         nullCounts={nullCounts}
-                        onToggleRemoveNulls={handleToggleRemoveNulls}
-                        onToggleFillNulls={handleToggleFillNulls}
                         onChangeFile={() => setStep("select_file")}
                         onSubmit={handleSubmit}
-                        loading={loading}
+                        loading={status === "pending" || status === "queued"}
                         activeSteps={activeSteps}
                         collapseEnabled={collapseEnabled}
                         onCollapse={() => setBuilderCollapsed(true)}
-                        topContent={(
-                          <PreprocessingRecommendationPanel
-                            suggestions={preprocessingSuggestions}
-                            loading={recLoading}
-                            appliedSteps={appliedStepsMap}
-                            allApplied={allApplied}
-                            onUndoStep={(stepKey) => {
-                              if (stepKey === "removeDuplicates") {
-                                setStepsStable((prev) => ({
-                                  ...prev,
-                                  removeDuplicates: false,
-                                  removeDuplicatesColumns: [],
-                                }));
-                              } else if (stepKey === "dropColumns") {
-                                setStepsStable((prev) => ({
-                                  ...prev,
-                                  dropColumns: false,
-                                  dropColumnsColumns: [],
-                                }));
-                              } else if (stepKey === "fillNulls") {
-                                setStepsStable((prev) => ({
-                                  ...prev,
-                                  fillNulls: false,
-                                  fillNullsColumns: [],
-                                  fillColumnStrategies: {},
-                                }));
-                              } else if (stepKey === "removeNulls") {
-                                setStepsStable((prev) => ({
-                                  ...prev,
-                                  removeNulls: false,
-                                  removeNullsColumns: [],
-                                }));
-                              } else if (stepKey === "removeOutliers") {
-                                setStepsStable((prev) => ({
-                                  ...prev,
-                                  removeOutliers: false,
-                                  removeOutliersConfig: {
-                                    ...prev.removeOutliersConfig,
-                                    columns: [],
-                                    method: prev.removeOutliersConfig.method || "iqr",
-                                    factor: prev.removeOutliersConfig.factor ?? 1.5,
-                                  },
-                                }));
-                              }
-                            }}
-                            onApplyAll={() => {
-                              const s = preprocessingSuggestions;
-                              setStepsStable((prev) => ({
-                                ...prev,
-                                removeDuplicates: !!s.removeDuplicates?.enabled,
-                                removeDuplicatesColumns: s.removeDuplicates?.subset || [],
-                                dropColumns: !!s.dropColumns?.enabled,
-                                dropColumnsColumns: s.dropColumns?.columns || [],
-                                fillNulls: !!s.fillNulls?.enabled,
-                                fillNullsColumns: s.fillNulls?.columns || [],
-                                fillColumnStrategies: s.fillNulls?.strategies || {},
-                                removeNulls: !s.fillNulls?.enabled && !!s.removeNulls?.enabled,
-                                removeNullsColumns: s.removeNulls?.columns || [],
-                                removeOutliers: !!s.removeOutliers?.enabled,
-                                removeOutliersConfig: {
-                                  ...prev.removeOutliersConfig,
-                                  method: s.removeOutliers?.method || prev.removeOutliersConfig.method,
-                                  factor: s.removeOutliers?.factor ?? prev.removeOutliersConfig.factor,
-                                  columns: s.removeOutliers?.columns || [],
-                                },
-                              }));
-                            }}
-                            onApplyStep={(stepKey) => {
-                              const s = preprocessingSuggestions;
-                              if (stepKey === "removeDuplicates") {
-                                setStepsStable((prev) => ({
-                                  ...prev,
-                                  removeDuplicates: !!s.removeDuplicates?.enabled,
-                                  removeDuplicatesColumns: s.removeDuplicates?.subset || [],
-                                }));
-                              } else if (stepKey === "dropColumns") {
-                                setStepsStable((prev) => ({
-                                  ...prev,
-                                  dropColumns: !!s.dropColumns?.enabled,
-                                  dropColumnsColumns: s.dropColumns?.columns || [],
-                                }));
-                              } else if (stepKey === "fillNulls") {
-                                setStepsStable((prev) => ({
-                                  ...prev,
-                                  fillNulls: !!s.fillNulls?.enabled,
-                                  fillNullsColumns: s.fillNulls?.columns || [],
-                                  fillColumnStrategies: s.fillNulls?.strategies || {},
-                                  removeNulls: false,
-                                }));
-                              } else if (stepKey === "removeNulls") {
-                                setStepsStable((prev) => ({
-                                  ...prev,
-                                  removeNulls: !!s.removeNulls?.enabled,
-                                  removeNullsColumns: s.removeNulls?.columns || [],
-                                  fillNulls: false,
-                                }));
-                              } else if (stepKey === "removeOutliers") {
-                                setStepsStable((prev) => ({
-                                  ...prev,
-                                  removeOutliers: !!s.removeOutliers?.enabled,
-                                  removeOutliersConfig: {
-                                    ...prev.removeOutliersConfig,
-                                    method: s.removeOutliers?.method || prev.removeOutliersConfig.method,
-                                    factor: s.removeOutliers?.factor ?? prev.removeOutliersConfig.factor,
-                                    columns: s.removeOutliers?.columns || [],
-                                  },
-                                }));
-                              }
-                            }}
-                          />
-                        )}
+                        suggestions={preprocessingSuggestions}
+                        suggestionsLoading={recLoading}
                       />
-                      </>
                     )}
 
-                    {(result || loading || progressInfo.status !== "idle") && (
-                      <PreviewPanel
-                        result={result}
-                        progressInfo={progressInfo}
-                        activePreviewTab={activePreviewTab}
-                        onTabChange={setActivePreviewTab}
-                        statsCards={statsCards}
-                        selectedFile={selectedFile}
-                        preprocessingSteps={preprocessingSteps}
-                        onSaveToMinio={handleSaveToMinio}
-                        onDownloadFullCsv={handleDownloadCsv}
-                        elapsedMs={elapsedMs}
-                        progressAnchorRef={progressAnchorRef}
-                        collapseEnabled={collapseEnabled}
-                        isStepsCollapsed={isBuilderCollapsed}
-                        onExpandSteps={() => setBuilderCollapsed(false)}
-                      />
+                    {(result || status !== "idle") && (
+                      status === "completed" ? (
+                        <PreResults
+                          result={result}
+                          progressInfo={{ status, progress, message }}
+                          activePreviewTab={activePreviewTab}
+                          onTabChange={setActivePreviewTab}
+                          statsCards={statsCards}
+                          selectedFile={selectedFile}
+                          preprocessingSteps={preprocessingSteps}
+                          onSaveToMinio={handleSaveToMinio}
+                          onDownloadFullCsv={handleDownloadCsv}
+                          elapsedMs={elapsedTime}
+                          progressAnchorRef={progressAnchorRef}
+                          collapseEnabled={collapseEnabled}
+                          isStepsCollapsed={isBuilderCollapsed}
+                          onExpandSteps={() => setBuilderCollapsed(false)}
+                        />
+                      ) : (
+                        <PreProgress
+                          result={result}
+                          status={status}
+                          progress={progress}
+                          message={message}
+                          activePreviewTab={activePreviewTab}
+                          onTabChange={setActivePreviewTab}
+                          statsCards={statsCards}
+                          selectedFile={selectedFile}
+                          preprocessingSteps={preprocessingSteps}
+                          onSaveToMinio={handleSaveToMinio}
+                          onDownloadFullCsv={handleDownloadCsv}
+                          elapsedMs={elapsedTime}
+                          progressAnchorRef={progressAnchorRef}
+                          collapseEnabled={collapseEnabled}
+                          isStepsCollapsed={isBuilderCollapsed}
+                          onExpandSteps={() => setBuilderCollapsed(false)}
+                        />
+                      )
                     )}
                   </div>
                 </>

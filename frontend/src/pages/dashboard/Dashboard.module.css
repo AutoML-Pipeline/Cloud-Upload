@@ -1,15 +1,20 @@
 .dashboardShell {
-  min-height: calc(100vh - 64px);
+  /* Exactly fill viewport height minus navbar to prevent white space */
+  min-height: calc(100vh - var(--navbar-height, 64px));
+  max-height: calc(100vh - var(--navbar-height, 64px));
   width: 100%;
-  padding: clamp(8px, 1vh, 12px) clamp(8px, 1.6vw, 16px) clamp(16px, 2vh, 24px);
-  padding-top: 64px;
+  box-sizing: border-box;
+  padding: clamp(20px, 5vh, 48px) clamp(12px, 2vw, 24px) clamp(24px, 5vh, 48px);
   background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.18), transparent 55%),
     radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.18), transparent 48%),
-    linear-gradient(165deg, var(--color-gray-950) 0%, var(--color-gray-900) 50%, var(--color-gray-800) 100%);
+    linear-gradient(170deg, rgba(15, 23, 42, 0.94) 0%, rgba(11, 17, 32, 0.96) 55%, rgba(2, 6, 23, 0.98) 100%);
   color: var(--color-gray-200);
   display: flex;
   flex-direction: column;
-  gap: clamp(var(--spacing-4), 2.5vw, var(--spacing-6));
+  justify-content: center;
+  align-items: center;
+  gap: clamp(var(--spacing-4), 3vw, var(--spacing-6));
+  overflow: hidden;
 }
 
 .stepsIntro {
@@ -22,6 +27,7 @@
   font-size: clamp(var(--text-base-size), 2vw, var(--text-h5-size));
   color: var(--color-gray-300);
   letter-spacing: 0.02em;
+  margin: 0;
 }
 
 .stepsGrid {

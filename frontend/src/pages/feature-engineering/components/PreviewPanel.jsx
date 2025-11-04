@@ -183,21 +183,23 @@ export const PreviewPanel = ({
                 )}
               </div>
               
-              <ViewProcessedDataButton
-                data={tableData}
-                originalData={originalData}
-                compareOriginal={Boolean(result.original_preview?.length)}
-                highlightChanges={false}
-                diffMarks={null}
-                originalFilename={selectedFile}
-                saveTarget="engineered"
-                saveFilename={result.engineered_filename}
-                onSave={handleSave}
-                onDownload={onDownloadCsv}
-                title="Feature Engineered Data"
-                buttonText="View Engineered Data"
-                buttonVariant="primary"
-              />
+              <div className={styles.actionButtons}>
+                <ViewProcessedDataButton
+                  data={tableData}
+                  originalData={originalData}
+                  compareOriginal={Boolean(result.original_preview?.length)}
+                  highlightChanges={false}
+                  diffMarks={null}
+                  originalFilename={selectedFile}
+                  saveTarget="engineered"
+                  saveFilename={result.engineered_filename}
+                  tempFilePath={result.temp_engineered_path}
+                  title="Feature Engineered Data"
+                  buttonText="View Engineered Data"
+                  buttonVariant="primary"
+                  pipeline="feature-engineering"
+                />
+              </div>
             </div>
           </div>
         )}

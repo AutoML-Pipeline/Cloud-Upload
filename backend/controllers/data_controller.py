@@ -39,10 +39,10 @@ from backend.utils.json_utils import _to_json_safe
 from backend.services import progress_tracker
 from .preprocessing.recommendations import build_preprocessing_suggestions
 
-# NO LIMITS - Show full dataset everywhere
-MAX_PREVIEW_ROWS = None  # Show all rows in preview
-MAX_FULL_ROWS = None  # No limit on full data
-DIFF_ROW_LIMIT = int(os.getenv("DIFF_ROW_LIMIT", "10000"))  # Keep diff rows higher
+# Preview and diff limits for performance
+MAX_PREVIEW_ROWS = 1000  # Show first 1000 rows in preview (prevents massive JSON responses)
+MAX_DIFF_ROWS = 5000  # Compute diffs only for first 5000 rows (cell comparison is expensive)
+DIFF_ROW_LIMIT = int(os.getenv("DIFF_ROW_LIMIT", "10000"))  # Maximum diff markers to return
 
 def analyze_data_quality(df):
     """Comprehensive data quality analysis"""
@@ -324,8 +324,12 @@ def run_preprocessing_pipeline(
         _update_progress(job_id, 65, "Outlier handling skipped")
 
     _update_progress(job_id, 75, "Analyzing changes against original data")
-    deleted, updated_cells = compute_diff_marks(df, df_cleaned)
-    diff_truncated = False
+    # Only compute diffs for preview rows (massive performance improvement)
+    df_for_diff = df.head(MAX_DIFF_ROWS) if len(df) > MAX_DIFF_ROWS else df
+    df_cleaned_for_diff = df_cleaned.head(MAX_DIFF_ROWS) if len(df_cleaned) > MAX_DIFF_ROWS else df_cleaned
+    deleted, updated_cells = compute_diff_marks(df_for_diff, df_cleaned_for_diff)
+    diff_truncated = len(df) > MAX_DIFF_ROWS or len(df_cleaned) > MAX_DIFF_ROWS
+    
     if len(deleted) > DIFF_ROW_LIMIT:
         deleted = deleted[:DIFF_ROW_LIMIT]
         diff_truncated = True
@@ -351,11 +355,11 @@ def run_preprocessing_pipeline(
         raise RuntimeError(f"Error saving cleaned Parquet: {exc}") from exc
 
     _update_progress(job_id, 92, "Building preview tables")
-    # Show full dataset in preview (no row limits)
-    original_preview = to_preview_records(df, None)
-    preview = to_preview_records(df_cleaned, None)
+    # Only return preview chunk (prevents massive JSON responses)
+    original_preview = to_preview_records(df, MAX_PREVIEW_ROWS)
+    preview = to_preview_records(df_cleaned, MAX_PREVIEW_ROWS)
 
-    full_data = None  # Full data now returned in preview
+    full_data = None  # Full data not returned (use pagination or download)
     
     _update_progress(job_id, 97, "Summarizing data quality insights")
     try:
@@ -374,18 +378,23 @@ def run_preprocessing_pipeline(
         "temp_cleaned_path": temp_cleaned_path,
         "original_row_count": int(original_row_count),
         "cleaned_row_count": int(len(df_cleaned)),
-        "preview_row_limit": None,  # No limit - showing full dataset
+        "preview_row_limit": MAX_PREVIEW_ROWS,
+        "is_preview_truncated": len(df_cleaned) > MAX_PREVIEW_ROWS,
         "diff_truncated": diff_truncated,
         "diff_row_limit": DIFF_ROW_LIMIT,
+        "max_diff_rows": MAX_DIFF_ROWS,
     }
 
     logging.info(
-        "Response payload sizes: original_preview=%s, preview=%s",
+        "Response payload sizes: original_preview=%s rows, preview=%s rows (limit=%s, total=%s)",
         len(original_preview),
         len(preview),
+        MAX_PREVIEW_ROWS,
+        len(df_cleaned),
     )
-    logging.info(f"Showing FULL dataset: {len(preview)} rows in preview")
-    logging.info(f"Deleted row indices: {deleted}")
+    if len(df_cleaned) > MAX_PREVIEW_ROWS:
+        logging.info(f"Preview truncated: showing first {MAX_PREVIEW_ROWS} of {len(df_cleaned)} rows")
+    logging.info(f"Deleted row indices count: {len(deleted)}, updated cells count: {len(updated_cells)}")
 
     return _to_json_safe(response_payload)
 

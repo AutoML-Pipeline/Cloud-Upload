@@ -16,6 +16,7 @@ from backend.routes.data_routes import router as data_router
 from backend.routes.auth_routes import router as auth_router
 from backend.routes.feature_engineering_routes import router as feature_engineering_router
 from backend.routes.model_training_routes import router as model_training_router
+from backend.routes.pipeline_routes import router as pipeline_router
 
 load_dotenv()
 
@@ -36,3 +37,4 @@ app.include_router(data_router, prefix="/api/data", tags=["Data Preprocessing"])
 app.include_router(feature_engineering_router, prefix="/api/feature-engineering", tags=["Feature Engineering"])
 app.include_router(model_training_router, prefix="/api/model-training", tags=["Model Training"])
 app.include_router(auth_router)
+app.include_router(pipeline_router, prefix="/api/pipeline", tags=["Pipeline Runs"])

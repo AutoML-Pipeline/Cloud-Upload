@@ -87,7 +87,7 @@ export const SelectionSection = ({
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.75rem' }}>
+        <div className="flex justify-center mt-3">
           <PrimaryButton
             disabled={!selectedFile || !hasFiles || isFetchingFiles}
             onClick={onContinue}

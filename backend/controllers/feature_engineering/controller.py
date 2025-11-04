@@ -34,7 +34,8 @@ from backend.services import minio_service, progress_tracker
 from backend.utils.json_utils import _to_json_safe
 
 FEATURE_ENGINEERED_BUCKET = os.getenv("FEATURE_ENGINEERED_BUCKET", "feature-engineered")
-PREVIEW_ROW_LIMIT = None  # No limit - show full dataset
+MAX_PREVIEW_ROWS = 1000  # Limit preview to prevent slow API responses
+MAX_DIFF_ROWS = 5000  # Limit diff comparisons
 
 
 async def get_minio_files_for_feature_engineering() -> List[MinioFile]:
@@ -74,18 +75,24 @@ def _load_dataframe_from_minio(filename: str, bucket_name: str) -> pd.DataFrame:
     response = minio_client.get_object(bucket_name, filename)
     try:
         data = io.BytesIO(response.read())
+        data_size = len(data.getvalue())
+        logging.info(f"Loading {filename} from {bucket_name}: read {data_size} bytes from MinIO")
     finally:
         response.close()
         response.release_conn()
 
     if filename.endswith(".parquet"):
         df = pd.read_parquet(data, engine="pyarrow")
+        logging.info(f"Loaded parquet file: {len(df)} rows, {len(df.columns)} columns")
     elif filename.endswith(".csv"):
         df = pd.read_csv(data)
+        logging.info(f"Loaded CSV file: {len(df)} rows, {len(df.columns)} columns")
     elif filename.endswith(".xlsx"):
         df = pd.read_excel(data)
+        logging.info(f"Loaded Excel file: {len(df)} rows, {len(df.columns)} columns")
     elif filename.endswith(".json"):
         df = pd.read_json(data)
+        logging.info(f"Loaded JSON file: {len(df)} rows, {len(df.columns)} columns")
     else:
         raise ValueError("Unsupported file format")
 
@@ -218,12 +225,15 @@ def run_feature_engineering_pipeline(
 
     column_summary = _summarize_columns(original_df.columns, processed_df.columns)
 
-    # Show FULL dataset in preview (no row limit)
-    preview = to_preview_records(processed_df, None)
-    original_preview = to_preview_records(original_df, None)
+    # Show limited preview for performance
+    preview = to_preview_records(processed_df, MAX_PREVIEW_ROWS)
+    original_preview = to_preview_records(original_df, MAX_PREVIEW_ROWS)
+    preview_truncated = len(processed_df) > MAX_PREVIEW_ROWS
     
     pipeline_elapsed = time.time() - pipeline_start
     logging.info(f"✅ Feature Engineering Pipeline completed in {pipeline_elapsed:.2f}s | Rows: {len(processed_df)} | Cols: {len(processed_df.columns)}")
+    if preview_truncated:
+        logging.info(f"Preview truncated: showing first {MAX_PREVIEW_ROWS} of {len(processed_df)} rows")
 
     result_payload: Dict[str, Any] = {
         "preview": preview,
@@ -232,11 +242,10 @@ def run_feature_engineering_pipeline(
         "message": "Feature engineering applied successfully",
         "original_row_count": int(len(original_df)),
         "engineered_row_count": int(len(processed_df)),
-        "preview_row_limit": None,  # No limit - showing full dataset
+        "preview_row_limit": MAX_PREVIEW_ROWS if preview_truncated else None,
         "column_summary": column_summary,
         "engineered_filename": None,
         "temp_engineered_path": None,
-        "full_data_included": True,  # Always true now
     }
 
     if include_temp_file:
@@ -351,10 +360,13 @@ async def get_feature_engineering_dataset_preview(filename: str, bucket: str = "
         series = df[col].dropna()
         sample_values[col] = _to_json_safe(series.iloc[0]) if not series.empty else None
 
-    # Show FULL dataset in preview (no row limit)
-    preview_records = to_preview_records(df, None)
-    
-    logging.info(f"Feature Engineering Preview: showing all {len(df)} rows")
+    # Show limited preview for performance
+    preview_records = to_preview_records(df, MAX_PREVIEW_ROWS)
+    preview_truncated = len(df) > MAX_PREVIEW_ROWS
+    if preview_truncated:
+        logging.info(f"Feature Engineering Preview: showing first {MAX_PREVIEW_ROWS} of {len(df)} rows")
+    else:
+        logging.info(f"Feature Engineering Preview: showing all {len(df)} rows")
 
     return _to_json_safe(
         {
@@ -365,7 +377,8 @@ async def get_feature_engineering_dataset_preview(filename: str, bucket: str = "
         "cardinality": cardinality,
         "preview": preview_records,
         "total_rows": len(df),
-        "preview_rows": len(df),
+        "preview_rows": len(preview_records),
+        "preview_row_limit": MAX_PREVIEW_ROWS if preview_truncated else None,
         }
     )
 

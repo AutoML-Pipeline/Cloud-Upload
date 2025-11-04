@@ -3,7 +3,7 @@ import api from "../../utils/api";
 import { useNavigate } from "react-router-dom";
 import GoogleAuthPopup from '../../components/GoogleAuthPopup';
 import FeaturePanel from "../../components/FeaturePanel";
-import { toast } from 'react-hot-toast';
+import saasToast from '@/utils/toast';
 import '../../auth.css';
 import styles from "./AuthPage.module.css";
 
@@ -28,11 +28,11 @@ const Register = ({ onAuthSuccess }) => {
         localStorage.setItem("user", JSON.stringify(userProfile));
         onAuthSuccess && onAuthSuccess(userProfile);
       }
-      toast.success("Registration successful!");
+  saasToast.success("Registration successful!", { idKey: 'register-success' });
       navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.detail || "Registration failed");
-      toast.error(err.response?.data?.detail || "Registration failed");
+  saasToast.error(err.response?.data?.detail || "Registration failed", { idKey: 'register-error' });
     }
   };
 
@@ -42,12 +42,12 @@ const Register = ({ onAuthSuccess }) => {
       localStorage.setItem("user", JSON.stringify(userProfile));
       onAuthSuccess && onAuthSuccess(userProfile);
     }
-    toast.success("Login successful!");
+  saasToast.welcomeLogin();
     navigate("/dashboard");
   };
 
   const handleGoogleError = (error) => {
-    toast.error("Google login failed: " + error);
+  saasToast.error("Google login failed: " + error, { idKey: 'register-google-error' });
   };
 
   // Animations removed for instant load
@@ -83,7 +83,7 @@ const Register = ({ onAuthSuccess }) => {
               placeholder="Password"
               autoComplete="new-password"
             />
-            <label style={{display:'flex',alignItems:'center',gap:8}}>
+            <label className="flex items-center gap-2">
               <input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)} />
               <span>Remember me</span>
             </label>

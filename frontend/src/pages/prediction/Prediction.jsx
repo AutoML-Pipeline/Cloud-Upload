@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { toast } from "react-hot-toast";
+import saasToast from "@/utils/toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Papa from "papaparse";
 import styles from "./Prediction.module.css";
@@ -17,6 +17,10 @@ export default function Prediction() {
   const [uploadedData, setUploadedData] = useState(null);
   const [predicting, setPredicting] = useState(false);
   const [predictions, setPredictions] = useState(null);
+  const [schemaValid, setSchemaValid] = useState(true);
+  const [expectedFeatures, setExpectedFeatures] = useState([]);
+  const [missingColumns, setMissingColumns] = useState([]);
+  const [extraColumns, setExtraColumns] = useState([]);
 
   // Fetch trained models
   const { data: modelsData, isLoading: loadingModels } = useQuery({
@@ -36,6 +40,28 @@ export default function Prediction() {
     [models, selectedModelId]
   );
 
+  // Fetch selected model details to know expected feature columns
+  const { data: modelDetails } = useQuery({
+    queryKey: ["model-details", selectedModelId],
+    enabled: !!selectedModelId,
+    queryFn: async () => {
+      const res = await fetch(
+        `http://localhost:8000/api/model-training/training/models/${selectedModelId}`
+      );
+      if (!res.ok) throw new Error("Failed to fetch model details");
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    const features = modelDetails?.dataset_info?.features || [];
+    setExpectedFeatures(features);
+    // reset schema flags when model changes
+    setSchemaValid(true);
+    setMissingColumns([]);
+    setExtraColumns([]);
+  }, [modelDetails]);
+
   // Handle file upload
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -44,12 +70,15 @@ export default function Prediction() {
     const fileExtension = file.name.split(".").pop().toLowerCase();
 
     if (!["csv", "xlsx", "xls"].includes(fileExtension)) {
-      toast.error("Please upload a CSV or Excel file");
+      saasToast.error("Please upload a CSV or Excel file", { idKey: 'pred-upload-type' });
       return;
     }
 
     setUploadedFile(file);
     setPredictions(null); // Clear previous predictions
+  setSchemaValid(true);
+  setMissingColumns([]);
+  setExtraColumns([]);
 
     if (fileExtension === "csv") {
       // Parse CSV
@@ -58,15 +87,41 @@ export default function Prediction() {
         skipEmptyLines: true,
         complete: (result) => {
           if (result.errors.length > 0) {
-            toast.error("Error parsing CSV file");
+            saasToast.error("Error parsing CSV file", { idKey: 'pred-parse-csv' });
             console.error(result.errors);
             return;
           }
           setUploadedData(result.data);
-          toast.success(`Loaded ${result.data.length} rows`);
+          // Validate schema if we have expected features
+          if (expectedFeatures && expectedFeatures.length > 0) {
+            const cols = Object.keys(result.data[0] || {});
+            const missing = expectedFeatures.filter((c) => !cols.includes(c));
+            const extra = cols.filter((c) => !expectedFeatures.includes(c));
+            setMissingColumns(missing);
+            setExtraColumns(extra);
+            const ok = missing.length === 0;
+            setSchemaValid(ok);
+            if (!ok) {
+              saasToast.error(
+                `Missing ${missing.length} column${missing.length !== 1 ? "s" : ""}: ${missing
+                  .slice(0, 6)
+                  .join(", ")}${missing.length > 6 ? " …" : ""}`,
+                { idKey: 'pred-missing-columns' }
+              );
+            } else if (extra.length > 0) {
+              saasToast.success(
+                `Loaded ${result.data.length} rows • ${extra.length} extra column${extra.length !== 1 ? "s" : ""} will be ignored`,
+                { idKey: 'pred-loaded-csv-extra' }
+              );
+            } else {
+              saasToast.success(`Loaded ${result.data.length} rows`, { idKey: 'pred-loaded-csv' });
+            }
+          } else {
+            saasToast.success(`Loaded ${result.data.length} rows`, { idKey: 'pred-loaded-csv-no-schema' });
+          }
         },
         error: (error) => {
-          toast.error("Failed to parse CSV");
+          saasToast.error("Failed to parse CSV", { idKey: 'pred-parse-csv-failed' });
           console.error(error);
         },
       });
@@ -81,9 +136,34 @@ export default function Prediction() {
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsonData = XLSX.utils.sheet_to_json(firstSheet);
             setUploadedData(jsonData);
-            toast.success(`Loaded ${jsonData.length} rows`);
+            if (expectedFeatures && expectedFeatures.length > 0) {
+              const cols = Object.keys(jsonData[0] || {});
+              const missing = expectedFeatures.filter((c) => !cols.includes(c));
+              const extra = cols.filter((c) => !expectedFeatures.includes(c));
+              setMissingColumns(missing);
+              setExtraColumns(extra);
+              const ok = missing.length === 0;
+              setSchemaValid(ok);
+              if (!ok) {
+                saasToast.error(
+                  `Missing ${missing.length} column${missing.length !== 1 ? "s" : ""}: ${missing
+                    .slice(0, 6)
+                    .join(", ")}${missing.length > 6 ? " …" : ""}`,
+                  { idKey: 'pred-missing-columns' }
+                );
+              } else if (extra.length > 0) {
+                saasToast.success(
+                  `Loaded ${jsonData.length} rows • ${extra.length} extra column${extra.length !== 1 ? "s" : ""} will be ignored`,
+                  { idKey: 'pred-loaded-excel-extra' }
+                );
+              } else {
+                saasToast.success(`Loaded ${jsonData.length} rows`, { idKey: 'pred-loaded-excel' });
+              }
+            } else {
+              saasToast.success(`Loaded ${jsonData.length} rows`, { idKey: 'pred-loaded-excel-no-schema' });
+            }
           } catch (error) {
-            toast.error("Failed to parse Excel file");
+            saasToast.error("Failed to parse Excel file", { idKey: 'pred-parse-excel-failed' });
             console.error(error);
           }
         };
@@ -95,16 +175,23 @@ export default function Prediction() {
   // Make predictions
   const handlePredict = async () => {
     if (!selectedModelId) {
-      toast.error("Please select a model");
+      saasToast.error("Please select a model", { idKey: 'pred-select-model' });
       return;
     }
 
     if (!uploadedData || uploadedData.length === 0) {
-      toast.error("Please upload data");
+      saasToast.error("Please upload data", { idKey: 'pred-upload-data' });
+      return;
+    }
+
+    if (!schemaValid) {
+      saasToast.error("Your file is missing required columns. Download the template and try again.", { idKey: 'pred-missing-columns' });
       return;
     }
 
     setPredicting(true);
+
+    // pipeline patching removed
 
     try {
       const response = await fetch(
@@ -123,10 +210,14 @@ export default function Prediction() {
 
       const result = await response.json();
       setPredictions(result);
-      toast.success(`✓ Generated ${result.total_predictions} predictions`);
+  saasToast.success(`🚀 Generated ${result.total_predictions} predictions`, { idKey: 'pred-generated' });
+
+      // pipeline patching removed
     } catch (error) {
       console.error("Prediction error:", error);
-      toast.error(error.message || "Failed to make predictions");
+  saasToast.error(error.message || "Failed to make predictions", { idKey: 'pred-error' });
+
+      // pipeline patching removed
     } finally {
       setPredicting(false);
     }
@@ -154,7 +245,24 @@ export default function Prediction() {
     link.download = `predictions_${selectedModel?.best_model?.model_name || "model"}_${Date.now()}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success("✓ Downloaded predictions");
+  saasToast.success("✓ Downloaded predictions", { idKey: 'pred-downloaded' });
+  };
+
+  // Download an empty CSV template with the expected feature columns
+  const handleDownloadTemplate = () => {
+    if (!expectedFeatures || expectedFeatures.length === 0) {
+      saasToast.error("Model features not available yet", { idKey: 'pred-features-missing' });
+      return;
+    }
+    const header = expectedFeatures.join(",");
+    const blob = new Blob([header + "\n"], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `prediction_template_${selectedModelId}.csv`;
+    link.click();
+  URL.revokeObjectURL(url);
+  saasToast.success("✓ Template downloaded", { idKey: 'pred-template-downloaded' });
   };
 
   return (
@@ -246,6 +354,21 @@ export default function Prediction() {
               </div>
 
               <div className={styles.cardContent}>
+                {/* Expected schema helper */}
+                {expectedFeatures.length > 0 && (
+                  <div className={`${styles.infoBox} mb-3`}>
+                    <strong>Required columns:</strong>
+                    <div className="mt-1.5 font-mono text-[12px]">
+                      {expectedFeatures.join(", ")}
+                    </div>
+                    <div className="mt-2 flex gap-2 flex-wrap">
+                      <button className={styles.secondaryButton} onClick={handleDownloadTemplate}>
+                        ⬇️ Download CSV Template
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className={styles.uploadArea}>
                   <input
                     type="file"
@@ -276,7 +399,19 @@ export default function Prediction() {
 
                 {uploadedData && uploadedData.length > 0 && (
                   <div className={styles.infoBox}>
-                    <strong>✓ Data loaded:</strong> {uploadedData.length} rows with {Object.keys(uploadedData[0]).length} columns
+                    <strong>{schemaValid ? "✓ Data loaded:" : "⚠️ Schema mismatch:"}</strong>{" "}
+                    {uploadedData.length} rows with {Object.keys(uploadedData[0]).length} columns
+                    {!schemaValid && missingColumns.length > 0 && (
+                      <div className="mt-1.5">
+                        Missing: {missingColumns.join(", ")}
+                      </div>
+                    )}
+                    {schemaValid && extraColumns.length > 0 && (
+                      <div className="mt-1.5">
+                        Note: Extra columns will be ignored: {extraColumns.slice(0, 10).join(", ")}
+                        {extraColumns.length > 10 ? " …" : ""}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -285,7 +420,7 @@ export default function Prediction() {
                     <button
                       className={styles.primaryButton}
                       onClick={handlePredict}
-                      disabled={predicting}
+                      disabled={predicting || !schemaValid}
                     >
                       {predicting ? (
                         <>

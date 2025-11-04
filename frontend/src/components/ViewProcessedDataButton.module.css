@@ -57,3 +57,30 @@
 .variantWarning:hover {
   background: linear-gradient(135deg, #b45309, #d97706);
 }
+
+/* Disabled state */
+.viewDataButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.viewDataButton:disabled:hover {
+  transform: none;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Spinner animation */
+.buttonSpinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import "./App.css";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Toaster } from "react-hot-toast";
+import Toasts from "./components/Toasts";
 import ShadcnNavbar from "./components/ShadcnNavbar";
 
 // Import auth pages directly (no lazy loading) for instant rendering
@@ -18,11 +18,12 @@ const GDriveFiles = lazy(() => import("./pages/gdrive-files/GDriveFiles"));
 const UploadSQLWorkbench = lazy(() => import("./pages/upload-sql/UploadSQLWorkbench"));
 const Preprocessing = lazy(() => import("./pages/preprocessing/Preprocessing"));
 const FeatureEngineering = lazy(() => import("./pages/feature-engineering/FeatureEngineering"));
-const ModelTraining = lazy(() => import("./pages/model-training/ModelTraining"));
+import ModelTraining from "./pages/model-training/ModelTraining";
 const ModelsList = lazy(() => import("./pages/model-training/ModelsList"));
 const Prediction = lazy(() => import("./pages/prediction/Prediction"));
 const FilesPage = lazy(() => import("./pages/files/Files"));
 const DataTableView = lazy(() => import("./pages/DataTableView"));
+// Removed Pipeline pages per simplified end-to-end flow requirement
 
 const PageLoader = () => (
   <div className="page-loading">
@@ -57,6 +58,7 @@ function AnimatedRoutes({ user, setUser }) {
         <Route path="/predict" element={<Prediction />} />
         <Route path="/files" element={<FilesPage />} />
         <Route path="/data-table-view" element={<DataTableView />} />
+  {/* Pipeline routes removed */}
         <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
       </Routes>
     </Suspense>
@@ -99,6 +101,28 @@ function AppFrame({ user, setUser }) {
     };
   }, [location.pathname, showChrome]);
 
+  // Toggle a body class so global CSS can offset the fixed navbar consistently
+  useEffect(() => {
+    if (showChrome) {
+      document.body.classList.add('with-navbar');
+    } else {
+      document.body.classList.remove('with-navbar');
+    }
+    return () => document.body.classList.remove('with-navbar');
+  }, [showChrome]);
+
+  // Add page-specific class to disable scrolling on certain pages
+  useEffect(() => {
+    const noScrollPages = ['/dashboard', '/data-ingestion'];
+    
+    if (noScrollPages.includes(location.pathname)) {
+      document.body.classList.add('no-scroll-page');
+    } else {
+      document.body.classList.remove('no-scroll-page');
+    }
+    return () => document.body.classList.remove('no-scroll-page');
+  }, [location.pathname]);
+
   const handleLogout = useCallback(() => {
     localStorage.removeItem("user");
     localStorage.removeItem("google_access_token");
@@ -138,7 +162,7 @@ function App() {
 
   return (
     <Router>
-      <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
+  <Toasts />
       <AppFrame user={user} setUser={setUser} />
     </Router>
   )

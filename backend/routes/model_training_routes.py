@@ -123,6 +123,22 @@ async def get_model_info(model_id: str):
         raise HTTPException(status_code=404, detail="Model not found")
 
 
+@router.post("/training/save/{job_id}")
+async def save_trained_model(job_id: str):
+    """Persist the trained model from a completed training job.
+
+    Returns a JSON payload with the generated model_id.
+    """
+    try:
+        result = model_training.save_trained_model(job_id)
+        return {"model_id": result["model_id"], "message": "Model saved successfully"}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logging.error(f"Error saving trained model for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/training/predict/{model_id}")
 async def make_prediction(model_id: str, request: Request):
     """

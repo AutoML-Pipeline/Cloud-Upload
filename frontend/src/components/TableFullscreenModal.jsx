@@ -226,14 +226,7 @@ export const TableFullscreenModal = ({
         </div>
         
         <div 
-          className={styles.modalBody}
-          style={{ 
-            position: 'relative', 
-            overflow: 'auto', 
-            flex: '1', 
-            display: 'flex', 
-            flexDirection: 'column'
-          }}
+          className={`${styles.modalBody} relative overflow-auto flex-1 flex flex-col`}
         >
           <DataTable
             data={data}

@@ -6,6 +6,7 @@ from .controller import (
     get_trained_models_list,
     get_model_details,
     make_predictions,
+    save_trained_model,
 )
 
 __all__ = [
@@ -15,4 +16,5 @@ __all__ = [
     "get_trained_models_list",
     "get_model_details",
     "make_predictions",
+    "save_trained_model",
 ]
