@@ -4,6 +4,9 @@ import saasToast from "@/utils/toast";
 import { useNavigate } from "react-router-dom";
 import styles from "./ModelsList.module.css";
 import PageBackLink from "../../components/PageBackLink";
+import PageHero from "../../components/PageHero";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import { ChevronRight, ChevronDown, FileText, Target, Sparkles, Trash2, Eye } from "lucide-react";
 
 // Helper function to get a user-friendly model display name
 const getModelDisplayName = (modelName) => {
@@ -54,6 +57,12 @@ export default function ModelsList() {
   const [filterType, setFilterType] = useState("all"); // all, classification, regression
   const [filterFamily, setFilterFamily] = useState("all");
   const [sortBy, setSortBy] = useState("date"); // date, accuracy, name
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [modelToDelete, setModelToDelete] = useState(null);
+  
+  // Expansion state for hierarchical view
+  const [expandedFiles, setExpandedFiles] = useState(new Set());
+  const [expandedTargets, setExpandedTargets] = useState(new Set());
 
   // Fetch all trained models
   const { data: modelsData, isLoading, refetch } = useQuery({
@@ -121,6 +130,26 @@ export default function ModelsList() {
     return filtered;
   }, [enhancedModels, filterType, filterFamily, sortBy]);
 
+  // Hierarchical grouping: File > Target > Model Type
+  const hierarchicalModels = useMemo(() => {
+    const grouped = {};
+    
+    filteredModels.forEach(model => {
+      const file = model.filename || "Unknown";
+      const target = model.target_column || "Unknown";
+      
+      if (!grouped[file]) {
+        grouped[file] = {};
+      }
+      if (!grouped[file][target]) {
+        grouped[file][target] = [];
+      }
+      grouped[file][target].push(model);
+    });
+    
+    return grouped;
+  }, [filteredModels]);
+
   // Get unique algorithm families
   const algorithmFamilies = useMemo(() => {
     const families = new Set(enhancedModels.map(m => m.family));
@@ -163,23 +192,31 @@ export default function ModelsList() {
     }
   };
 
-  const handleDelete = async (modelId) => {
-    if (!window.confirm("Are you sure you want to delete this model?")) return;
+  const handleDelete = (modelId) => {
+    setModelToDelete(modelId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!modelToDelete) return;
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/model-training/training/models/${modelId}`,
+        `http://localhost:8000/api/model-training/training/models/${modelToDelete}`,
         { method: "DELETE" }
       );
       if (!response.ok) throw new Error("Failed to delete model");
-  saasToast.success("Model deleted successfully", { idKey: 'models-delete-success' });
+      saasToast.success("Model deleted successfully", { idKey: 'models-delete-success' });
       refetch();
-      if (selectedModel?.model_id === modelId) {
+      if (selectedModel?.model_id === modelToDelete) {
         setSelectedModel(null);
       }
     } catch (error) {
-  saasToast.error("Failed to delete model", { idKey: 'models-delete-error' });
+      saasToast.error("Failed to delete model", { idKey: 'models-delete-error' });
       console.error(error);
+    } finally {
+      setDeleteConfirmOpen(false);
+      setModelToDelete(null);
     }
   };
 
@@ -187,17 +224,53 @@ export default function ModelsList() {
     navigate(`/predict?model_id=${modelId}`);
   };
 
+  // Toggle expansion for hierarchical levels
+  const toggleFileExpansion = (filename) => {
+    setExpandedFiles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(filename)) {
+        newSet.delete(filename);
+        // Also collapse all targets under this file
+        setExpandedTargets(prevTargets => {
+          const newTargets = new Set(prevTargets);
+          Object.keys(hierarchicalModels[filename] || {}).forEach(target => {
+            newTargets.delete(`${filename}::${target}`);
+          });
+          return newTargets;
+        });
+      } else {
+        newSet.add(filename);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleTargetExpansion = (filename, target) => {
+    const key = `${filename}::${target}`;
+    setExpandedTargets(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
+
   return (
     <div className={styles.pageShell}>
       <div className={styles.pageSection}>
         <div className={styles.centeredContent}>
           {/* Header */}
-          <div className={styles.pageIntro}>
+          <PageHero
+            badge="WORKFLOW - MODEL TRAINING"
+            title="Machine Learning Models Library"
+            subtitle="Automatically train and compare multiple ML models to find the best performer for your dataset."
+          />
+          
+          <div className="mt-4">
             <PageBackLink to="/dashboard" label="Dashboard" />
-            <h1 className={styles.pageTitle}>🤖 ML Models Library</h1>
-            <p className={styles.pageDescription}>
-              Browse, manage, and deploy your trained machine learning models
-            </p>
           </div>
 
           {/* Stats Overview */}
@@ -295,90 +368,160 @@ export default function ModelsList() {
               </button>
             </div>
           ) : (
-            <div className={styles.modelsGrid}>
-              {filteredModels.map((model) => {
-                const metricName = model.problem_type === "classification" ? "Accuracy" : "R² Score";
-                const metricValue = model.mainMetric ? (model.mainMetric * 100).toFixed(2) : "N/A";
+            <div className="space-y-3">
+              {Object.entries(hierarchicalModels).map(([filename, targets]) => {
+                const fileIsExpanded = expandedFiles.has(filename);
+                const fileModelCount = Object.values(targets).flat().length;
                 
                 return (
-                  <div
-                    key={model.model_id}
-                    className={styles.modelCard}
-                    onClick={() => handleViewDetails(model.model_id)}
-                  >
-                    {/* Card Header */}
-                    <div className={styles.modelCardHeader}>
-                      <div className={styles.modelIconLarge}>
-                        {model.icon}
-                      </div>
-                      <div className={styles.modelTypeBadge}>
-                        {model.problem_type === "classification" ? "🎯 Classification" : "📈 Regression"}
-                      </div>
-                    </div>
-
-                    {/* Card Body */}
-                    <div className={styles.modelCardBody}>
-                      <h3 className={styles.modelCardTitle}>
-                        {model.displayName}
-                      </h3>
-                      <p className={styles.modelCardFamily}>
-                        {model.family}
-                      </p>
-                      
-                      {/* Performance Badge */}
-                      <div className={styles.performanceBadge}>
-                        <span className={styles.performanceLabel}>{metricName}</span>
-                        <span className={styles.performanceValue}>
-                          {metricValue !== "N/A" ? `${metricValue}%` : metricValue}
+                  <div key={filename} className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    {/* Level 1: File */}
+                    <button
+                      onClick={() => toggleFileExpansion(filename)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggleFileExpansion(filename);
+                        }
+                      }}
+                      aria-expanded={fileIsExpanded}
+                      aria-controls={`file-${filename}`}
+                      className="w-full bg-gray-100 hover:bg-gray-150 transition-all duration-300 ease-in-out p-4 flex items-center justify-between group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="transition-transform duration-300 ease-in-out text-gray-600">
+                          {fileIsExpanded ? (
+                            <ChevronDown className="w-5 h-5" />
+                          ) : (
+                            <ChevronRight className="w-5 h-5" />
+                          )}
+                        </div>
+                        <FileText className="w-5 h-5 text-blue-600" />
+                        <span className="font-semibold text-gray-900">{filename}</span>
+                        <span className="text-sm text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+                          {fileModelCount} {fileModelCount === 1 ? 'model' : 'models'}
                         </span>
                       </div>
+                    </button>
 
-                      {/* Dataset Info */}
-                      <div className={styles.datasetInfo}>
-                        <div className={styles.infoRow}>
-                          <span className={styles.infoIcon}>📊</span>
-                          <span className={styles.infoText} title={model.filename}>
-                            {model.filename.length > 25 
-                              ? model.filename.substring(0, 25) + "..." 
-                              : model.filename}
-                          </span>
-                        </div>
-                        <div className={styles.infoRow}>
-                          <span className={styles.infoIcon}>🎯</span>
-                          <span className={styles.infoText}>
-                            Target: {model.target_column}
-                          </span>
-                        </div>
-                        <div className={styles.infoRow}>
-                          <span className={styles.infoIcon}>📅</span>
-                          <span className={styles.infoText}>
-                            {model.formattedDate}
-                          </span>
-                        </div>
+                    {/* Level 1 Content */}
+                    {fileIsExpanded && (
+                      <div id={`file-${filename}`} className="bg-gray-50">
+                        {Object.entries(targets).map(([targetColumn, models]) => {
+                          const targetKey = `${filename}::${targetColumn}`;
+                          const targetIsExpanded = expandedTargets.has(targetKey);
+                          
+                          return (
+                            <div key={targetKey} className="border-t border-gray-200">
+                              {/* Level 2: Target Column */}
+                              <button
+                                onClick={() => toggleTargetExpansion(filename, targetColumn)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    toggleTargetExpansion(filename, targetColumn);
+                                  }
+                                }}
+                                aria-expanded={targetIsExpanded}
+                                aria-controls={`target-${targetKey}`}
+                                className="w-full bg-gray-50 hover:bg-gray-100 transition-all duration-300 ease-in-out p-4 pl-6 flex items-center justify-between group"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="transition-transform duration-300 ease-in-out text-gray-500">
+                                    {targetIsExpanded ? (
+                                      <ChevronDown className="w-4 h-4" />
+                                    ) : (
+                                      <ChevronRight className="w-4 h-4" />
+                                    )}
+                                  </div>
+                                  <Target className="w-4 h-4 text-green-600" />
+                                  <span className="font-medium text-gray-800">Target: {targetColumn}</span>
+                                  <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
+                                    {models.length} {models.length === 1 ? 'model' : 'models'}
+                                  </span>
+                                </div>
+                              </button>
+
+                              {/* Level 2 Content */}
+                              {targetIsExpanded && (
+                                <div id={`target-${targetKey}`} className="bg-white">
+                                  {models.map((model) => {
+                                    const metricName = model.problem_type === "classification" ? "Accuracy" : "R² Score";
+                                    const metricValue = model.mainMetric ? (model.mainMetric * 100).toFixed(2) : "N/A";
+                                    
+                                    return (
+                                      <div
+                                        key={model.model_id}
+                                        className="border-t border-gray-100 p-4 pl-12 hover:bg-gray-50 transition-all duration-200 ease-in-out"
+                                      >
+                                        {/* Level 3: Model Card */}
+                                        <div className="flex items-center justify-between gap-4">
+                                          {/* Model Info */}
+                                          <div className="flex items-center gap-4 flex-1">
+                                            <div className="text-2xl">{model.icon}</div>
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center gap-2">
+                                                <h4 className="font-semibold text-gray-900">{model.displayName}</h4>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                                  model.problem_type === "classification" 
+                                                    ? "bg-purple-100 text-purple-700" 
+                                                    : "bg-blue-100 text-blue-700"
+                                                }`}>
+                                                  {model.problem_type}
+                                                </span>
+                                              </div>
+                                              <p className="text-sm text-gray-600 mt-0.5">{model.family}</p>
+                                              <div className="flex items-center gap-4 mt-2">
+                                                <div className="flex items-center gap-1 text-sm">
+                                                  <span className="text-gray-500">{metricName}:</span>
+                                                  <span className="font-semibold text-gray-900">
+                                                    {metricValue !== "N/A" ? `${metricValue}%` : metricValue}
+                                                  </span>
+                                                </div>
+                                                <span className="text-xs text-gray-400">•</span>
+                                                <span className="text-sm text-gray-500">{model.formattedDate}</span>
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          {/* Actions */}
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={() => handleMakePrediction(model.model_id)}
+                                              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-lg transition-all duration-200 ease-in-out shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
+                                              style={{ color: '#ffffff' }}
+                                            >
+                                              <Sparkles className="w-4 h-4" />
+                                              Predict
+                                            </button>
+                                            <button
+                                              onClick={() => handleViewDetails(model.model_id)}
+                                              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-lg transition-all duration-200 ease-in-out shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
+                                              style={{ color: '#ffffff' }}
+                                            >
+                                              <Eye className="w-4 h-4" />
+                                              Details
+                                            </button>
+                                            <button
+                                              onClick={() => handleDelete(model.model_id)}
+                                              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-lg transition-all duration-200 ease-in-out shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
+                                              title="Delete model"
+                                              style={{ color: '#ffffff' }}
+                                            >
+                                              <Trash2 className="w-4 h-4" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    </div>
-
-                    {/* Card Footer */}
-                    <div className={styles.modelCardFooter}>
-                      <button
-                        className={styles.cardButton}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMakePrediction(model.model_id);
-                        }}
-                      >
-                        🔮 Predict
-                      </button>
-                      <button
-                        className={styles.cardButtonSecondary}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewDetails(model.model_id);
-                        }}
-                      >
-                        📋 Details
-                      </button>
-                    </div>
+                    )}
                   </div>
                 );
               })}
@@ -514,6 +657,21 @@ export default function ModelsList() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="Delete Model?"
+        message="Are you sure you want to delete this model? This action cannot be undone and will permanently remove the model and all its data."
+        confirmText="Delete"
+        cancelText="Cancel"
+        tone="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeleteConfirmOpen(false);
+          setModelToDelete(null);
+        }}
+      />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import { useDatasetPreview } from "./hooks/useDatasetPreview";
 import { useActiveSteps } from "./hooks/useActiveSteps";
 import useFEJob from "./hooks/useFEJob";
 import { INITIAL_STEPS, buildStepsPayload } from "./utils";
+import { useWorkflowSession, useAutoSaveWorkflow } from "../../hooks/useWorkflowSession";
 
 export default function FeatureEngineering() {
   const location = useLocation();
@@ -46,6 +47,28 @@ export default function FeatureEngineering() {
   const pageSectionRef = useRef(null);
   const progressAnchorRef = useRef(null);
 
+  // Workflow session management - Phase 1: sessionStorage
+  // Use global workflow key (no file identifier) to store the entire workflow state
+  const {
+    savedState,
+    hasResumableState,
+    clearWorkflowState,
+    showResumeNotification,
+  } = useWorkflowSession("feature-engineering", null); // null = global workflow state
+
+  // Auto-save workflow state when steps change
+  useAutoSaveWorkflow(
+    "feature-engineering",
+    null, // null = global workflow state (not file-specific)
+    {
+      selectedFile,
+      step,
+      featureEngineeringSteps,
+      activePreviewTab,
+    },
+    { enabled: !!selectedFile } // Save whenever file is selected
+  );
+
   const setStepsStable = useCallback((updater) => {
     setFeatureEngineeringSteps((prev) =>
       typeof updater === "function" ? updater(prev) : updater
@@ -54,6 +77,42 @@ export default function FeatureEngineering() {
 
   const handleResetPreview = useCallback(() => setDataPreview(null), []);
 
+  // Track if we've restored state to prevent auto-select override
+  const hasRestoredRef = useRef(false);
+
+  // Restore workflow state EARLY - before auto-select runs
+  useEffect(() => {
+    if (hasRestoredRef.current || !files.length) return;
+    
+    if (hasResumableState && savedState) {
+      // Check if the saved file still exists in the current file list
+      const fileExists = files.some((f) => f?.name === savedState.selectedFile);
+      
+      if (fileExists) {
+        // Restore file selection FIRST
+        if (savedState.selectedFile && savedState.selectedFile !== selectedFile) {
+          setSelectedFile(savedState.selectedFile);
+        }
+        
+        // Restore workflow state
+        if (savedState.step && savedState.step !== "select_file") {
+          setStep(savedState.step);
+        }
+        if (savedState.featureEngineeringSteps) {
+          setFeatureEngineeringSteps(savedState.featureEngineeringSteps);
+        }
+        if (savedState.activePreviewTab) {
+          setActivePreviewTab(savedState.activePreviewTab);
+        }
+        
+        showResumeNotification("Resuming your feature engineering workflow...");
+        console.log("✅ Restored feature engineering workflow state:", savedState);
+        hasRestoredRef.current = true;
+      }
+    }
+  }, [hasResumableState, savedState, files, selectedFile, showResumeNotification]);
+
+  // Auto-select file from URL or default - but SKIP if we just restored state
   useAutoSelectFile({
     files,
     selectedFile,
@@ -62,11 +121,14 @@ export default function FeatureEngineering() {
     onSelectFile: setSelectedFile,
     onStepChange: setStep,
     onResetPreview: handleResetPreview,
+    skipAutoSelect: hasRestoredRef.current, // NEW: Skip if we restored
   });
 
   const resetPrimarySteps = useCallback(() => {
     setFeatureEngineeringSteps(INITIAL_STEPS);
-  }, []);
+    // Clear workflow state when resetting steps
+    clearWorkflowState({ silent: true });
+  }, [clearWorkflowState]);
 
   const handlePreviewError = useCallback((error) => {
     console.error("Error fetching data preview:", error);
@@ -207,6 +269,9 @@ export default function FeatureEngineering() {
       notify.success(payload.message || "Engineered dataset saved to MinIO");
       setResult((prev) => (prev ? { ...prev, temp_engineered_path: null } : prev));
 
+      // Clear workflow state after successful save
+      clearWorkflowState({ silent: true });
+
       // Seamless flow: go to training with the engineered dataset selected
       if (result?.engineered_filename) {
         navigate(`/model-training?file=${encodeURIComponent(result.engineered_filename)}`);
@@ -215,7 +280,7 @@ export default function FeatureEngineering() {
       console.error("Failed to save engineered dataset", error);
       notify.error(error.message);
     }
-  }, [notify, result, setResult, navigate]);
+  }, [notify, result, setResult, navigate, clearWorkflowState]);
 
   const handleDownloadCsv = useCallback(async () => {
     if (!result?.temp_engineered_path && !result?.engineered_filename) {

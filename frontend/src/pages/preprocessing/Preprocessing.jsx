@@ -16,6 +16,7 @@ import { usePreprocessingRecommendations } from "./hooks/usePreprocessingRecomme
 import { useActiveSteps } from "./hooks/useActiveSteps";
 import usePreprocessJob from "./hooks/usePreprocessJob";
 import { buildStepsPayload } from "./utils";
+import { useWorkflowSession, useAutoSaveWorkflow } from "../../hooks/useWorkflowSession";
 
 const INITIAL_STEPS = {
   removeDuplicates: false,
@@ -65,6 +66,28 @@ export default function Preprocessing() {
   const pageSectionRef = useRef(null);
   const progressAnchorRef = useRef(null);
 
+  // Workflow session management - Phase 1: sessionStorage
+  // Use global workflow key (no file identifier) to store the entire workflow state
+  const {
+    savedState,
+    hasResumableState,
+    clearWorkflowState,
+    showResumeNotification,
+  } = useWorkflowSession("preprocessing", null); // null = global workflow state
+
+  // Auto-save workflow state when steps change
+  useAutoSaveWorkflow(
+    "preprocessing",
+    null, // null = global workflow state (not file-specific)
+    {
+      selectedFile,
+      step,
+      preprocessingSteps,
+      activePreviewTab,
+    },
+    { enabled: !!selectedFile } // Save whenever file is selected
+  );
+
   const setStepsStable = useCallback((updater) => {
     setPreprocessingSteps((prev) =>
       typeof updater === "function" ? updater(prev) : updater
@@ -73,6 +96,42 @@ export default function Preprocessing() {
 
   const handleResetPreview = useCallback(() => setDataPreview(null), []);
 
+  // Track if we've restored state to prevent auto-select override
+  const hasRestoredRef = useRef(false);
+
+  // Restore workflow state EARLY - before auto-select runs
+  useEffect(() => {
+    if (hasRestoredRef.current || !files.length) return;
+    
+    if (hasResumableState && savedState) {
+      // Check if the saved file still exists in the current file list
+      const fileExists = files.some((f) => f?.name === savedState.selectedFile);
+      
+      if (fileExists) {
+        // Restore file selection FIRST
+        if (savedState.selectedFile && savedState.selectedFile !== selectedFile) {
+          setSelectedFile(savedState.selectedFile);
+        }
+        
+        // Restore workflow state
+        if (savedState.step && savedState.step !== "select_file") {
+          setStep(savedState.step);
+        }
+        if (savedState.preprocessingSteps) {
+          setPreprocessingSteps(savedState.preprocessingSteps);
+        }
+        if (savedState.activePreviewTab) {
+          setActivePreviewTab(savedState.activePreviewTab);
+        }
+        
+        showResumeNotification("Resuming your preprocessing workflow...");
+        console.log("✅ Restored preprocessing workflow state:", savedState);
+        hasRestoredRef.current = true;
+      }
+    }
+  }, [hasResumableState, savedState, files, selectedFile, showResumeNotification]);
+
+  // Auto-select file from URL or default - but SKIP if we just restored state
   useAutoSelectFile({
     files,
     selectedFile,
@@ -81,6 +140,7 @@ export default function Preprocessing() {
     onSelectFile: setSelectedFile,
     onStepChange: setStep,
     onResetPreview: handleResetPreview,
+    skipAutoSelect: hasRestoredRef.current, // NEW: Skip if we restored
   });
 
   const resetPrimarySteps = useCallback(() => {
@@ -96,7 +156,9 @@ export default function Preprocessing() {
       dropColumns: false,
       dropColumnsColumns: [],
     }));
-  }, []);
+    // Clear workflow state when resetting steps
+    clearWorkflowState({ silent: true });
+  }, [clearWorkflowState]);
 
   const handlePreviewError = useCallback((error) => {
     console.error("Error fetching data preview:", error);
@@ -266,6 +328,9 @@ export default function Preprocessing() {
       notify.success(payload.message || "Cleaned dataset saved to MinIO");
       setResult((prev) => (prev ? { ...prev, temp_cleaned_path: null } : prev));
 
+      // Clear workflow state after successful save
+      clearWorkflowState({ silent: true });
+
       // Seamless flow: jump to Feature Engineering with the new cleaned filename
       if (result?.cleaned_filename) {
         navigate(`/feature-engineering?file=${encodeURIComponent(result.cleaned_filename)}`);
@@ -274,7 +339,7 @@ export default function Preprocessing() {
       console.error("Failed to save cleaned dataset", error);
       notify.error(error.message);
     }
-  }, [notify, result, setResult, navigate]);
+  }, [notify, result, setResult, navigate, clearWorkflowState]);
 
   const handleDownloadCsv = useCallback(async () => {
     if (!result?.temp_cleaned_path && !result?.cleaned_filename) {

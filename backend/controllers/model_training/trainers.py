@@ -93,7 +93,7 @@ def prepare_data_for_training(
     random_state: int = 42,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
     """
-    Prepare data for training by encoding categorical columns and splitting into train/test sets.
+    Prepare data for training by splitting first, then encoding to prevent data leakage.
     
     Returns:
         X_train, X_test, y_train, y_test
@@ -107,29 +107,59 @@ def prepare_data_for_training(
     X = X[valid_indices]
     y = y[valid_indices]
     
-    # Auto-encode categorical columns (string/object types)
-    categorical_columns = X.select_dtypes(include=['object', 'category']).columns.tolist()
+    # ⚠️ IMPORTANT: Split data BEFORE encoding to prevent data leakage
+    # Stratify only if we have enough samples per class
+    try:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=random_state, 
+            stratify=y if len(y.unique()) < 10 and len(y) >= 20 else None
+        )
+    except ValueError:
+        # If stratification fails (e.g., too few samples), do regular split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=random_state
+        )
+    
+    logging.info(f"📊 Data split: {len(X_train)} train samples, {len(X_test)} test samples")
+    
+    # Log warning if dataset is very small
+    total_samples = len(X)
+    if total_samples < 100:
+        logging.warning(f"⚠️ Very small dataset ({total_samples} samples). Results may not be reliable.")
+    if len(X_test) < 20:
+        logging.warning(f"⚠️ Very small test set ({len(X_test)} samples). Consider using cross-validation.")
+    
+    # Now encode categorical columns AFTER splitting
+    categorical_columns = X_train.select_dtypes(include=['object', 'category']).columns.tolist()
     
     if categorical_columns:
         logging.info(f"🔤 Encoding {len(categorical_columns)} categorical columns: {categorical_columns}")
         
-        # Use label encoding for categorical columns
         from sklearn.preprocessing import LabelEncoder
+        
+        # Store encoders to apply same transformation to test set
+        encoders = {}
         
         for col in categorical_columns:
             le = LabelEncoder()
-            # Handle any nulls in categorical columns
-            X[col] = X[col].fillna('missing')
-            X[col] = le.fit_transform(X[col].astype(str))
+            
+            # Handle nulls in training data
+            X_train[col] = X_train[col].fillna('missing')
+            
+            # Fit encoder on TRAINING data only
+            X_train[col] = le.fit_transform(X_train[col].astype(str))
+            encoders[col] = le
+            
+            # Transform TEST data using the same encoder
+            X_test[col] = X_test[col].fillna('missing')
+            
+            # Handle unseen categories in test set
+            test_values = X_test[col].astype(str)
+            X_test[col] = test_values.apply(
+                lambda x: le.transform([x])[0] if x in le.classes_ else -1
+            )
         
-        logging.info(f"✅ Categorical encoding complete")
-    
-    # Split data
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state, stratify=y if len(y.unique()) < 10 else None
-    )
-    
-    logging.info(f"📊 Data split: {len(X_train)} train samples, {len(X_test)} test samples")
+        logging.info(f"✅ Categorical encoding complete (fit on train, transformed on test)")
     
     return X_train, X_test, y_train, y_test
 
@@ -213,22 +243,36 @@ def _calculate_classification_metrics(y_test, y_pred, model, X_test) -> Tuple[Di
     cm = confusion_matrix(y_test, y_pred)
     viz_data['confusion_matrix'] = cm.tolist()
     
-    # Multi-class vs binary
-    n_classes = len(np.unique(y_test))
-    average = 'binary' if n_classes == 2 else 'weighted'
+    # Determine if binary or multi-class
+    unique_classes = np.unique(np.concatenate([y_test, y_pred]))
+    n_classes = len(unique_classes)
     
+    # Calculate precision, recall, f1 - always use weighted for consistency
     try:
-        metrics['precision'] = float(precision_score(y_test, y_pred, average=average, zero_division=0))
-        metrics['recall'] = float(recall_score(y_test, y_pred, average=average, zero_division=0))
-        metrics['f1_score'] = float(f1_score(y_test, y_pred, average=average, zero_division=0))
+        if n_classes == 2:
+            # For binary, calculate both binary and weighted
+            metrics['precision'] = float(precision_score(y_test, y_pred, average='weighted', zero_division=0))
+            metrics['recall'] = float(recall_score(y_test, y_pred, average='weighted', zero_division=0))
+            metrics['f1_score'] = float(f1_score(y_test, y_pred, average='weighted', zero_division=0))
+        else:
+            # For multi-class, use weighted
+            metrics['precision'] = float(precision_score(y_test, y_pred, average='weighted', zero_division=0))
+            metrics['recall'] = float(recall_score(y_test, y_pred, average='weighted', zero_division=0))
+            metrics['f1_score'] = float(f1_score(y_test, y_pred, average='weighted', zero_division=0))
+        
+        logging.info(f"📊 Metrics - Precision: {metrics['precision']:.4f}, Recall: {metrics['recall']:.4f}, F1: {metrics['f1_score']:.4f}")
     except Exception as e:
-        logging.warning(f"Could not calculate precision/recall/f1: {e}")
+        logging.error(f"❌ Could not calculate precision/recall/f1: {e}")
+        metrics['precision'] = 0.0
+        metrics['recall'] = 0.0
+        metrics['f1_score'] = 0.0
     
     # ROC-AUC (only for binary classification with predict_proba)
     if n_classes == 2 and hasattr(model, 'predict_proba'):
         try:
             y_proba = model.predict_proba(X_test)[:, 1]
             metrics['roc_auc'] = float(roc_auc_score(y_test, y_proba))
+            logging.info(f"📈 ROC-AUC: {metrics['roc_auc']:.4f}")
         except Exception as e:
             logging.warning(f"Could not calculate ROC-AUC: {e}")
     
@@ -330,14 +374,37 @@ def select_best_model(
         # Sort by accuracy (descending)
         best_model = max(successful_models, key=lambda m: m['metrics'].get('accuracy', 0))
         metric_used = 'accuracy'
+        metric_value = best_model['metrics'].get('accuracy', 0)
+        
+        # ⚠️ Check for suspiciously high accuracy (potential overfitting/leakage)
+        if metric_value >= 0.99:
+            warning_msg = (
+                "⚠️ WARNING: Suspiciously high accuracy (≥99%). "
+                "This may indicate: 1) Data leakage, 2) Target in features, "
+                "3) Overfitting on small dataset, or 4) Too simple dataset"
+            )
+            logging.warning(warning_msg)
+            best_model['warnings'] = [warning_msg]
+        
     else:
         # Sort by R² (descending)
         best_model = max(successful_models, key=lambda m: m['metrics'].get('r2_score', -999))
         metric_used = 'r2_score'
+        metric_value = best_model['metrics'].get('r2_score', 0)
+        
+        # ⚠️ Check for suspiciously high R² (potential overfitting/leakage)
+        if metric_value >= 0.99:
+            warning_msg = (
+                "⚠️ WARNING: Suspiciously high R² (≥0.99). "
+                "This may indicate: 1) Data leakage, 2) Target in features, "
+                "3) Overfitting on small dataset, or 4) Perfect linear relationship"
+            )
+            logging.warning(warning_msg)
+            best_model['warnings'] = [warning_msg]
     
     logging.info(
         f"🏆 Best model: {best_model['model_name']} "
-        f"({metric_used}={best_model['metrics'].get(metric_used, 0):.4f})"
+        f"({metric_used}={metric_value:.4f})"
     )
     
     return best_model

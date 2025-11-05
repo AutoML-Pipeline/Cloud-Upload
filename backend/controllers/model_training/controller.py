@@ -448,16 +448,133 @@ def load_model_for_prediction(model_id: str):
         raise
 
 
+def _transform_prediction_data_to_match_training(
+    df_raw: pd.DataFrame, 
+    training_features: List[str],
+    model_details: Dict[str, Any]
+) -> pd.DataFrame:
+    """
+    Transform raw prediction data to match training schema.
+    Handles one-hot encoding, label encoding, and missing columns.
+    
+    Args:
+        df_raw: Raw input data with original column names
+        training_features: List of feature columns expected by the model (after encoding)
+        model_details: Model metadata
+    
+    Returns:
+        Transformed DataFrame matching training schema
+    """
+    df = df_raw.copy()
+    
+    # Step 1: Identify which columns need one-hot encoding
+    # One-hot columns have pattern: original_column_value (e.g., "department_Sales")
+    onehot_patterns = {}
+    for col in training_features:
+        if '_' in col:
+            parts = col.split('_')
+            if len(parts) >= 2:
+                # Try to find the original column name
+                original_col = '_'.join(parts[:-1])  # Everything except last part
+                if original_col in df.columns:
+                    if original_col not in onehot_patterns:
+                        onehot_patterns[original_col] = []
+                    onehot_patterns[original_col].append(col)
+    
+    logging.info(f"🔍 Detected {len(onehot_patterns)} columns needing one-hot encoding: {list(onehot_patterns.keys())}")
+    
+    # Step 2: Apply one-hot encoding to categorical columns
+    encoded_dfs = []  # Only store encoded categorical columns
+    columns_to_drop = []
+    
+    for original_col, onehot_cols in onehot_patterns.items():
+        if original_col in df.columns:
+            logging.info(f"🔤 One-hot encoding '{original_col}' into {len(onehot_cols)} columns")
+            
+            # Get unique values from one-hot column names
+            expected_values = [col.split(f'{original_col}_')[-1] for col in onehot_cols]
+            
+            # Create one-hot encoded DataFrame
+            df[original_col] = df[original_col].fillna('missing').astype(str)
+            
+            # Create dummy variables
+            onehot_df = pd.get_dummies(df[[original_col]], prefix=original_col, dtype=np.uint8)
+            
+            # Ensure all expected columns exist (fill missing with 0)
+            for expected_col in onehot_cols:
+                if expected_col not in onehot_df.columns:
+                    onehot_df[expected_col] = 0
+            
+            encoded_dfs.append(onehot_df[onehot_cols])
+            columns_to_drop.append(original_col)
+    
+    # Step 3: Combine original numeric columns + encoded categorical columns
+    df_numeric = df.drop(columns=columns_to_drop, errors='ignore')
+    
+    # Combine numeric columns with all encoded categorical columns
+    if len(encoded_dfs) > 0:
+        # Concatenate numeric + all encoded columns
+        result_df = pd.concat([df_numeric] + encoded_dfs, axis=1)
+        logging.info(f"📊 Combined {len(df_numeric.columns)} numeric + {sum(len(edf.columns) for edf in encoded_dfs)} encoded columns")
+    else:
+        result_df = df_numeric.copy()
+    
+    # Convert all columns to numeric, replacing any non-numeric with NaN
+    for col in result_df.columns:
+        result_df[col] = pd.to_numeric(result_df[col], errors='coerce')
+    
+    logging.info(f"📊 After encoding: {len(result_df.columns)} columns present")
+    
+    # Step 4: Ensure all training features exist (fill missing with 0)
+    missing_features = []
+    for feature in training_features:
+        if feature not in result_df.columns:
+            missing_features.append(feature)
+            result_df[feature] = 0
+    
+    if missing_features:
+        logging.warning(f"⚠️ {len(missing_features)} features not found, filled with 0: {missing_features[:5]}")
+    
+    # Step 5: Select only training features in correct order
+    available_features = set(result_df.columns)
+    training_features_set = set(training_features)
+    extra_features = available_features - training_features_set
+    
+    if extra_features:
+        logging.info(f"🗑️ Dropping {len(extra_features)} extra columns not used in training: {list(extra_features)[:5]}")
+    
+    result_df = result_df[training_features]
+    
+    # Step 6: Handle any remaining nulls and ensure all numeric
+    result_df = result_df.fillna(0)
+    
+    # Final safety check: ensure all values are numeric
+    for col in result_df.columns:
+        result_df[col] = pd.to_numeric(result_df[col], errors='coerce').fillna(0)
+    
+    # Check for any invalid values
+    if result_df.isnull().any().any():
+        logging.error(f"⚠️ Still have NaN values after transformation!")
+    if (result_df == '').any().any():
+        logging.error(f"⚠️ Still have empty strings after transformation!")
+    
+    logging.info(f"✅ Transformed {len(df_raw)} rows with {len(df_raw.columns)} columns → {len(result_df.columns)} model features")
+    logging.info(f"🎯 Final feature order matches training: {list(result_df.columns)[:5]}...")
+    
+    return result_df
+
+
 async def make_predictions(
     model_id: str,
     data: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """
     Make predictions using a trained model.
+    AUTO-TRANSFORMS user data to match training schema (handles one-hot encoding automatically).
     
     Args:
         model_id: UUID of the trained model
-        data: List of dictionaries containing feature values
+        data: List of dictionaries containing RAW feature values (not one-hot encoded)
     
     Returns:
         Dictionary with predictions and metadata
@@ -470,38 +587,66 @@ async def make_predictions(
         model = load_model_for_prediction(model_id)
         
         # Convert data to DataFrame
-        df = pd.DataFrame(data)
-        logging.info(f"📊 Received {len(df)} rows for prediction")
+        df_raw = pd.DataFrame(data)
+        logging.info(f"📊 Received {len(df_raw)} rows with {len(df_raw.columns)} columns for prediction")
+        logging.info(f"📋 Input columns: {list(df_raw.columns)}")
         
-        # Get feature columns from training (exclude target column)
+        # Get feature columns from training (these are ENCODED features after feature engineering)
         training_features = model_details['dataset_info']['features']
         target_column = model_details['target_column']
         problem_type = model_details['problem_type']
         
-        # Validate columns
-        missing_cols = set(training_features) - set(df.columns)
-        if missing_cols:
-            raise ValueError(
-                f"Missing required columns: {', '.join(missing_cols)}. "
-                f"Model expects: {', '.join(training_features)}"
-            )
+        logging.info(f"🎯 Model expects {len(training_features)} features")
+        logging.info(f"🔍 Sample expected features: {training_features[:5]}")
         
-        # Select and order columns to match training
-        df = df[training_features]
+        # Detect if this is raw data (needs transformation) or already encoded data
+        # Strategy: Look for categorical column patterns in training features
+        input_cols = set(df_raw.columns)
         
-        # Handle categorical columns (same encoding as training)
-        categorical_columns = df.select_dtypes(include=['object', 'category']).columns.tolist()
-        if categorical_columns:
-            from sklearn.preprocessing import LabelEncoder
-            logging.info(f"🔤 Encoding {len(categorical_columns)} categorical columns")
-            
-            for col in categorical_columns:
-                le = LabelEncoder()
-                df[col] = df[col].fillna('missing')
-                df[col] = le.fit_transform(df[col].astype(str))
+        # Identify potential categorical base columns by finding patterns like:
+        # department_Sales, department_HR, department_IT → base: "department"
+        categorical_bases = set()
+        for feature in training_features:
+            if '_' in feature:
+                # Get potential base column (everything before last underscore)
+                parts = feature.rsplit('_', 1)
+                if len(parts) == 2:
+                    base = parts[0]
+                    # Check if this base exists in input columns (indicates raw data)
+                    if base in input_cols:
+                        categorical_bases.add(base)
+        
+        # If we found categorical base columns in input, it's raw data
+        is_raw_data = len(categorical_bases) > 0
+        
+        if categorical_bases:
+            logging.info(f"🔍 Found {len(categorical_bases)} categorical columns in input: {categorical_bases}")
+            logging.info(f"🎯 Detection: RAW data (needs encoding)")
+        else:
+            # Double-check: if most training features are missing from input, it's likely raw
+            matching = len(input_cols.intersection(set(training_features)))
+            if matching < len(training_features) * 0.7:
+                logging.warning(f"⚠️ Only {matching}/{len(training_features)} features match - assuming RAW data")
+                is_raw_data = True
+            else:
+                logging.info(f"🎯 Detection: PRE-ENCODED data (all features present)")
+        
+        if is_raw_data:
+            logging.info("🔄 Detected RAW data - will auto-transform to match training schema")
+            df_transformed = _transform_prediction_data_to_match_training(df_raw, training_features, model_details)
+        else:
+            logging.info("✅ Data appears to be pre-encoded - using as-is")
+            # Validate columns
+            missing_cols = set(training_features) - set(df_raw.columns)
+            if missing_cols:
+                raise ValueError(
+                    f"Missing required columns: {', '.join(list(missing_cols)[:10])}... "
+                    f"({len(missing_cols)} total missing)"
+                )
+            df_transformed = df_raw[training_features]
         
         # Make predictions
-        predictions = model.predict(df)
+        predictions = model.predict(df_transformed)
         logging.info(f"✅ Generated {len(predictions)} predictions")
         
         # Prepare results
@@ -509,7 +654,7 @@ async def make_predictions(
         
         # For classification, get probabilities
         if problem_type == "classification" and hasattr(model, 'predict_proba'):
-            probabilities = model.predict_proba(df)
+            probabilities = model.predict_proba(df_transformed)
             classes = model.classes_ if hasattr(model, 'classes_') else None
             
             for i, pred in enumerate(predictions):

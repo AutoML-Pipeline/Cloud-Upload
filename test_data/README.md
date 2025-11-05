@@ -1,6 +1,121 @@
 # Test Data for Prediction Feature
 
-This folder contains sample datasets for testing the model training and prediction workflow.
+# Test Data
+
+This directory contains sample datasets for testing the ML pipeline.
+
+## 📊 Available Datasets
+
+### 1. **Employee Attrition** (RECOMMENDED FOR TESTING) ⭐
+- **Training**: `employee_attrition_training.csv` (4,000 samples)
+- **Prediction**: `employee_attrition_prediction.csv` (1,000 samples)
+- **Type**: Classification (Binary)
+- **Target**: `attrition` (Yes/No)
+- **Features**: 18 (mix of numeric and categorical)
+- **Characteristics**:
+  - Large, realistic dataset
+  - Complex relationships (not linearly separable)
+  - Class imbalance (~81% No, ~19% Yes)
+  - Missing values (~2-3%)
+  - Random noise added
+- **Expected Accuracy**: 70-85% (realistic for real-world scenarios)
+- **Use Case**: Employee retention prediction
+- **Features Include**: 
+  - Demographics (age, department, job_role)
+  - Tenure (years_at_company, years_in_role)
+  - Compensation (monthly_income, salary_hike_percent, stock_option_level)
+  - Satisfaction (job_satisfaction, work_life_balance, environment_satisfaction)
+  - Performance (performance_rating, num_projects, avg_monthly_hours)
+  - Career (promotion_last_5years, training_times_last_year)
+
+### 2. **Iris Dataset** (TOY DATASET - NOT REALISTIC)
+- **Training**: `iris_training.csv`
+- **Prediction**: `iris_prediction.csv`
+- **Type**: Classification (Multi-class)
+- **Target**: `species` (setosa/versicolor/virginica)
+- **Samples**: 150 total (very small)
+- **Features**: 4 (numeric)
+- **Expected Accuracy**: 95-100% (too simple, not representative of real problems)
+- **Warning**: ⚠️ Perfect accuracy on this dataset is normal but not indicative of real-world performance
+
+### 3. **Customer Churn**
+- **Training**: `customer_churn_training.csv`
+- **Prediction**: `customer_churn_prediction.csv`
+- **Type**: Classification
+- **Note**: May be another toy dataset
+
+### 4. **House Prices**
+- **Training**: `house_prices_training.csv`
+- **Prediction**: `house_prices_prediction.csv`
+- **Type**: Regression
+- **Target**: House sale price
+
+---
+
+## 🎯 Recommended Testing Workflow
+
+### For Testing Data Leakage Fix:
+1. **Use Employee Attrition dataset** (large, realistic)
+2. Upload `employee_attrition_training.csv` to Data Ingestion
+3. Run Preprocessing (handle missing values)
+4. Run Feature Engineering (encode categorical variables)
+5. Train models with target: `attrition`
+6. **Expected Results**:
+   - Accuracy: 70-85% (realistic)
+   - No 100% accuracy (indicates proper train/test split)
+   - Warnings if accuracy ≥ 99%
+
+### For Testing Small Dataset Behavior:
+1. Use Iris dataset
+2. You should see warnings about:
+   - Small dataset (<100 samples)
+   - Small test set (<20 samples)
+   - Possible unreliable results
+
+---
+
+## 🔧 Generating New Datasets
+
+To generate the employee attrition dataset:
+```bash
+cd test_data
+python generate_employee_data.py
+```
+
+This creates:
+- `employee_attrition_training.csv` (4000 rows with target)
+- `employee_attrition_prediction.csv` (1000 rows without target)
+
+---
+
+## ⚠️ Understanding Model Performance
+
+### What's Normal:
+- **Employee Attrition**: 70-85% accuracy
+- **Real-world datasets**: 60-90% depending on complexity
+- **Imbalanced datasets**: High accuracy may just mean predicting majority class
+
+### Red Flags (Data Leakage Indicators):
+- ✅ **Fixed as of today**: Categorical encoding now done AFTER train/test split
+- 95-100% accuracy on large, complex datasets
+- Perfect separation on noisy data
+- R² > 0.99 on regression problems
+
+### Why You Previously Saw 100% Accuracy:
+1. **Data Leakage**: LabelEncoder was fitted on entire dataset before splitting
+2. **Toy Datasets**: Iris (150 samples) is too simple
+3. **Small Test Sets**: Only 20-30 test samples on Iris
+
+---
+
+## 📈 Dataset Statistics
+
+| Dataset | Samples | Features | Target Type | Complexity | Expected Accuracy |
+|---------|---------|----------|-------------|------------|-------------------|
+| Employee Attrition | 5,000 | 18 | Binary | High | 70-85% |
+| Iris | 150 | 4 | Multi-class | Very Low | 95-100% |
+| Customer Churn | ? | ? | Binary | ? | ? |
+| House Prices | ? | ? | Regression | ? | ? |
 
 ## 📊 Datasets Included
 
